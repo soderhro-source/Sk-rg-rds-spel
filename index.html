@@ -821,6 +821,7 @@ const SURPRISES=[
   {em:"🗺️",t:"Kartmästaren — peka ut båtens position på sjökortet utan GPS, max 1 M fel.",v:4},
 ];
 const ROLE_PTS=3;
+const DISH_PTS=2;
 const ROLES=[
   {k:"rorsman",em:"🧭",t:"Rorsman",sub:"Håller kursen"},
   {k:"skeppskock",em:"🍳",t:"Skeppskock",sub:"Ansvarar för maten"},
@@ -1618,6 +1619,16 @@ function renderSur(){
           :`<button class="goBtn" id="roleGo">Klar! (+${ROLE_PTS} p)</button>`}
       </div>`;
   }
+  const dishRef="dishes:"+today();
+  const dishDone=me&&hasLog(me.id,"bonus",dishRef);
+  const dishHtml=`<div class="termgrp" style="margin-top:18px">Husgeråd</div>
+    <div class="surCard">
+      <div class="em">🍽️</div>
+      <div class="pts">DISKAT IDAG · +${DISH_PTS} P</div>
+      <div class="big">Ta hand om diskbaljan efter en måltid — vem som helst ombord kan ta den, en gång per dag.</div>
+      ${dishDone?`<div class="claimed">Klart för idag! ✓</div>`
+        :`<button class="goBtn" id="dishGo">Diskat! (+${DISH_PTS} p)</button>`}
+    </div>`;
   const b=myBoat();
   let capHtml="";
   if(isCaptain()&&b){
@@ -1633,9 +1644,11 @@ function renderSur(){
       :`<button class="goBtn" id="surGo">Vi klarade den — jag loggar! (+${s.v} p)</button>`}
     </div>
     <p class="soundIntro" style="margin-top:14px">Ny överraskning varje dag. Först till kvarn — bara en ombord kan ta poängen. Gör upp ärligt vem som förtjänar den!</p>
-    ${roleHtml}${capHtml}`;
+    ${dishHtml}${roleHtml}${capHtml}`;
   const sb=document.getElementById("surGo");
   if(sb)sb.onclick=()=>{addLog("surprise",ref,s.v,s.t);showToast("Överraskning tagen! +"+s.v+" p 🎁");render();};
+  const db=document.getElementById("dishGo");
+  if(db)db.onclick=()=>{addLog("bonus",dishRef,DISH_PTS,"Diskat");showToast("Diskat! +"+DISH_PTS+" p 🍽️");render();};
   const rb=document.getElementById("roleGo");
   if(rb)rb.onclick=()=>{const task=roleTaskFor(role.k);addLog("bonus","role:"+role.k+":"+today(),ROLE_PTS,role.t+": "+task);showToast("Rolluppgift klar! +"+ROLE_PTS+" p "+role.em);render();};
   if(isCaptain()&&b){
