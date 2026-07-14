@@ -735,32 +735,32 @@ const DEFAULT_ROUTE=["Barösund","Hangö","Airisto","Själö","Brännskär","Kor
 let ROUTE=[...DEFAULT_ROUTE];
 let TILE_SHORT=["HELSINGFORS",...ROUTE];
 const ALT_HARBORS=[
-  {n:"Nagu gästhamn",t:"Servicehamn / by",fee:"ca 40 €/natt",svc:"⚡ el · 💧 vatten · 🚿 dusch · 🧖 bastu · 🍽️ restaurangstråk · 🛒 butik · ⛽ bränsle · 🚽 septi",note:"Skärgårdens livligaste knutpunkt — allt finns, men fullt i juli. Kom före kl 15."},
-  {n:"Korpo Verkan",t:"Gästhamn",fee:"ca 30 €/natt",svc:"⚡ el · 🚿 dusch · 🧖 bastu · 🍽️ restaurang/bryggeri",note:"Lugnare alternativ till Nagu, nära Korpo kyrkby. Bra väderskydd."},
-  {n:"Pargas Kalkholmen",t:"Gästhamn / stad",fee:"ca 30 €/natt",svc:"⚡ el · 💧 vatten · 🚿 dusch · 🛒 stadens service nära",note:"Stadshamn — bra för storhandling och om något behöver repareras."},
-  {n:"Utö",t:"Yttersta utpost",fee:"ca 30 €/natt",svc:"🚿 dusch · 🍽️ sommarrestaurang · 🛒 liten butik · 💡 fyrsamhälle",note:"Öppet hav sista biten — bara i stabilt väder. Magisk fyrmiljö."},
-  {n:"Jurmo",t:"Karg utö",fee:"ca 25 €/natt",svc:"🚻 enkelt · ☕ sommarcafé · unik alvarsnatur",note:"Som ingen annan ö i Östersjön. Trång brygga, kom tidigt. Utsatt i sydliga vindar."},
-  {n:"Berghamn (Houtskär)",t:"Gästhamn",fee:"ca 25 €/natt",svc:"🧖 bastu · ☕ café · 🚻 wc",note:"Stilla bykänsla väster om Korpo — bra skydd i västliga vindar."},
+  {n:"Nagu gästhamn",t:"Servicehamn / by",fee:"ca 40 €/natt",svc:"⚡ el · 💧 vatten · 🚿 dusch · 🧖 bastu · 🍽️ restaurangstråk · 🛒 butik · ⛽ bränsle · 🚽 septi",note:"Skärgårdens livligaste knutpunkt — allt finns, men fullt i juli. Kom före kl 15.",lat:60.1950,lng:21.9117},
+  {n:"Korpo Verkan",t:"Gästhamn",fee:"ca 30 €/natt",svc:"⚡ el · 🚿 dusch · 🧖 bastu · 🍽️ restaurang/bryggeri",note:"Lugnare alternativ till Nagu, nära Korpo kyrkby. Bra väderskydd.",lat:60.1750,lng:21.5600},
+  {n:"Pargas Kalkholmen",t:"Gästhamn / stad",fee:"ca 30 €/natt",svc:"⚡ el · 💧 vatten · 🚿 dusch · 🛒 stadens service nära",note:"Stadshamn — bra för storhandling och om något behöver repareras.",lat:60.2989,lng:22.2967},
+  {n:"Utö",t:"Yttersta utpost",fee:"ca 30 €/natt",svc:"🚿 dusch · 🍽️ sommarrestaurang · 🛒 liten butik · 💡 fyrsamhälle",note:"Öppet hav sista biten — bara i stabilt väder. Magisk fyrmiljö.",lat:59.7817,lng:21.3717},
+  {n:"Jurmo",t:"Karg utö",fee:"ca 25 €/natt",svc:"🚻 enkelt · ☕ sommarcafé · unik alvarsnatur",note:"Som ingen annan ö i Östersjön. Trång brygga, kom tidigt. Utsatt i sydliga vindar.",lat:59.8267,lng:21.5867},
+  {n:"Berghamn (Houtskär)",t:"Gästhamn",fee:"ca 25 €/natt",svc:"🧖 bastu · ☕ café · 🚻 wc",note:"Stilla bykänsla väster om Korpo — bra skydd i västliga vindar.",lat:60.1595,lng:21.3070},
   {n:"Kirjais",t:"Brygga / handel",fee:"ca 25 €/natt",svc:"⚡ el · 🛒 välsorterad sommarbutik",note:"Praktiskt proviantstopp söder om Nagu, i skyddade inomskärsleden."},
-  {n:"Vänö",t:"Naturhamn / by",fee:"ca 20 €/natt",svc:"☕ café · 🧖 bastu · 🚻 torrdass",note:"Liten idyll i yttre skärgården mellan Hitis och Örö. Skyddad liten hamnbassäng."},
-  {n:"Rosala",t:"Brygga / by",fee:"ca 25 €/natt",svc:"🛒 butik · 🏛️ vikingacentrum · ⚡ el",note:"Skyddat läge i Hitisarkipelagen — kul kulturstopp om vädret tvingar in er."},
+  {n:"Vänö",t:"Naturhamn / by",fee:"ca 20 €/natt",svc:"☕ café · 🧖 bastu · 🚻 torrdass",note:"Liten idyll i yttre skärgården mellan Hitis och Örö. Skyddad liten hamnbassäng.",lat:59.8721,lng:22.1944},
+  {n:"Rosala",t:"Brygga / by",fee:"ca 25 €/natt",svc:"🛒 butik · 🏛️ vikingacentrum · ⚡ el",note:"Skyddat läge i Hitisarkipelagen — kul kulturstopp om vädret tvingar in er.",lat:59.8873,lng:22.4151},
 ];
 const EXTRA_HARBORS=[
-  {n:"Porkkala (Kirkkonummi)",t:"Gästhamn",fee:"ca 25 €/natt",svc:"⚡ el · 🚿 dusch · 🍽️ sommarrestaurang · ⛽ bränsle",note:"Klassiskt första stopp väster om Helsingfors — bra läge för första natten efter avfärd från Katajanokka."},
-  {n:"Ekenäs gästhamn",t:"Stadshamn",fee:"25 €/natt",svc:"⚡ el · 💧 vatten · 🚿 dusch · 🧖 bastu · 🛒 stad · 🚽 septi",note:"Trästaden Ekenäs med full service — bra väderalternativ innan Hangö udd rundas."},
-  {n:"Bromarv",t:"Gästhamn / by",fee:"ca 20 €/natt",svc:"⚡ el · 🚿 dusch · 🛒 bybutik · ☕ café",note:"Lugn liten hamn mellan Hangö och Kimitoön — genväg in mot Dalsbruk-hållet."},
-  {n:"Näsby (Houtskär)",t:"Gästhamn",fee:"20 €/natt (<34 fot — allt ingår!)",svc:"⚡💧 el+vatten ingår · 🚿🧖 dusch+bastu ingår · 🚽 septi · 🍽️ café",note:"Kap för Sun-Day (33 fot): fast pris med allt inkluderat. Houtskärs huvudby."},
-  {n:"Norrby (Iniö)",t:"Gästhamn",fee:"27 €/natt",svc:"⚡ el · 🚿 dusch · 🧖 bastu · 🛒 butik · 🍽️ restaurang",note:"Nordligaste skärgårdskommunen — vacker omväg om ni vill norrut från Korpo."},
-  {n:"Röölä (Rimito)",t:"Bybrygga",fee:"ca 20 €/natt",svc:"⛽ bränsle · 🚽 septi · ☕ sommarcafé · 🐟 rökeri",note:"Gammal fiskeby vid Airisto — rökt fisk och genuin stämning."},
-  {n:"Nådendal (Naantali)",t:"Stadshamn",fee:"ca 40 €/natt",svc:"⚡💧🚿🧖 full service · 🍽️ restaurangstråk · 🛒 stad",note:"Muminland och gamla stan — turistigt men charmigt om rutten går norrut."},
-  {n:"Runsala (Åbo)",t:"Marina",fee:"ca 35 €/natt",svc:"⚡💧🚿🧖 · ⛽ bränsle · 🚽 septi · 🍽️ restaurang",note:"Åbos gröna ö — närmast staden ni kommer med egen köl."},
-  {n:"Västanfjärd",t:"Gästbrygga",fee:"ca 20 €/natt",svc:"⚡ el · 🧖 bastu · ☕ café",note:"Stilla vik på Kimitoöns sydsida, nära Dalsbruk — bra reservnatt."},
-  {n:"Tunnhamn",t:"Naturhamn",fee:"gratis / frivillig",svc:"⚓ ankring · 🚻 torrdass · orörd natur",note:"Klassisk naturhamn i yttre Hitisskärgården — bara ni och sälarna."},
-  {n:"Bodö",t:"Gästhamn / ö",fee:"ca 25 €/natt",svc:"🍽️ bistrocafé · 🧖 flytande bastu­flotte! · 🛒 liten puoti · 🥾 naturstigar",note:"F.d. sjöbevakningsstation mitt i Skärgårdshavet, nära Kirjais. Skyddad hamn och unik flottbastu — mycket er stil."},
-  {n:"Tackork Gård & Marina",t:"Marina / gård",fee:"ca 30 €/natt",svc:"⚡ el · 🚿 dusch · 🧖 saunavärld · 🍽️ restaurang med livemusik",note:"Vid Nagu ringväg — terrassdans på sommarkvällar och rejäl saunavärld."},
+  {n:"Porkkala (Kirkkonummi)",t:"Gästhamn",fee:"ca 25 €/natt",svc:"⚡ el · 🚿 dusch · 🍽️ sommarrestaurang · ⛽ bränsle",note:"Klassiskt första stopp väster om Helsingfors — bra läge för första natten efter avfärd från Katajanokka.",lat:59.9833,lng:24.4250},
+  {n:"Ekenäs gästhamn",t:"Stadshamn",fee:"25 €/natt",svc:"⚡ el · 💧 vatten · 🚿 dusch · 🧖 bastu · 🛒 stad · 🚽 septi",note:"Trästaden Ekenäs med full service — bra väderalternativ innan Hangö udd rundas.",lat:59.9783,lng:23.4283},
+  {n:"Bromarv",t:"Gästhamn / by",fee:"ca 20 €/natt",svc:"⚡ el · 🚿 dusch · 🛒 bybutik · ☕ café",note:"Lugn liten hamn mellan Hangö och Kimitoön — genväg in mot Dalsbruk-hållet.",lat:59.9883,lng:23.0300},
+  {n:"Näsby (Houtskär)",t:"Gästhamn",fee:"20 €/natt (<34 fot — allt ingår!)",svc:"⚡💧 el+vatten ingår · 🚿🧖 dusch+bastu ingår · 🚽 septi · 🍽️ café",note:"Kap för Sun-Day (33 fot): fast pris med allt inkluderat. Houtskärs huvudby.",lat:60.2250,lng:21.3667},
+  {n:"Norrby (Iniö)",t:"Gästhamn",fee:"27 €/natt",svc:"⚡ el · 🚿 dusch · 🧖 bastu · 🛒 butik · 🍽️ restaurang",note:"Nordligaste skärgårdskommunen — vacker omväg om ni vill norrut från Korpo.",lat:60.3967,lng:21.3900},
+  {n:"Röölä (Rimito)",t:"Bybrygga",fee:"ca 20 €/natt",svc:"⛽ bränsle · 🚽 septi · ☕ sommarcafé · 🐟 rökeri",note:"Gammal fiskeby vid Airisto — rökt fisk och genuin stämning.",lat:60.3450,lng:21.9550},
+  {n:"Nådendal (Naantali)",t:"Stadshamn",fee:"ca 40 €/natt",svc:"⚡💧🚿🧖 full service · 🍽️ restaurangstråk · 🛒 stad",note:"Muminland och gamla stan — turistigt men charmigt om rutten går norrut.",lat:60.4700,lng:22.0117},
+  {n:"Runsala (Åbo)",t:"Marina",fee:"ca 35 €/natt",svc:"⚡💧🚿🧖 · ⛽ bränsle · 🚽 septi · 🍽️ restaurang",note:"Åbos gröna ö — närmast staden ni kommer med egen köl.",lat:60.4250,lng:22.1067},
+  {n:"Västanfjärd",t:"Gästbrygga",fee:"ca 20 €/natt",svc:"⚡ el · 🧖 bastu · ☕ café",note:"Stilla vik på Kimitoöns sydsida, nära Dalsbruk — bra reservnatt.",lat:59.9200,lng:22.4083},
+  {n:"Tunnhamn",t:"Naturhamn",fee:"gratis / frivillig",svc:"⚓ ankring · 🚻 torrdass · orörd natur",note:"Klassisk naturhamn i yttre Hitisskärgården — bara ni och sälarna.",lat:59.9300,lng:22.1833},
+  {n:"Bodö",t:"Gästhamn / ö",fee:"ca 25 €/natt",svc:"🍽️ bistrocafé · 🧖 flytande bastu­flotte! · 🛒 liten puoti · 🥾 naturstigar",note:"F.d. sjöbevakningsstation mitt i Skärgårdshavet, nära Kirjais. Skyddad hamn och unik flottbastu — mycket er stil.",lat:59.9083,lng:21.7500},
+  {n:"Tackork Gård & Marina",t:"Marina / gård",fee:"ca 30 €/natt",svc:"⚡ el · 🚿 dusch · 🧖 saunavärld · 🍽️ restaurang med livemusik",note:"Vid Nagu ringväg — terrassdans på sommarkvällar och rejäl saunavärld.",lat:60.1760,lng:21.7463},
   {n:"Villa Wolax (Kuusistö)",t:"Gästhamn / boutiquehotell",fee:"ca 30 €/natt",svc:"🍽️ restaurang · 🏖️ strandbar · 🧖 bastu · 🏄 SUP-uthyrning",note:"Nära Kaarina på vägen mot Airisto — strandbar och hotellmiddag om ni vill lyxa till en kväll."},
-  {n:"Åbo gästhamn (Aura å)",t:"Stadshamn",fee:"ca 35 €/natt",svc:"⚡💧🚿 · ☕ NOOA Café · 🛒 mitt i stan · restaurangstråk längs ån",note:"Segla rakt in i Åbos hjärta längs Aura å — närmast urban skärgård man kan komma."},
-  {n:"Vepsä",t:"Utflyktsö",fee:"ca 15 €/natt",svc:"🏖️ badstrand · ☕ kiosk/café · 🧖 hyrbastu · 🛶 kanoter",note:"Åbo stads friluftsö mitt på Airisto — gammalt smugglarnäste, numera familjefavorit."},
+  {n:"Åbo gästhamn (Aura å)",t:"Stadshamn",fee:"ca 35 €/natt",svc:"⚡💧🚿 · ☕ NOOA Café · 🛒 mitt i stan · restaurangstråk längs ån",note:"Segla rakt in i Åbos hjärta längs Aura å — närmast urban skärgård man kan komma.",lat:60.4400,lng:22.2467},
+  {n:"Vepsä",t:"Utflyktsö",fee:"ca 15 €/natt",svc:"🏖️ badstrand · ☕ kiosk/café · 🧖 hyrbastu · 🛶 kanoter",note:"Åbo stads friluftsö mitt på Airisto — gammalt smugglarnäste, numera familjefavorit.",lat:60.3750,lng:22.0708},
 ];
 const HARBOR_CH={
   "Barösund":{t:"Första natten",d:"Måndagsnattens hamn för Martin & Patrik. Säkra förtöjningen för natten, logga positionen i skeppschatten och fira första etappen med solnedgångsfika."},
@@ -1032,15 +1032,18 @@ function renderPlanNext(idx){
   document.getElementById("planSwapBtn").onclick=()=>{
     const listEl=document.getElementById("planSwapList");
     if(listEl.innerHTML){listEl.innerHTML="";return;}
-    const opts=[...ALT_HARBORS,...EXTRA_HARBORS];
-    listEl.innerHTML=`<p class="soundIntro" style="margin:8px 0">Avstånd okänt för dessa (ej på huvudrutten) — kolla sjökortet. Tryck för att byta ut ${name} mot:</p>`
-      +opts.map((p,i)=>`<div class="cpCard" data-swap="${i}" style="cursor:pointer">
-        <div class="t">${p.n}${p.t?" · "+p.t:""}</div>
-        <div class="d">${p.fee||""}${p.svc?" · "+p.svc:""}</div>
+    const opts=[...ALT_HARBORS,...EXTRA_HARBORS]
+      .map(p=>({p,dist:p.lat!=null?distEtaTo(p.n,0):null}))
+      .sort((a,b)=>(a.dist?a.dist.dist:999)-(b.dist?b.dist.dist:999));
+    listEl.innerHTML=`<p class="soundIntro" style="margin:8px 0">Tryck för att byta ut ${name} mot en annan hamn (närmast överst, om GPS-position finns):</p>`
+      +opts.map(({p,dist},i)=>`<div class="cpCard" data-swap="${i}" style="cursor:pointer">
+        <div class="t">${p.n}${p.t?" · "+p.t:""}${dist?` <span style="float:right;font-weight:400;color:#6c7c84;font-size:11.5px">${dist.dist.toFixed(1)} M</span>`:""}</div>
+        <div class="d">${p.fee||""}${p.svc?" · "+p.svc:""}${!dist?" · avstånd okänt (kolla sjökortet)":""}</div>
         ${p.note?`<div class="d" style="margin-top:3px;font-style:italic">${p.note}</div>`:""}
       </div>`).join("");
+    const orderedOpts=opts.map(o=>o.p);
     listEl.querySelectorAll("[data-swap]").forEach(cardEl=>cardEl.onclick=async()=>{
-      const p=opts[+cardEl.dataset.swap];
+      const p=orderedOpts[+cardEl.dataset.swap];
       const r=[...ROUTE];r[idx]=p.n;setRoute(r);
       await saveRoute();
       showToast(name+" ersatt med "+p.n+"! 🔀");
@@ -2236,7 +2239,8 @@ function refreshFix(cb){
 function harborCoords(name){
   if(name==="HELSINGFORS")return[60.1675,24.9686];
   const n=name.toLowerCase();
-  const p=PLACES.find(x=>x.n.toLowerCase().includes(n));
+  const all=[...PLACES,...ALT_HARBORS,...EXTRA_HARBORS];
+  const p=all.find(x=>x.lat!=null&&x.n.toLowerCase().includes(n));
   return p?[p.lat,p.lng]:null;
 }
 function nearHarbor(name){
