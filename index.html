@@ -157,7 +157,9 @@
   /* ---- Login ---- */
   .crewGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
   .sailorBtn{background:var(--sand);color:var(--ink);border:none;border-radius:14px;padding:16px 12px;
-    font-family:inherit;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.18);}
+    font-family:inherit;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.18);
+    transition:transform .1s, box-shadow .1s;}
+  .sailorBtn:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.18);}
   .sailorBtn .em{font-size:28px;display:block;margin-bottom:6px;}
   .sailorBtn.new{background:rgba(255,255,255,.07);color:#cfe0e8;border:1px dashed rgba(255,255,255,.3);box-shadow:none;}
   .pinBox{background:var(--sand);color:var(--ink);border-radius:14px;padding:16px;margin-top:14px;}
@@ -169,7 +171,8 @@
     text-transform:uppercase;color:#6c7c84;display:block;margin-bottom:5px;font-weight:700;}
   .field input{width:100%;font-size:16px;padding:10px;border:2px solid #d9d2c4;border-radius:10px;font-family:inherit;}
   .emojiRow{display:flex;gap:6px;flex-wrap:wrap;}
-  .emojiRow button{font-size:22px;background:#fff;border:2px solid #d9d2c4;border-radius:10px;padding:6px 9px;cursor:pointer;}
+  .emojiRow button{font-size:22px;background:#fff;border:2px solid #d9d2c4;border-radius:10px;padding:6px 9px;cursor:pointer;transition:transform .1s;}
+  .emojiRow button:active{transform:scale(.88);}
   .emojiRow button.sel{border-color:var(--buoy);background:rgba(216,97,46,.12);}
   .goBtn{width:100%;font-family:"Helvetica Neue",Arial,sans-serif;font-size:14px;font-weight:700;
     padding:13px;border-radius:11px;border:none;cursor:pointer;background:var(--buoy);color:#fff;margin-top:6px;}
@@ -193,9 +196,10 @@
   .lbRow .nm{font-weight:600;font-size:15px;}
   .lbRow .at{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10.5px;color:#6c7c84;}
   .lbRow .p{font-family:"Helvetica Neue",Arial,sans-serif;font-weight:700;color:var(--sea);font-size:16px;white-space:nowrap;}
-  .cpCard{background:var(--sand);color:var(--ink);border-radius:14px;padding:13px 15px;margin-bottom:9px;}
+  .cpCard{background:var(--sand);color:var(--ink);border-radius:14px;padding:13px 15px;margin-bottom:9px;transition:transform .1s;}
   .cpCard.locked{opacity:.5;}
   .cpCard.done{background:var(--green);color:#eef6f0;}
+  .cpCard.tapCard:active{transform:scale(.97);}
   .cpCard .t{font-weight:600;font-size:15px;overflow-wrap:anywhere;}
   .cpCard .t .pnum{vertical-align:1px;}
   .cpCard .d{font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;color:#5a6b73;margin-top:5px;line-height:1.4;}
@@ -215,13 +219,16 @@
   /* ---- Arcade ---- */
   .arcMenu{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
   .arcBtn{background:var(--sand);color:var(--ink);border:none;border-radius:14px;padding:16px 10px;
-    font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.18);}
+    font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.18);
+    transition:transform .1s, box-shadow .1s;}
+  .arcBtn:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.18);}
   .arcBtn .em{font-size:26px;display:block;margin-bottom:4px;}
   .arcBtn.active{border:2px solid var(--buoy);}
   #tet{display:block;margin:0 auto;background:#0e2b3d;border-radius:8px;touch-action:none;}
   .padRow{display:flex;gap:8px;justify-content:center;margin-top:12px;}
   .padRow button{font-size:20px;background:var(--sand);border:none;border-radius:10px;
-    padding:10px 18px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.18);}
+    padding:10px 18px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.18);transition:transform .08s, box-shadow .08s;}
+  .padRow button:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.18);}
   .arcScore{text-align:center;font-family:"Helvetica Neue",Arial,sans-serif;font-size:13px;color:#a9c6d4;margin:10px 0 4px;}
   .arcScore b{color:var(--buoy);font-size:16px;}
   .memGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
@@ -327,8 +334,11 @@
     font-size:9.5px;font-weight:800;letter-spacing:.02em;color:#7fa3b4;transition:.15s;}
   .tab .ic{font-size:22px;line-height:1;filter:grayscale(.35) brightness(.9);transition:.15s;}
   .tab.active{background:linear-gradient(180deg,#ff8a4d,#d8612e 60%,#b34a1f);color:#fff;
-    border:none;box-shadow:0 3px 0 #7d3312, inset 0 2px 0 rgba(255,255,255,.3);transform:translateY(-5px);}
-  .tab.active .ic{filter:none;transform:scale(1.12);}
+    border:none;box-shadow:0 3px 0 #7d3312, inset 0 2px 0 rgba(255,255,255,.3);transform:translateY(-5px);
+    animation:tabHop .3s ease;}
+  .tab.active .ic{filter:none;transform:scale(1.12);animation:tabIcPop .35s ease;}
+  @keyframes tabHop{0%{transform:translateY(0)}40%{transform:translateY(-9px)}100%{transform:translateY(-5px)}}
+  @keyframes tabIcPop{0%{transform:scale(.7) rotate(-8deg)}55%{transform:scale(1.25) rotate(4deg)}100%{transform:scale(1.12) rotate(0)}}
   .moreSheet{position:fixed;left:10px;right:10px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:29;
     background:var(--sand);border-radius:18px;padding:8px;border:2.5px solid rgba(11,36,54,.18);
     box-shadow:0 14px 44px rgba(0,0,0,.55);animation:viewIn .18s ease;}
@@ -1036,7 +1046,7 @@ function renderPlanNext(idx){
       .map(p=>({p,dist:p.lat!=null?distEtaTo(p.n,0):null}))
       .sort((a,b)=>(a.dist?a.dist.dist:999)-(b.dist?b.dist.dist:999));
     listEl.innerHTML=`<p class="soundIntro" style="margin:8px 0">Tryck för att byta ut ${name} mot en annan hamn (närmast överst, om GPS-position finns):</p>`
-      +opts.map(({p,dist},i)=>`<div class="cpCard" data-swap="${i}" style="cursor:pointer">
+      +opts.map(({p,dist},i)=>`<div class="cpCard tapCard" data-swap="${i}" style="cursor:pointer">
         <div class="t">${p.n}${p.t?" · "+p.t:""}${dist?` <span style="float:right;font-weight:400;color:#6c7c84;font-size:11.5px">${dist.dist.toFixed(1)} M</span>`:""}</div>
         <div class="d">${p.fee||""}${p.svc?" · "+p.svc:""}${!dist?" · avstånd okänt (kolla sjökortet)":""}</div>
         ${p.note?`<div class="d" style="margin-top:3px;font-style:italic">${p.note}</div>`:""}
@@ -1301,7 +1311,7 @@ function buildTabs(){
     });
   }else{sheet.style.display="none";sheet.innerHTML="";}
 }
-let _lastPts=-1;
+let _lastPts=-1,_lastCrewPts=-1;
 function updateTop(){
   const p=me?ptsFor(me.id):0;
   const el=document.getElementById("hudPts");
@@ -1311,7 +1321,10 @@ function updateTop(){
     confetti(40);showToast("⚓ Ny hamn: "+TILE_SHORT[tileFor(p,LEG)]+"! Din pjäs seglar vidare.");
   }
   _lastPts=p;
-  document.getElementById("hudCrew").textContent="⛵ "+crewPts();
+  const cp=crewPts(),crewEl=document.getElementById("hudCrew");
+  crewEl.textContent="⛵ "+cp;
+  if(_lastCrewPts>=0&&cp>_lastCrewPts){crewEl.classList.remove("pulse");void crewEl.offsetWidth;crewEl.classList.add("pulse");}
+  _lastCrewPts=cp;
   if(me)document.getElementById("hudMe").innerHTML=
     `<div class="hudAva">${me.emoji}</div><div class="hudName">${me.name}<small>${rankFor(p)}${isCaptain()?" · KAPTEN 🧑‍✈️":""}</small></div>`;
   const t=tileFor(p,LEG);
