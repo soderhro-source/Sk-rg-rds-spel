@@ -788,6 +788,7 @@ function setRoute(r){
 let SETTINGS={captain:"Martin"};
 function isCaptain(s){const who=s||me;
   return !!(who&&who.name&&who.name.trim().toLowerCase()===String(SETTINGS.captain||"").trim().toLowerCase());}
+function canPlan(){return isCaptain()||!!(myRole()&&myRole().k==="navigator");}
 const CP_PTS=5;
 const KNOTS=[
   {n:"Pålstek",en:"Bowline",fi:"Paalusolmu",d:"Kungen av knopar — en fast ögla som aldrig glider och alltid går att öppna. Förtöjning, säkerhet.",v:3,url:"https://www.animatedknots.com/bowline-knot"},
@@ -972,26 +973,80 @@ async function claimCaptain(){
   }catch(e){showToast("Kunde inte utse kapten — kolla nätet");}
 }
 function routeEditor(){
+  if(!canPlan())return;
   const box=document.getElementById("introBox");
+  const idx=nextStopIdx();
   const rows=ROUTE.slice(0,13).map((n,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(11,36,54,.08)">
     <span class="pnum">${i+1}</span><span style="flex:1;font-weight:600;font-size:14px">${n}</span>
     <button class="cpBtn" data-up="${i}" style="padding:6px 12px">↑</button>
     <button class="cpBtn" data-dn="${i}" style="padding:6px 12px">↓</button></div>`).join("");
-  box.innerHTML=`<div class="introWrap"><div class="introCard" style="text-align:left;max-height:82vh;overflow-y:auto">
-    <h2 style="text-align:center;margin-top:0">🧑‍✈️ Kaptenens ruttordning</h2>
-    <p style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#4a5a62;margin-bottom:10px">Ändra ordningen med pilarna. Nya rutten synkas direkt till hela besättningen och spelplanen ritas om. Avklarade hamnutmaningar följer med sina hamnar.</p>
+  box.innerHTML=`<div class="introWrap"><div class="introCard" style="text-align:left;max-height:86vh;overflow-y:auto">
+    <h2 style="text-align:center;margin-top:0">🧭 Planeringsläge</h2>
+    <p style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#4a5a62;margin-bottom:10px">För kapten och navigatör — väder, avstånd till nästa hamn, byt ut eller ändra ordning. Ändringar synkas direkt till hela besättningen.</p>
+    <div class="termgrp">Vindprognos</div>
+    <div id="planWind" class="soundIntro">Hämtar vindprognos…</div>
+    <div class="termgrp" style="margin-top:14px">Nästa hamn</div>
+    <div id="planNext"></div>
+    <div class="termgrp" style="margin-top:16px">Ruttordning (pilarna flyttar hamnen)</div>
     ${rows}
     <div style="display:flex;align-items:center;gap:8px;padding:8px 0">
       <span class="pnum">14</span><span style="flex:1;font-weight:600;font-size:14px">${ROUTE[13]}</span>
       <span style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#6c7c84;font-weight:700">🔒 MÅL</span></div>
     <button class="goBtn" id="reSave" style="margin-top:12px">Spara ny rutt ⚓</button>
-    <button class="introSkip" id="reCancel">Avbryt</button></div></div>`;
+    <button class="introSkip" id="reCancel">Stäng</button></div></div>`;
   box.querySelectorAll("[data-up]").forEach(b=>b.onclick=()=>{
     const i=+b.dataset.up;if(i>0){const r=[...ROUTE];[r[i-1],r[i]]=[r[i],r[i-1]];setRoute(r);routeEditor();}});
   box.querySelectorAll("[data-dn]").forEach(b=>b.onclick=()=>{
     const i=+b.dataset.dn;if(i<12){const r=[...ROUTE];[r[i+1],r[i]]=[r[i],r[i+1]];setRoute(r);routeEditor();}});
   document.getElementById("reSave").onclick=async()=>{await saveRoute();box.innerHTML="";render();};
   document.getElementById("reCancel").onclick=async()=>{await loadSettings();box.innerHTML="";render();};
+  renderPlanNext(idx);
+  const nextName=idx<14?ROUTE[Math.min(idx,13)]:null;
+  const windTarget=lastFix?[lastFix.lat,lastFix.lng]:(harborCoords(nextName)||[59.95,22.4]);
+  windForecastAt(windTarget[0],windTarget[1]).then(wf=>{
+    const wEl=document.getElementById("planWind");if(!wEl)return;
+    if(!wf){wEl.textContent="Kunde inte hämta vindprognos — kolla nätet.";return;}
+    wEl.innerHTML=wf.filter((_,i)=>i%3===0).slice(0,5).map(h=>{
+      const hh=new Date(h.t).toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit"});
+      return `<div class="repRow"><span>${hh}</span><b>${Math.round(h.s)} m/s ${windCompass(h.d)} · byar ${Math.round(h.g)}</b></div>`;
+    }).join("");
+  });
+}
+function renderPlanNext(idx){
+  const el=document.getElementById("planNext");if(!el)return;
+  if(idx>=14){el.innerHTML='<p class="soundIntro">🏁 Ni har redan nått målet — inget mer att planera!</p>';return;}
+  if(idx===13){el.innerHTML='<p class="soundIntro">Nästa (och sista) hamn är mål-hamnen <b>'+ROUTE[13]+'</b> — låst, går inte att byta ut.</p>';return;}
+  const name=ROUTE[idx];
+  el.innerHTML=`<div class="cpCard">
+    <div class="t"><span class="pnum">➡️</span>${name}</div>
+    <div class="d" id="planEtaLine">${planEtaText(name,5)}</div>
+    <div style="display:flex;align-items:center;gap:6px;margin-top:6px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#6c7c84">
+      Antagen fart: <input id="planSpeed" type="number" min="1" step="0.5" value="5" style="width:56px;padding:5px;border-radius:6px;border:1px solid #d9d2c4;text-align:right"> kn</div>
+    <button class="cpBtn" id="planSwapBtn" style="margin-top:10px">🔀 Byt ut mot en annan hamn</button>
+    <div id="planSwapList"></div>
+  </div>`;
+  document.getElementById("planSpeed").oninput=e=>{
+    const v=parseFloat(e.target.value)||0;
+    document.getElementById("planEtaLine").textContent=planEtaText(name,v);
+  };
+  document.getElementById("planSwapBtn").onclick=()=>{
+    const listEl=document.getElementById("planSwapList");
+    if(listEl.innerHTML){listEl.innerHTML="";return;}
+    const opts=[...ALT_HARBORS,...EXTRA_HARBORS];
+    listEl.innerHTML=`<p class="soundIntro" style="margin:8px 0">Avstånd okänt för dessa (ej på huvudrutten) — kolla sjökortet. Tryck för att byta ut ${name} mot:</p>`
+      +opts.map((p,i)=>`<div class="cpCard" data-swap="${i}" style="cursor:pointer">
+        <div class="t">${p.n}${p.t?" · "+p.t:""}</div>
+        <div class="d">${p.fee||""}${p.svc?" · "+p.svc:""}</div>
+        ${p.note?`<div class="d" style="margin-top:3px;font-style:italic">${p.note}</div>`:""}
+      </div>`).join("");
+    listEl.querySelectorAll("[data-swap]").forEach(cardEl=>cardEl.onclick=async()=>{
+      const p=opts[+cardEl.dataset.swap];
+      const r=[...ROUTE];r[idx]=p.n;setRoute(r);
+      await saveRoute();
+      showToast(name+" ersatt med "+p.n+"! 🔀");
+      routeEditor();
+    });
+  };
 }
 function allLogs(){
   const del=new Set(queue.filter(q=>q.op==="delete").map(q=>q.client_id));
@@ -1467,9 +1522,9 @@ function renderBoard(){
     ${otherBoats?`<div class="termgrp" style="margin:10px 0 4px;font-size:10px">Andra båtar i flottiljen</div>${otherBoats}`:""}`;
   document.getElementById("boardMap").innerHTML=boardSVG()
     +`<div class="cap">Alla poäng flyttar din pjäs — ${LEG} p per etapp. ${b?b.name:"Besättningens"} skepp ⛵ seglar på summan av er besättnings poäng.</div>`
-    +(isCaptain()?`<button class="cpBtn" id="routeEd" style="display:block;margin:8px auto 4px">🧑‍✈️ Ändra ruttordning</button>`
+    +(canPlan()?`<button class="cpBtn" id="routeEd" style="display:block;margin:8px auto 4px">🧭 Planeringsläge</button>`
       :(b&&!b.captain?`<button class="cpBtn" id="claimCapt" style="display:block;margin:8px auto 4px">🧑‍✈️ Bli kapten på ${b.name}</button>`:""));
-  if(isCaptain()){const rb=document.getElementById("routeEd");if(rb)rb.onclick=routeEditor;}
+  if(canPlan()){const rb=document.getElementById("routeEd");if(rb)rb.onclick=routeEditor;}
   else{const cb=document.getElementById("claimCapt");if(cb)cb.onclick=claimCaptain;}
   const meds=["🥇","🥈","🥉"];
   const lb=crew.map(s=>({s,p:ptsFor(s.id)})).sort((a,b)=>b.p-a.p);
@@ -2188,6 +2243,31 @@ function nearHarbor(name){
   if(!lastFix||Date.now()-lastFix.t>15*60000)return false;
   const c=harborCoords(name);if(!c)return false;
   return haversine(lastFix.lat,lastFix.lng,c[0],c[1])<=1.5;
+}
+// ================= PLANERINGSLÄGE =================
+function nextStopIdx(){
+  const crew=mySailors(),n=Math.max(1,crew.length);
+  const pts=crew.reduce((s,x)=>s+ptsFor(x.id),0);
+  return tileFor(pts,LEG*n);
+}
+function distEtaTo(name,speedKn){
+  const c=harborCoords(name);
+  if(!c||!lastFix)return null;
+  const dist=haversine(lastFix.lat,lastFix.lng,c[0],c[1])/1.852;
+  return{dist,hrs:speedKn>0?dist/speedKn:null};
+}
+function planEtaText(name,speedKn){
+  const de=distEtaTo(name,speedKn);
+  if(!de)return "Ingen GPS-position ännu — avstånd okänt.";
+  return de.dist.toFixed(1)+" M från er nuvarande position"+(de.hrs!=null?" · ca "+de.hrs.toFixed(1)+" tim vid "+speedKn+" kn":"");
+}
+async function windForecastAt(lat,lon){
+  try{
+    const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=ms&forecast_hours=12`);
+    const j=await r.json();
+    if(!j.hourly||!j.hourly.time)return null;
+    return j.hourly.time.map((t,i)=>({t,s:j.hourly.wind_speed_10m[i],d:j.hourly.wind_direction_10m[i],g:j.hourly.wind_gusts_10m[i]}));
+  }catch(e){return null;}
 }
 // ================= TÖRNRAPPORT =================
 async function renderReport(){
