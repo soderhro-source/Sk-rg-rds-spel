@@ -12,7 +12,7 @@
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   button,.padRow button,.arcBtn,.memCard{touch-action:manipulation;}
-  html,body{margin:0;padding:0;}
+  html,body{margin:0;padding:0;max-width:100%;overflow-x:hidden;}
   body{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
     background:radial-gradient(120% 80% at 50% -10%, #1c5d7c 0%, var(--deep) 55%, #061722 100%);
     color:var(--foam);min-height:100vh;line-height:1.4;}
@@ -196,7 +196,7 @@
   .cpCard{background:var(--sand);color:var(--ink);border-radius:14px;padding:13px 15px;margin-bottom:9px;}
   .cpCard.locked{opacity:.5;}
   .cpCard.done{background:var(--green);color:#eef6f0;}
-  .cpCard .t{font-weight:600;font-size:15px;}
+  .cpCard .t{font-weight:600;font-size:15px;overflow-wrap:anywhere;}
   .cpCard .t .pnum{vertical-align:1px;}
   .cpCard .d{font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;color:#5a6b73;margin-top:5px;line-height:1.4;}
   .cpCard.done .d{color:#cfe6d8;}
@@ -1968,11 +1968,11 @@ function renderUnoTable(){
   if(!UNO.players.length){el.innerHTML='<p class="soundIntro">Inga spelare tillagda än.</p>';return;}
   const tot=unoTotals();
   const rows=[...UNO.players].sort((a,b)=>tot[a]-tot[b]);
-  el.innerHTML=`<table style="width:100%;font-family:'Helvetica Neue',Arial,sans-serif;font-size:13.5px;border-collapse:collapse">
-    <tr style="color:#6c7c84;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em"><th style="padding:4px 0">Spelare</th><th style="text-align:right">Poäng</th><th></th></tr>
-    ${rows.map((p,i)=>`<tr style="border-top:1px solid rgba(11,36,54,.08)"><td style="padding:7px 0;font-weight:${i===0?700:500}">${i===0&&UNO.rounds.length?"👑 ":""}${escHtml(p)}</td>
+  el.innerHTML=`<table style="width:100%;table-layout:fixed;font-family:'Helvetica Neue',Arial,sans-serif;font-size:13.5px;border-collapse:collapse">
+    <tr style="color:#6c7c84;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em"><th style="padding:4px 0">Spelare</th><th style="text-align:right;width:64px">Poäng</th><th style="width:26px"></th></tr>
+    ${rows.map((p,i)=>`<tr style="border-top:1px solid rgba(11,36,54,.08)"><td style="padding:7px 4px 7px 0;font-weight:${i===0?700:500};overflow-wrap:anywhere">${i===0&&UNO.rounds.length?"👑 ":""}${escHtml(p)}</td>
       <td style="text-align:right;font-weight:700;color:#14506b">${tot[p]}</td>
-      <td style="text-align:right;width:30px"><button data-rm="${escHtml(p)}" style="border:none;background:none;color:#c0392b;font-size:16px;cursor:pointer;padding:4px">✕</button></td></tr>`).join("")}
+      <td style="text-align:right"><button data-rm="${escHtml(p)}" style="border:none;background:none;color:#c0392b;font-size:16px;cursor:pointer;padding:4px">✕</button></td></tr>`).join("")}
   </table>
   <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#6c7c84;margin-top:8px">${UNO.rounds.length} varv spelade${UNO.rounds.length?" · lägst totalpoäng leder":""}</div>`;
   el.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{
@@ -2372,17 +2372,17 @@ function renderCaptainLogCard(r,track){
     if(formEl.innerHTML){formEl.innerHTML="";return;}
     let weather="";
     formEl.innerHTML=`<div class="cpCard">
-      <div class="field"><label>Avgångsplats</label><input id="clogFrom" value="${escHtml(defaultFrom||"")}" style="width:100%;padding:9px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit"></div>
+      <div class="field"><label>Avgångsplats</label><input id="clogFrom" maxlength="40" value="${escHtml(defaultFrom||"")}" style="width:100%;padding:9px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit"></div>
       <div class="field" style="margin-top:8px"><label>Avgångstid</label><input id="clogDepT" type="datetime-local" value="${nowLocalDT()}" style="width:100%;padding:9px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit"></div>
-      <div class="field" style="margin-top:8px"><label>Ankomstplats</label><input id="clogTo" placeholder="t.ex. nästa hamn" style="width:100%;padding:9px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit"></div>
+      <div class="field" style="margin-top:8px"><label>Ankomstplats</label><input id="clogTo" maxlength="40" placeholder="t.ex. nästa hamn" style="width:100%;padding:9px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit"></div>
       <div class="field" style="margin-top:8px"><label>Ankomsttid</label><input id="clogArrT" type="datetime-local" value="${nowLocalDT()}" style="width:100%;padding:9px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit"></div>
       <div class="field" style="margin-top:8px"><label>Distans (sjömil)</label>
-        <div style="display:flex;gap:8px"><input id="clogMiles" type="number" step="0.1" min="0" placeholder="0.0" style="flex:1;padding:9px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit">
+        <div style="display:flex;flex-wrap:wrap;gap:8px"><input id="clogMiles" type="number" step="0.1" min="0" placeholder="0.0" style="flex:1;min-width:70px;padding:9px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit">
         <button type="button" class="cpBtn" id="clogFillMiles">Fyll i från spår</button></div></div>
       <div class="field" style="margin-top:8px"><label>Väder</label>
-        <input id="clogWeather" placeholder="t.ex. Bris, NV 8 m/s" style="width:100%;padding:9px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit;margin-bottom:6px">
+        <input id="clogWeather" maxlength="60" placeholder="t.ex. Bris, NV 8 m/s" style="width:100%;padding:9px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit;margin-bottom:6px">
         <div class="emojiRow" id="clogChips" style="flex-wrap:wrap"></div></div>
-      <div class="field" style="margin-top:8px"><label>Övrigt</label><textarea id="clogNotes" rows="2" placeholder="Incidenter, besättningsnoteringar, allt annat värt att minnas" style="width:100%;padding:9px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit;resize:vertical"></textarea></div>
+      <div class="field" style="margin-top:8px"><label>Övrigt</label><textarea id="clogNotes" rows="2" maxlength="300" placeholder="Incidenter, besättningsnoteringar, allt annat värt att minnas" style="width:100%;padding:9px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit;resize:vertical"></textarea></div>
       <button class="goBtn" id="clogSave" style="margin-top:12px">Spara loggboksinlägg</button>
       <div class="errMsg" id="clogErr"></div>
     </div>`;
