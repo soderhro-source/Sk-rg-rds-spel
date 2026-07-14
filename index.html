@@ -1,0 +1,2378 @@
+<!DOCTYPE html>
+<!-- Skärgårdsspaning v1.1 — spelkänsla-uppdatering -->
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skärgårdsspaning · Veckotörn Helsingfors → Nådendal</title>
+<style>
+  :root{
+    --deep:#0b2436;--sea:#14506b;--foam:#e8eef0;--sand:#f4efe4;
+    --buoy:#d8612e;--green:#3f7d5a;--ink:#0b2436;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  button,.padRow button,.arcBtn,.memCard{touch-action:manipulation;}
+  html,body{margin:0;padding:0;}
+  body{font-family:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    background:radial-gradient(120% 80% at 50% -10%, #1c5d7c 0%, var(--deep) 55%, #061722 100%);
+    color:var(--foam);min-height:100vh;line-height:1.4;}
+  .wrap{max-width:560px;margin:0 auto;padding:22px 16px 60px;}
+  header{text-align:center;margin-bottom:8px;}
+  .eyebrow{font-family:"Helvetica Neue",Arial,sans-serif;text-transform:uppercase;
+    letter-spacing:.32em;font-size:11px;color:#8fb6c8;margin:0 0 8px;font-weight:600;}
+  h1{font-size:28px;line-height:1.05;margin:0 0 4px;font-weight:600;letter-spacing:.5px;}
+  .route{font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;color:#a9c6d4;letter-spacing:.12em;}
+  .route b{color:var(--buoy);font-weight:700;}
+  .who{font-family:"Helvetica Neue",Arial,sans-serif;font-size:13px;color:#cfe0e8;margin-top:10px;}
+  .who button{background:none;border:none;color:#8fb6c8;font-size:11px;cursor:pointer;text-decoration:underline;font-family:inherit;}
+  .sync{text-align:center;font-family:"Helvetica Neue",Arial,sans-serif;font-size:10.5px;color:#7fa3b4;margin-top:4px;}
+  .sync .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle;}
+  .weekbar{display:flex;align-items:center;justify-content:space-between;margin:16px 0 4px;
+    padding:12px 16px;border-radius:14px;background:linear-gradient(100deg,rgba(216,97,46,.18),rgba(20,80,107,.18));
+    border:1px solid rgba(255,255,255,.14);}
+  .weekbar .lab{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10px;letter-spacing:.2em;
+    text-transform:uppercase;color:#cfe0e8;}
+  .weekbar .big{font-size:24px;font-weight:700;}
+  .weekbar .big span{color:var(--buoy);}
+  .tabs{display:flex;gap:6px;margin:14px 0 4px;flex-wrap:wrap;justify-content:center;}
+  .tab{font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;font-weight:600;
+    letter-spacing:.02em;padding:7px 11px;border-radius:999px;cursor:pointer;
+    background:rgba(255,255,255,.06);color:#cfe0e8;border:1px solid rgba(255,255,255,.12);transition:.18s;}
+  .tab.active{background:var(--buoy);color:#fff;border-color:var(--buoy);}
+  .scorebar{display:flex;align-items:center;justify-content:space-between;margin:14px 0;
+    padding:11px 16px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);}
+  .scorebar .label{font-family:"Helvetica Neue",Arial,sans-serif;font-size:11px;
+    letter-spacing:.2em;text-transform:uppercase;color:#8fb6c8;}
+  .scorebar .tally{font-size:24px;font-weight:700;}
+  .scorebar .tally span{color:var(--buoy);}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px;}
+  .card{position:relative;background:var(--sand);color:var(--ink);border-radius:14px;
+    padding:13px 12px 12px;cursor:pointer;border:2px solid transparent;
+    transition:transform .12s, box-shadow .12s;box-shadow:0 3px 0 rgba(0,0,0,.18);
+    min-height:118px;display:flex;flex-direction:column;justify-content:space-between;}
+  .card:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.18);}
+  .card .name{font-size:15px;font-weight:600;line-height:1.15;}
+  .card .fi{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10px;color:#6c7c84;
+    letter-spacing:.02em;margin-top:3px;}
+  .card .tip{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10px;color:#9aa28f;
+    margin-top:6px;line-height:1.3;font-style:italic;}
+  .card .val{font-family:"Helvetica Neue",Arial,sans-serif;font-size:11px;font-weight:700;
+    color:var(--sea);align-self:flex-start;margin-top:9px;background:rgba(20,80,107,.1);
+    padding:2px 7px;border-radius:6px;}
+  .card .rare{color:var(--buoy);background:rgba(216,97,46,.12);}
+  .card.done{background:var(--green);border-color:#2c5b40;color:#eef6f0;}
+  .card.done .fi{color:#cfe6d8;}.card.done .tip{color:#bcd6c5;}
+  .card.done .val{background:rgba(255,255,255,.18);color:#fff;}
+  .card.done .name::after{content:"✓";float:right;font-weight:700;margin-left:6px;}
+  .card .others{position:absolute;top:7px;right:8px;font-size:11px;letter-spacing:-2px;}
+  .factBtn{position:absolute;bottom:9px;right:9px;font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:10px;font-weight:700;color:#fff;background:var(--sea);padding:4px 9px;
+    border-radius:999px;text-decoration:none;box-shadow:0 2px 0 rgba(0,0,0,.25);}
+  .card.done .factBtn{background:rgba(255,255,255,.25);}
+  .actions{display:flex;gap:10px;margin-top:22px;}
+  button.act{flex:1;font-family:"Helvetica Neue",Arial,sans-serif;font-size:14px;
+    font-weight:700;letter-spacing:.03em;padding:15px;border-radius:12px;border:none;cursor:pointer;transition:.15s;}
+  .share{background:var(--buoy);color:#fff;}.share:active{filter:brightness(.92);}
+  .reset{background:rgba(255,255,255,.08);color:#cfe0e8;border:1px solid rgba(255,255,255,.16);}
+  .hint{text-align:center;font-family:"Helvetica Neue",Arial,sans-serif;font-size:11px;
+    color:#7fa3b4;margin-top:16px;letter-spacing:.04em;}
+  .live{margin-top:6px;}
+  .liveBtn{width:100%;font-family:"Helvetica Neue",Arial,sans-serif;font-size:14px;font-weight:700;
+    padding:15px;border-radius:12px;border:none;cursor:pointer;background:var(--buoy);color:#fff;}
+  .liveStatus{text-align:center;font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;
+    color:#a9c6d4;margin:14px 0;line-height:1.5;}
+  .ship{background:var(--sand);color:var(--ink);border-radius:12px;padding:12px 14px;margin-bottom:8px;
+    display:flex;justify-content:space-between;align-items:center;}
+  .ship .sn{font-size:15px;font-weight:600;}
+  .ship .st{font-family:"Helvetica Neue",Arial,sans-serif;font-size:11px;color:#6c7c84;margin-top:2px;}
+  .ship .dist{font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;font-weight:700;color:var(--sea);text-align:right;white-space:nowrap;}
+  .ship .spd{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10px;color:#9aa28f;margin-top:2px;}
+  .sounds{margin-top:6px;}
+  .soundIntro{font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;color:#a9c6d4;
+    margin:0 0 14px;line-height:1.5;text-align:center;}
+  .scard{display:block;text-decoration:none;background:var(--sand);color:var(--ink);
+    border-radius:14px;padding:14px 15px;margin-bottom:10px;box-shadow:0 3px 0 rgba(0,0,0,.18);
+    transition:transform .12s, box-shadow .12s;}
+  .scard:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.18);}
+  .scard .top{display:flex;justify-content:space-between;align-items:baseline;}
+  .scard .nm{font-size:16px;font-weight:600;}
+  .scard .play{font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;font-weight:700;
+    color:#fff;background:var(--buoy);padding:4px 11px;border-radius:999px;white-space:nowrap;}
+  .scard .lat{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10.5px;font-style:italic;
+    color:#6c7c84;margin-top:1px;}
+  .scard .call{font-size:14px;margin-top:8px;line-height:1.35;}
+  .scard .call b{color:var(--sea);}
+  .termgrp{font-family:"Helvetica Neue",Arial,sans-serif;font-size:11px;font-weight:700;
+    letter-spacing:.2em;text-transform:uppercase;color:#8fb6c8;margin:18px 0 8px 2px;}
+  .termgrp:first-child{margin-top:0;}
+  .diagram{background:var(--sand);border-radius:14px;padding:14px 12px 10px;margin-bottom:10px;
+    box-shadow:0 3px 0 rgba(0,0,0,.18);}
+  .diagram svg{display:block;width:100%;height:auto;}
+  .diagram .cap{font-family:"Helvetica Neue",Arial,sans-serif;font-size:11px;color:#6c7c84;
+    text-align:center;margin-top:6px;line-height:1.4;}
+  .pcard{display:block;text-decoration:none;background:var(--sand);color:var(--ink);
+    border-radius:14px;padding:14px 15px;margin-bottom:10px;box-shadow:0 3px 0 rgba(0,0,0,.18);
+    transition:transform .12s, box-shadow .12s;}
+  .pcard:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.18);}
+  .pcard .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+  .pcard .pn{font-size:16px;font-weight:600;}
+  .pcard .open{font-family:"Helvetica Neue",Arial,sans-serif;font-size:11px;font-weight:700;
+    color:#fff;background:var(--sea);padding:4px 11px;border-radius:999px;white-space:nowrap;}
+  .pcard .meta{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10.5px;color:#6c7c84;
+    margin-top:2px;}
+  .pcard .meta b{color:var(--buoy);}
+  .pcard .pnote{font-size:13.5px;margin-top:8px;line-height:1.35;color:#3a4a52;}
+  .pnum{display:inline-block;width:20px;height:20px;line-height:20px;text-align:center;
+    background:var(--buoy);color:#fff;border-radius:50%;font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:11px;font-weight:700;margin-right:7px;}
+  .trivia{margin-top:6px;}
+  .qmeta{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;
+    font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;color:#a9c6d4;letter-spacing:.04em;}
+  .qmeta b{color:var(--buoy);}
+  .qcard{background:var(--sand);color:var(--ink);border-radius:16px;padding:18px 16px;
+    box-shadow:0 3px 0 rgba(0,0,0,.18);}
+  .qtext{font-size:17px;font-weight:600;line-height:1.3;margin-bottom:14px;}
+  .opt{display:block;width:100%;text-align:left;font-family:inherit;font-size:15px;
+    background:#fff;color:var(--ink);border:2px solid #d9d2c4;border-radius:11px;
+    padding:13px 14px;margin-bottom:9px;cursor:pointer;transition:.12s;}
+  .opt:active{transform:translateY(1px);}
+  .opt.correct{background:var(--green);border-color:#2c5b40;color:#fff;}
+  .opt.wrong{background:#c0392b;border-color:#962d22;color:#fff;}
+  .opt.dim{opacity:.55;}
+  .qexpl{font-family:"Helvetica Neue",Arial,sans-serif;font-size:12.5px;color:#5a6b73;
+    margin-top:12px;line-height:1.45;display:none;}
+  .qexpl.show{display:block;}
+  .qnext{width:100%;font-family:"Helvetica Neue",Arial,sans-serif;font-size:14px;font-weight:700;
+    padding:14px;border-radius:11px;border:none;cursor:pointer;background:var(--buoy);color:#fff;
+    margin-top:14px;display:none;}
+  .qnext.show{display:block;}
+  .qdone{text-align:center;padding:10px 0;}
+  .qdone .big{font-size:30px;font-weight:700;}
+  .qdone .big span{color:var(--buoy);}
+  .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(80px);
+    background:#fff;color:var(--ink);padding:13px 20px;border-radius:12px;
+    font-family:"Helvetica Neue",Arial,sans-serif;font-size:13px;font-weight:600;
+    box-shadow:0 8px 30px rgba(0,0,0,.35);opacity:0;transition:.3s;z-index:20;max-width:90%;text-align:center;}
+  .toast.show{transform:translateX(-50%) translateY(0);opacity:1;}
+  /* ---- Login ---- */
+  .crewGrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+  .sailorBtn{background:var(--sand);color:var(--ink);border:none;border-radius:14px;padding:16px 12px;
+    font-family:inherit;font-size:16px;font-weight:600;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.18);}
+  .sailorBtn .em{font-size:28px;display:block;margin-bottom:6px;}
+  .sailorBtn.new{background:rgba(255,255,255,.07);color:#cfe0e8;border:1px dashed rgba(255,255,255,.3);box-shadow:none;}
+  .pinBox{background:var(--sand);color:var(--ink);border-radius:14px;padding:16px;margin-top:14px;}
+  .pinBox .t{font-weight:600;margin-bottom:8px;}
+  .pinBox input{width:100%;font-size:22px;text-align:center;letter-spacing:.4em;padding:10px;
+    border:2px solid #d9d2c4;border-radius:10px;font-family:"Helvetica Neue",Arial,sans-serif;}
+  .field{margin-bottom:12px;}
+  .field label{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10.5px;letter-spacing:.12em;
+    text-transform:uppercase;color:#6c7c84;display:block;margin-bottom:5px;font-weight:700;}
+  .field input{width:100%;font-size:16px;padding:10px;border:2px solid #d9d2c4;border-radius:10px;font-family:inherit;}
+  .emojiRow{display:flex;gap:6px;flex-wrap:wrap;}
+  .emojiRow button{font-size:22px;background:#fff;border:2px solid #d9d2c4;border-radius:10px;padding:6px 9px;cursor:pointer;}
+  .emojiRow button.sel{border-color:var(--buoy);background:rgba(216,97,46,.12);}
+  .goBtn{width:100%;font-family:"Helvetica Neue",Arial,sans-serif;font-size:14px;font-weight:700;
+    padding:13px;border-radius:11px;border:none;cursor:pointer;background:var(--buoy);color:#fff;margin-top:6px;}
+  .errMsg{font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;color:#c0392b;margin-top:8px;text-align:center;}
+  /* ---- Board ---- */
+  .crewbarWrap{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+    border-radius:14px;padding:12px 16px;margin:14px 0 10px;}
+  .crewbarWrap .lab{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10px;letter-spacing:.2em;
+    text-transform:uppercase;color:#cfe0e8;margin-bottom:4px;}
+  .crewbarWrap .row{display:flex;justify-content:space-between;align-items:baseline;font-size:15px;}
+  .crewbarWrap .row b{color:var(--buoy);}
+  .crewbarWrap .row .pts{font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;color:#a9c6d4;}
+  .crewbarTrack{height:10px;border-radius:999px;background:rgba(255,255,255,.12);margin-top:8px;overflow:hidden;}
+  .crewbarFill{height:100%;background:linear-gradient(90deg,var(--sea),var(--buoy));border-radius:999px;transition:width .5s;}
+  .lbRow{display:flex;align-items:center;gap:10px;background:var(--sand);color:var(--ink);
+    border-radius:12px;padding:10px 14px;margin-bottom:8px;}
+  .lbRow.meRow{border:2px solid var(--buoy);}
+  .lbRow .med{font-family:"Helvetica Neue",Arial,sans-serif;font-size:16px;width:24px;text-align:center;}
+  .lbRow .em{font-size:22px;}
+  .lbRow .mid{flex:1;}
+  .lbRow .nm{font-weight:600;font-size:15px;}
+  .lbRow .at{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10.5px;color:#6c7c84;}
+  .lbRow .p{font-family:"Helvetica Neue",Arial,sans-serif;font-weight:700;color:var(--sea);font-size:16px;white-space:nowrap;}
+  .cpCard{background:var(--sand);color:var(--ink);border-radius:14px;padding:13px 15px;margin-bottom:9px;}
+  .cpCard.locked{opacity:.5;}
+  .cpCard.done{background:var(--green);color:#eef6f0;}
+  .cpCard .t{font-weight:600;font-size:15px;}
+  .cpCard .t .pnum{vertical-align:1px;}
+  .cpCard .d{font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;color:#5a6b73;margin-top:5px;line-height:1.4;}
+  .cpCard.done .d{color:#cfe6d8;}
+  .cpBtn{margin-top:9px;font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;font-weight:700;
+    background:var(--buoy);color:#fff;border:none;border-radius:999px;padding:7px 14px;cursor:pointer;}
+  .lockTag{margin-top:9px;display:inline-block;font-family:"Helvetica Neue",Arial,sans-serif;font-size:11px;
+    font-weight:700;color:#6c7c84;background:rgba(0,0,0,.07);border-radius:999px;padding:6px 12px;}
+  /* ---- Surprise ---- */
+  .surCard{background:linear-gradient(135deg,#f4efe4,#ffe3cb);color:var(--ink);border-radius:16px;
+    padding:24px 18px;box-shadow:0 3px 0 rgba(0,0,0,.18);text-align:center;}
+  .surCard .em{font-size:40px;}
+  .surCard .big{font-size:19px;font-weight:600;line-height:1.35;margin:10px 0;}
+  .surCard .pts{font-family:"Helvetica Neue",Arial,sans-serif;font-size:13px;font-weight:700;color:var(--buoy);}
+  .surCard .claimed{font-family:"Helvetica Neue",Arial,sans-serif;font-size:14px;font-weight:700;
+    color:var(--green);margin-top:12px;}
+  /* ---- Arcade ---- */
+  .arcMenu{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+  .arcBtn{background:var(--sand);color:var(--ink);border:none;border-radius:14px;padding:16px 10px;
+    font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.18);}
+  .arcBtn .em{font-size:26px;display:block;margin-bottom:4px;}
+  .arcBtn.active{border:2px solid var(--buoy);}
+  #tet{display:block;margin:0 auto;background:#0e2b3d;border-radius:8px;touch-action:none;}
+  .padRow{display:flex;gap:8px;justify-content:center;margin-top:12px;}
+  .padRow button{font-size:20px;background:var(--sand);border:none;border-radius:10px;
+    padding:10px 18px;cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.18);}
+  .arcScore{text-align:center;font-family:"Helvetica Neue",Arial,sans-serif;font-size:13px;color:#a9c6d4;margin:10px 0 4px;}
+  .arcScore b{color:var(--buoy);font-size:16px;}
+  .memGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .memCard{background:var(--sea);color:rgba(255,255,255,.35);border-radius:10px;min-height:66px;
+    display:flex;align-items:center;justify-content:center;font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:11.5px;font-weight:600;text-align:center;padding:4px;cursor:pointer;user-select:none;line-height:1.2;}
+  .memCard.open{background:var(--sand);color:var(--ink);}
+  .memCard.pair{background:var(--green);color:#fff;}
+  .m3Grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;max-width:340px;margin:0 auto;}
+  .m3Cell{aspect-ratio:1;font-size:26px;display:flex;align-items:center;justify-content:center;
+    background:var(--sand);border-radius:9px;cursor:pointer;user-select:none;
+    box-shadow:0 2.5px 0 rgba(0,0,0,.22);transition:transform .1s;}
+  .m3Cell.sel{outline:3px solid var(--buoy);transform:scale(1.08);}
+  .m3Cell.pop{animation:popDone .25s ease;}
+  #snakeCv{display:block;margin:0 auto;background:#0e2b3d;border-radius:8px;touch-action:none;}
+  /* karta: fullskärm + färdlogg */
+  #placeMap.fs{position:fixed;inset:0;z-index:70;background:#0b2436;padding:10px;margin:0;overflow:auto;}
+  #placeMap.fs #osmMap{height:calc(100vh - 150px)!important;}
+  .mapBtns{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
+  .mapBtn{flex:1;min-width:74px;font-family:"Helvetica Neue",Arial,sans-serif;font-size:11.5px;
+    font-weight:700;padding:10px 4px;border-radius:10px;border:none;cursor:pointer;
+    background:var(--sea);color:#fff;box-shadow:0 3px 0 rgba(0,0,0,.3);white-space:nowrap;transition:.12s;}
+  .mapBtn.on{background:linear-gradient(180deg,#ff8a4d,#c14e1d);box-shadow:0 3px 0 #7d3312;}
+  .trkBar{font-family:"Helvetica Neue",Arial,sans-serif;font-size:13px;font-weight:700;
+    color:#ffd98a;text-align:center;margin-top:8px;min-height:16px;}
+  /* törnrapport */
+  .repCard{background:var(--sand);color:var(--ink);border-radius:14px;padding:14px 15px;
+    margin-bottom:10px;border:2.5px solid rgba(11,36,54,.14);box-shadow:0 5px 0 rgba(0,0,0,.24);}
+  .repCard h3{margin:0 0 8px;font-size:16px;font-weight:600;}
+  .repRow{display:flex;justify-content:space-between;gap:10px;font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:13px;padding:4px 0;border-bottom:1px dashed rgba(11,36,54,.12);}
+  .repRow b{color:var(--sea);white-space:nowrap;}
+  .logBtn{display:block;width:100%;font-family:"Helvetica Neue",Arial,sans-serif;font-size:14px;font-weight:700;
+    padding:13px;border-radius:11px;border:none;cursor:pointer;background:var(--green);color:#fff;margin-top:12px;}
+  .logBtn[disabled]{opacity:.5;cursor:default;}
+  /* ---- Rörelse & intro ---- */
+  @keyframes viewIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .viewIn{animation:viewIn .28s ease;}
+  @keyframes popDone{0%{transform:scale(1)}40%{transform:scale(1.07)}100%{transform:scale(1)}}
+  .card.done{animation:popDone .3s ease;}
+  @keyframes ptsPulse{0%{transform:scale(1)}50%{transform:scale(1.4);color:#ffb27d}100%{transform:scale(1)}}
+  .pulse{display:inline-block;animation:ptsPulse .55s ease;}
+  @keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3.5px)}}
+  svg .bob{animation:bob 2.6s ease-in-out infinite;}
+  @keyframes seaFlow{to{stroke-dashoffset:-64;}}
+  svg .seaPath{stroke-dashoffset:0;animation:seaFlow 7s linear infinite;}
+  .catChips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin:12px 0 0;}
+  .chip{font-family:"Helvetica Neue",Arial,sans-serif;font-size:11.5px;font-weight:600;
+    padding:6px 11px;border-radius:999px;cursor:pointer;background:rgba(255,255,255,.06);
+    color:#cfe0e8;border:1px solid rgba(255,255,255,.12);transition:.15s;}
+  .chip.active{background:var(--sea);color:#fff;border-color:#2a7a9e;}
+  .introWrap{position:fixed;inset:0;background:rgba(6,23,34,.84);z-index:40;
+    display:flex;align-items:center;justify-content:center;padding:20px;}
+  .introCard{background:var(--sand);color:var(--ink);border-radius:18px;padding:26px 20px 20px;
+    max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.5);animation:viewIn .3s ease;}
+  .introCard .em{font-size:46px;line-height:1;}
+  .introCard h2{font-size:20px;margin:12px 0 8px;font-weight:600;}
+  .introCard p{font-family:"Helvetica Neue",Arial,sans-serif;font-size:13.5px;color:#4a5a62;line-height:1.55;margin:0 0 18px;}
+  .dots{display:flex;gap:6px;justify-content:center;margin-bottom:14px;}
+  .dots span{width:8px;height:8px;border-radius:50%;background:#d9d2c4;transition:.2s;}
+  .dots span.on{background:var(--buoy);}
+  .introSkip{background:none;border:none;font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:12px;color:#8a9aa2;margin-top:12px;cursor:pointer;text-decoration:underline;}
+  @keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1)}100%{opacity:0;transform:translateY(-56px) scale(1.5)}}
+  .floatPts{position:fixed;z-index:50;pointer-events:none;font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:16px;font-weight:800;color:#ffb27d;text-shadow:0 2px 8px rgba(0,0,0,.5);animation:floatUp 1s ease-out forwards;}
+  @keyframes cfFall{0%{transform:translateY(-20px) rotate(0)}100%{transform:translateY(105vh) rotate(720deg)}}
+  .cf{position:fixed;top:-20px;z-index:45;pointer-events:none;width:9px;height:13px;border-radius:2px;animation:cfFall linear forwards;}
+  .xpWrap{margin:8px 0 0;padding:0 2px;}
+  .xpTrack{height:7px;border-radius:999px;background:rgba(255,255,255,.1);overflow:hidden;}
+  .xpFill{height:100%;background:linear-gradient(90deg,#3f7d5a,#7fc79a);border-radius:999px;transition:width .6s cubic-bezier(.2,.8,.3,1);}
+  .xpLab{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10px;color:#7fa3b4;margin-top:4px;
+    display:flex;justify-content:space-between;letter-spacing:.04em;}
+  .rank{color:#ffb27d;font-weight:700;}
+  /* ================= GAME SKIN v2 (saga/HUD-stil) ================= */
+  body{background:linear-gradient(180deg,#2a7ea6 0%,#1c5d7c 26%,#0b2436 72%,#061722 100%);}
+  .wrap{padding-bottom:130px;}
+  h1{text-shadow:0 3px 0 rgba(0,0,0,.35);letter-spacing:1px;}
+  /* HUD */
+  .hud{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 0 0;}
+  .hudChip{display:flex;align-items:center;gap:8px;background:rgba(6,23,34,.55);
+    border:2px solid rgba(255,255,255,.2);border-radius:999px;padding:4px 12px 4px 5px;
+    box-shadow:0 3px 0 rgba(0,0,0,.35);min-width:0;}
+  .hudAva{width:36px;height:36px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:20px;background:linear-gradient(160deg,#f4efe4,#d8c9a8);border:2.5px solid #f2c14e;
+    box-shadow:inset 0 -3px 0 rgba(0,0,0,.15);}
+  .hudName{font-family:"Helvetica Neue",Arial,sans-serif;font-size:13px;font-weight:800;color:#fff;
+    text-align:left;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .hudName small{display:block;font-size:9.5px;color:#ffd98a;font-weight:700;letter-spacing:.08em;text-transform:uppercase;}
+  .coin{display:flex;align-items:center;gap:5px;font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:15px;font-weight:900;color:#5a3b00;padding:6px 12px;border-radius:999px;
+    background:linear-gradient(180deg,#ffe1a1,#f2b64e 55%,#e9a02e);border:2px solid #b97f16;
+    box-shadow:0 3px 0 #8a5e0f, inset 0 2px 0 rgba(255,255,255,.6);white-space:nowrap;}
+  .coin.sea{background:linear-gradient(180deg,#9fd8ef,#5ec8e5 55%,#3fa9c9);border-color:#22809e;
+    box-shadow:0 3px 0 #17607a, inset 0 2px 0 rgba(255,255,255,.6);color:#083344;}
+  /* Bottennav som riktiga mobilspel */
+  .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;margin:0;
+    padding:8px 6px calc(9px + env(safe-area-inset-bottom));flex-wrap:nowrap;gap:4px;
+    justify-content:space-around;background:linear-gradient(180deg,#123a50,#081c29 70%);
+    border-top:2.5px solid rgba(255,255,255,.14);box-shadow:0 -10px 30px rgba(0,0,0,.45);}
+  .tab{flex:1;max-width:72px;display:flex;flex-direction:column;align-items:center;gap:2px;
+    padding:7px 2px 6px;border-radius:14px;background:none;border:none;
+    font-size:9.5px;font-weight:800;letter-spacing:.02em;color:#7fa3b4;transition:.15s;}
+  .tab .ic{font-size:22px;line-height:1;filter:grayscale(.35) brightness(.9);transition:.15s;}
+  .tab.active{background:linear-gradient(180deg,#ff8a4d,#d8612e 60%,#b34a1f);color:#fff;
+    border:none;box-shadow:0 3px 0 #7d3312, inset 0 2px 0 rgba(255,255,255,.3);transform:translateY(-5px);}
+  .tab.active .ic{filter:none;transform:scale(1.12);}
+  .moreSheet{position:fixed;left:10px;right:10px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:29;
+    background:var(--sand);border-radius:18px;padding:8px;border:2.5px solid rgba(11,36,54,.18);
+    box-shadow:0 14px 44px rgba(0,0,0,.55);animation:viewIn .18s ease;}
+  .moreRow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;cursor:pointer;
+    font-family:"Helvetica Neue",Arial,sans-serif;font-size:14.5px;font-weight:700;color:var(--ink);}
+  .moreRow.active{background:rgba(216,97,46,.14);}
+  .moreRow .ic{font-size:21px;width:26px;text-align:center;}
+  /* Glansiga knappar */
+  .goBtn,.liveBtn,button.act.share,.cpBtn,.qnext,.play{
+    background:linear-gradient(180deg,#ff8a4d,#d8612e 58%,#c14e1d)!important;color:#fff;
+    border:none;box-shadow:0 4px 0 #8f3a12, inset 0 2px 0 rgba(255,255,255,.35);
+    text-shadow:0 1px 2px rgba(0,0,0,.3);transition:.12s;}
+  .goBtn:active,.liveBtn:active,button.act.share:active,.cpBtn:active,.qnext:active{
+    transform:translateY(3px);box-shadow:0 1px 0 #8f3a12, inset 0 2px 0 rgba(255,255,255,.35);}
+  .logBtn{background:linear-gradient(180deg,#5ba97c,#3f7d5a 58%,#33684a)!important;
+    box-shadow:0 4px 0 #244834, inset 0 2px 0 rgba(255,255,255,.3);text-shadow:0 1px 2px rgba(0,0,0,.3);}
+  .logBtn:active{transform:translateY(3px);box-shadow:0 1px 0 #244834;}
+  .reset{box-shadow:0 4px 0 rgba(0,0,0,.35);}
+  /* Kort & paneler — enhetligt spelspråk */
+  .card,.scard,.pcard,.qcard,.diagram,.lbRow,.cpCard,.surCard,.pinBox,.introCard,.ship,.memCard,.arcBtn,.sailorBtn{
+    border:2.5px solid rgba(11,36,54,.14);box-shadow:0 5px 0 rgba(0,0,0,.24);}
+  .card{border-radius:16px;}
+  .card.done{border-color:#2c5b40;}
+  .rareCard{border-color:#f2c14e!important;box-shadow:0 5px 0 rgba(0,0,0,.24),0 0 16px rgba(242,193,78,.45)!important;}
+  .rareCard .val{background:linear-gradient(180deg,#ffe1a1,#f2b64e);color:#5a3b00;border:1.5px solid #b97f16;}
+  .card .val{border-radius:999px;padding:3px 9px;}
+  .termgrp{background:linear-gradient(180deg,#1a5b7d,#124259);color:#ffd98a;text-align:center;
+    padding:8px 16px;border-radius:999px;border:2px solid rgba(255,255,255,.16);
+    box-shadow:0 3px 0 rgba(0,0,0,.35);max-width:260px;margin:20px auto 12px;}
+  .toast{bottom:calc(96px + env(safe-area-inset-bottom));border:2.5px solid rgba(11,36,54,.15);
+    box-shadow:0 5px 0 rgba(0,0,0,.3),0 12px 40px rgba(0,0,0,.4);}
+  @keyframes ringPulse{0%,100%{stroke-width:3;opacity:1}50%{stroke-width:6.5;opacity:.75}}
+  svg .cur{animation:ringPulse 1.4s ease-in-out infinite;}
+  .chip{box-shadow:0 2px 0 rgba(0,0,0,.25);}
+  .chip.active{background:linear-gradient(180deg,#2a7ea6,#14506b);border-color:#2a7ea6;}
+  /* ---- Splash / laddskärm ---- */
+  #splash{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;background:linear-gradient(180deg,#2a7ea6 0%,#14506b 45%,#0b2436 100%);
+    transition:opacity .55s ease;}
+  #splash.hide{opacity:0;pointer-events:none;}
+  .spBoat{font-size:70px;line-height:1;animation:spSail 2.2s ease-in-out infinite;
+    filter:drop-shadow(0 8px 12px rgba(0,0,0,.35));}
+  @keyframes spSail{0%,100%{transform:translateY(0) rotate(-5deg)}50%{transform:translateY(-14px) rotate(5deg)}}
+  .spWaves{width:240px;height:24px;overflow:hidden;margin-top:-4px;}
+  .spWaves svg{display:block;width:400px;animation:spWave 1.5s linear infinite;}
+  @keyframes spWave{to{transform:translateX(-80px)}}
+  .spTitle{font-size:30px;font-weight:600;color:#e8eef0;margin-top:22px;letter-spacing:.5px;
+    animation:viewIn .9s ease;}
+  .spSub{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10.5px;letter-spacing:.32em;
+    color:#8fb6c8;text-transform:uppercase;margin-top:8px;font-weight:600;}
+  .spLoad{font-family:"Helvetica Neue",Arial,sans-serif;font-size:12px;color:#a9c6d4;margin-top:30px;}
+  .spLoad::after{content:"";display:inline-block;width:18px;text-align:left;animation:spDots 1.2s steps(4,end) infinite;}
+  @keyframes spDots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+  /* ---- Vågsvep mellan vyer ---- */
+  #sweep{position:fixed;inset:0;z-index:60;pointer-events:none;display:none;
+    background:linear-gradient(105deg,transparent 0%,rgba(20,80,107,.97) 22%,#0e3a52 50%,rgba(20,80,107,.97) 78%,transparent 100%);
+    align-items:center;justify-content:center;}
+  #sweep.go{display:flex;animation:sweepX .5s cubic-bezier(.4,0,.2,1) forwards;}
+  #sweep .sb{font-size:54px;filter:drop-shadow(0 6px 10px rgba(0,0,0,.4));transform:scaleX(-1);}
+  @keyframes sweepX{0%{transform:translateX(-115%)}42%{transform:translateX(0)}58%{transform:translateX(0)}100%{transform:translateX(115%)}}
+  /* ---- Vind ---- */
+  .windBar{margin-top:8px;text-align:center;font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:12.5px;color:#cfe0e8;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);
+    border-radius:999px;padding:8px 12px;cursor:pointer;}
+  .windBar b{color:#ffd98a;}
+  /* ---- Skeppschatt ---- */
+  #chatList{max-height:50vh;overflow-y:auto;padding:2px;}
+  .msg{max-width:82%;background:var(--sand);color:var(--ink);border-radius:14px;
+    padding:9px 13px;margin-bottom:9px;font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:14px;line-height:1.45;box-shadow:0 3px 0 rgba(0,0,0,.2);width:fit-content;}
+  .msg .au{font-size:10px;color:#6c7c84;font-weight:700;margin-bottom:3px;}
+  .msg.mine{margin-left:auto;background:#d7ebf5;}
+  .msg.gemma{background:#e9e0f7;border:1.5px solid #b79ae0;}
+  .chatRow{display:flex;gap:8px;margin-top:12px;}
+  .chatRow input{flex:1;font-size:15px;padding:12px;border-radius:12px;
+    border:2.5px solid rgba(11,36,54,.14);font-family:inherit;}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important;}}
+</style>
+</head>
+<body>
+<div id="splash">
+  <div class="spBoat">⛵</div>
+  <div class="spWaves"><svg viewBox="0 0 400 24"><path d="M0,12 q20,-10 40,0 t40,0 t40,0 t40,0 t40,0 t40,0 t40,0 t40,0 t40,0 t40,0" fill="none" stroke="#8fd4ee" stroke-width="3" stroke-linecap="round"/><path d="M0,19 q20,-8 40,0 t40,0 t40,0 t40,0 t40,0 t40,0 t40,0 t40,0 t40,0 t40,0" fill="none" stroke="#5ec8e5" stroke-width="2.5" stroke-linecap="round" opacity=".7"/></svg></div>
+  <div class="spTitle">Skärgårdsspaning</div>
+  <div class="spSub">Veckotörn · Helsingfors → Nådendal</div>
+  <div class="spLoad">Kastar loss</div>
+</div>
+<div id="sweep"><span class="sb">⛵</span></div>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Veckotörn · Däckspel</p>
+    <h1>Skärgårdsspaning</h1>
+    <p class="route">HELSINGFORS <b>—</b> NÅDENDAL · SKÄRGÅRDEN</p>
+    <div class="who" id="whoami"></div>
+    <div class="sync" id="syncLine"></div>
+  </header>
+
+  <div id="loginView" style="display:none">
+    <img src="boat.jpg" alt="s/y Sun-Day" onerror="this.style.display='none'"
+      style="width:100%;border-radius:16px;margin-top:14px;box-shadow:0 6px 24px rgba(0,0,0,.35);display:block">
+    <p class="soundIntro" style="margin-top:14px">Vem är du? Välj din seglare — eller mönstra på som ny.</p>
+    <div class="crewGrid" id="crewGrid"></div>
+    <div id="pinBox"></div>
+    <div id="newSailorBox"></div>
+  </div>
+
+  <div id="appShell" style="display:none">
+  <div class="hud">
+    <div class="hudChip" id="hudMe"></div>
+    <div style="display:flex;gap:6px;flex:none">
+      <div class="coin" id="hudPts">⭐ 0</div>
+      <div class="coin sea" id="hudCrew">⛵ 0</div>
+    </div>
+  </div>
+  <div class="xpWrap"><div class="xpTrack"><div class="xpFill" id="xpFill" style="width:0%"></div></div>
+    <div class="xpLab"><span id="xpFrom">Helsingfors</span><span id="xpInfo"></span><span id="xpTo">Hangö</span></div></div>
+  <div class="windBar" id="windBar">💨 Vind: tryck för att hämta</div>
+  <div id="moreSheet"></div>
+  <nav class="tabs" id="tabs"></nav>
+
+  <div id="boardView" style="display:none">
+    <div class="crewbarWrap" id="crewBar"></div>
+    <div class="diagram" id="boardMap"></div>
+    <div class="termgrp">Ställning</div>
+    <div id="lbList"></div>
+    <div class="termgrp">Hamnutmaningar</div>
+    <p class="soundIntro" style="margin-bottom:10px">Din båt måste ha nått hamnen innan utmaningen låses upp. +5 p styck.</p>
+    <div id="cpList"></div>
+  </div>
+
+  <div id="gameView" style="display:none">
+    <div class="catChips" id="catChips"></div>
+    <div class="scorebar">
+      <div><div class="label">Mina på denna flik</div><div class="tally"><span id="count">0</span> / <span id="total">0</span></div></div>
+      <div style="text-align:right"><div class="label">Poäng</div><div class="tally" id="points">0</div></div>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="actions">
+      <button class="act share" id="shareBtn">Dela ställningen</button>
+      <button class="act reset" id="refreshBtn">Uppdatera</button>
+    </div>
+    <p class="hint">Tryck på ett kort när du ser något. Orange = sällsynt, värt mer. Små märken i hörnet = kompisar som redan sett den.</p>
+  </div>
+
+  <div id="liveView" class="live" style="display:none">
+    <button class="liveBtn" id="findBtn">📍 Visa fartyg nära mig</button>
+    <div class="liveStatus" id="liveStatus">Använder din plats för att hämta fartyg från Fintraffics öppna AIS-data (uppdateras var 10:e minut).</div>
+    <div id="shipList"></div>
+  </div>
+  <div id="soundView" class="sounds" style="display:none">
+    <p class="soundIntro">Fågelläten med inbyggd spelare — ljudfiler i appen spelas direkt (offline om de är medpaketerade). Beskrivningarna fungerar alltid.</p>
+    <div id="soundList"></div>
+  </div>
+  <div id="triviaView" class="trivia" style="display:none">
+    <div class="qmeta"><div>Fråga <b id="qNum">1</b> / <span id="qTot">10</span></div><div>Rätt: <b id="qScore">0</b></div></div>
+    <div id="quizBox"></div>
+  </div>
+  <div id="termsView" class="sounds" style="display:none">
+    <p class="soundIntro">Seglarordlista — svenska termer med finska och förklaring. Fungerar offline.</p>
+    <div id="termsList"></div>
+  </div>
+  <div id="knotsView" class="sounds" style="display:none">
+    <p class="soundIntro">Lär dig knopen och visa den för en besättningskamrat — bocka sedan av och ta poängen. Instruktionslänkarna kräver nät.</p>
+    <div id="knotList"></div>
+  </div>
+  <div id="surView" class="sounds" style="display:none">
+    <div id="surBox"></div>
+  </div>
+  <div id="chatView" class="sounds" style="display:none">
+    <p class="soundIntro">Skeppschatt för hela besättningen — synkas live. Skriv <b style="color:#cbb3f0">@gemma</b> följt av en fråga så svarar skepps-AI:n (när hembasen är online). Kräver nät.</p>
+    <div id="chatList"></div>
+    <div class="chatRow"><input id="chatIn" maxlength="500" placeholder="Meddelande… (@gemma för AI)" autocomplete="off"><button class="goBtn" id="chatSendBtn" style="width:auto;margin:0;padding:0 20px">➤</button></div>
+  </div>
+  <div id="galleryView" class="sounds" style="display:none">
+    <p class="soundIntro">Besättningens gemensamma fotoalbum — bilderna från hamnloggboken samlas här. Lägg till foton via ✍️ Loggboka i 🗺️-fliken.</p>
+    <div id="galleryList"></div>
+  </div>
+  <div id="reportView" class="sounds" style="display:none">
+    <p class="soundIntro">Törnrapporten — hela resan i siffror: hur ni seglade och vad var och en hann med. Uppdateras live, komplett när ni är i mål.</p>
+    <div id="reportList"></div>
+  </div>
+  <div id="navView" class="sounds" style="display:none">
+    <p class="soundIntro">Navigationsskolan — hitta er position utan GPS. Sex lektioner med övningar ombord: gör övningen på riktigt, bocka av med en kompis som vittne (+2 p per lektion). Fungerar offline.</p>
+    <div id="navList"></div>
+  </div>
+  <div id="recipesView" class="sounds" style="display:none">
+    <p class="soundIntro">Byssan — enkla rätter för ett litet pentry: en kastrull, få ingredienser, mycket smak. Fungerar offline.</p>
+    <div id="recipeList"></div>
+  </div>
+  <div id="arcadeView" class="sounds" style="display:none">
+    <p class="soundIntro">Mellanspel för stiltje och hamnkvällar. Dagens resultat kan bokföras som poäng — en gång per spel och dag.</p>
+    <div class="arcMenu" id="arcMenu"></div>
+    <div id="arcadeBox"></div>
+  </div>
+  <div id="placesView" class="sounds" style="display:none">
+    <p class="soundIntro">Patriks lista "Seglandet 2026" — 12 platser med priser och service. Tryck för att öppna i kartan (kräver nät). Priser är riktvärden för sommarsäsongen (ca = uppskattat) — kolla alltid på plats. Allt fungerar offline.</p>
+    <div id="placeMap"></div>
+    <div id="placeList"></div>
+  </div>
+  </div><!-- /appShell -->
+</div>
+<div id="introBox"></div>
+<div class="toast" id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="config.js"></script>
+<script>
+// ================= DATA =================
+const BOAT={model:"Degerö 33",name:"Sun-Day",loa:"9,81 m (33 fot)",mast:"15 m",draft:"1,5 m",beam:"3,52 m",weight:"5 200 kg"};
+const GAMES = {
+  vessels:{label:"Fartyg",items:[
+    {n:"Bilfärja",fi:"Autolautta",tip:"Viking/Silja korsar rutten dagligen.",v:1},
+    {n:"Fraktfartyg",fi:"Rahtilaiva",tip:"Bulk eller container på djupleden.",v:1},
+    {n:"Segelbåt",fi:"Purjevene",tip:"Tätast i juli, kring Nagu.",v:1},
+    {n:"Motoryacht",fi:"Moottorivene",tip:"",v:1},
+    {n:"Fiskebåt",fi:"Kalastusvene",tip:"Tidig morgon, nära grynnor.",v:2},
+    {n:"Förbindelsefärja",fi:"Yhteysalus",tip:"Gula vägfärjan mellan öar.",v:2},
+    {n:"Bogserbåt",fi:"Hinaaja",tip:"Oftast nära hamnar.",v:2},
+    {n:"Tankfartyg",fi:"Säiliöalus",tip:"Olja/kemikalie — djupt lastad.",v:2},
+    {n:"Roro-fartyg",fi:"Ro-ro-alus",tip:"Hög, lådformad, lastramp akter.",v:2},
+    {n:"Mudderverk",fi:"Ruoppaaja",tip:"Vid farledsarbeten.",v:3,rare:true},
+    {n:"Lotsbåt",fi:"Luotsivene",tip:"Snabb, möter stora fartyg.",v:3,rare:true},
+    {n:"Sjöbevakning",fi:"Merivartiosto",tip:"Gränsbevakningens båt.",v:3,rare:true},
+    {n:"Marinfartyg",fi:"Sota-alus",tip:"Grå, ev. vid Pansio/Åbo.",v:4,rare:true},
+    {n:"Isbrytare",fi:"Jäänmurtaja",tip:"Mest vintertid — sällsynt nu.",v:5,rare:true},
+    {n:"Skuta",fi:"Purjelaiva",tip:"Riggad träsegelfartyg.",v:5,rare:true},
+    {n:"Kryssningsfartyg",fi:"Risteilyalus",tip:"Vid horisonten mot Stockholm.",v:3,rare:true},
+  ]},
+  seabirds:{label:"Sjöfåglar",items:[
+    {n:"Gräsand",fi:"Sinisorsa",tip:"Hanen grönt huvud.",v:1},
+    {n:"Knölsvan",fi:"Kyhmyjoutsen",tip:"Orange näbb med svart knöl.",v:1},
+    {n:"Ejder",fi:"Haahka",tip:"Hanen svartvit, kring kobbar.",v:2},
+    {n:"Vigg",fi:"Tukkasotka",tip:"Svartvit dykand med tofs.",v:1},
+    {n:"Storskrake",fi:"Isokoskelo",tip:"Lång smal röd näbb.",v:1},
+    {n:"Småskrake",fi:"Tukkakoskelo",tip:"Rufsig tofs, fiskande.",v:2},
+    {n:"Skäggdopping",fi:"Silkkiuikku",tip:"Lång hals, dyker länge.",v:2},
+    {n:"Storskarv",fi:"Merimetso",tip:"Sitter med utbredda vingar.",v:2},
+    {n:"Kanadagås",fi:"Kanadanhanhi",tip:"Stor, svart hals, vit haka.",v:1},
+    {n:"Vitkindad gås",fi:"Valkoposkihanhi",tip:"Stora flockar vår/höst.",v:2},
+    {n:"Grågås",fi:"Merihanhi",tip:"Helt grå, kraftig näbb.",v:2},
+    {n:"Svärta",fi:"Pilkkasiipi",tip:"Mörk dykand, vit vingfläck.",v:3,rare:true},
+    {n:"Storlom",fi:"Kuikka",tip:"Ligger lågt, dyker, klagande rop.",v:4,rare:true},
+    {n:"Smålom",fi:"Kaakkuri",tip:"Uppåtböjd näbb, yttre vatten.",v:4,rare:true},
+  ]},
+  gulls:{label:"Måsar & Tärnor",items:[
+    {n:"Gråtrut",fi:"Harmaalokki",tip:"Störst av måsarna, ljus rygg.",v:1},
+    {n:"Havstrut",fi:"Merilokki",tip:"Svart rygg, riktigt stor.",v:2},
+    {n:"Fiskmås",fi:"Kalalokki",tip:"Gult näbb, mindre.",v:1},
+    {n:"Skrattmås",fi:"Naurulokki",tip:"Chokladbrunt huvud sommartid.",v:1},
+    {n:"Silltrut",fi:"Selkälokki",tip:"Mörk rygg, gula ben.",v:2},
+    {n:"Fisktärna",fi:"Kalatiira",tip:"Röd näbb m. svart spets, dyker.",v:2},
+    {n:"Silvertärna",fi:"Lapintiira",tip:"Helröd näbb, spetsiga dyk.",v:2},
+    {n:"Skräntärna",fi:"Räyskä",tip:"Störst av tärnor, klarröd näbb.",v:4,rare:true},
+    {n:"Sillgrissla",fi:"Etelänkiisla",tip:"På yttre klippor, upprätt.",v:3,rare:true},
+    {n:"Tordmule",fi:"Ruokki",tip:"Tjock näbb m. vit linje.",v:3,rare:true},
+    {n:"Tobisgrissla",fi:"Riskilä",tip:"Röda fötter, svart kropp.",v:3,rare:true},
+  ]},
+  waders:{label:"Vadare & Rovfåglar",items:[
+    {n:"Strandskata",fi:"Meriharakka",tip:"Lysande orange näbb, svartvit.",v:2},
+    {n:"Drillsnäppa",fi:"Rantasipi",tip:"Vippar stjärten vid strandkant.",v:2},
+    {n:"Rödbena",fi:"Punajalkaviklo",tip:"Orange ben, gäll vissling.",v:2},
+    {n:"Roskarl",fi:"Karikukko",tip:"Brokig vadare på stenstränder.",v:3,rare:true},
+    {n:"Större strandpipare",fi:"Tylli",tip:"Litet halsband, springer-stannar.",v:3,rare:true},
+    {n:"Fiskgjuse",fi:"Sääksi",tip:"Svävar, dyker fötterna först.",v:4,rare:true},
+    {n:"Havsörn",fi:"Merikotka",tip:"Enormt vingspann — skanna himlen.",v:5,rare:true},
+    {n:"Brun kärrhök",fi:"Ruskosuohaukka",tip:"Lågt över vass, V-vingar.",v:3,rare:true},
+    {n:"Mås på stolpe",fi:"Tolppalokki",tip:"Klassiskt motiv — gratis poäng!",v:1},
+  ]},
+  flora:{label:"Flora & Land",items:[
+    {n:"En (buske)",fi:"Kataja",tip:"Pelarformad, överallt på hällar.",v:1},
+    {n:"Tall på häll",fi:"Kalliomänty",tip:"Vindpinad, krokig.",v:1},
+    {n:"Vass",fi:"Ruoko",tip:"Höga bladvassar i vikar.",v:1},
+    {n:"Blåstång",fi:"Rakkolevä",tip:"Brun tång i strandlinjen.",v:1},
+    {n:"Ljung",fi:"Kanerva",tip:"Lila matta sensommar.",v:2},
+    {n:"Blåklocka",fi:"Kissankello",tip:"På torra ängar.",v:2},
+    {n:"Betesö / får",fi:"Laidun",tip:"Håller landskapet öppet.",v:2},
+    {n:"Röd stuga",fi:"Punainen mökki",tip:"Faluröd — överallt.",v:1},
+    {n:"Strandbastu",fi:"Rantasauna",tip:"Liten stuga vid vattenbrynet.",v:1},
+    {n:"Väderkvarn",fi:"Tuulimylly",tip:"Bevarad på flera öar.",v:3,rare:true},
+    {n:"Kyrktorn",fi:"Kirkontorni",tip:"Nagu, Pargas siluett.",v:2},
+    {n:"Fyr",fi:"Majakka",tip:"Bengtskär störst i Norden.",v:3,rare:true},
+    {n:"Kalt klippskär",fi:"Luoto",tip:"Slipad granit utan träd.",v:1},
+    {n:"Fiskodling",fi:"Kalankasvatus",tip:"Flytande kassar i sundet.",v:2},
+  ]},
+  sealife:{label:"Sjöliv & Väder",items:[
+    {n:"Gråsäl",fi:"Halli",tip:"Solar på yttre kobbar.",v:5,rare:true},
+    {n:"Tumlare",fi:"Pyöriäinen",tip:"Mycket sällsynt — livsmål!",v:5,rare:true},
+    {n:"Fiskstim vid ytan",fi:"Kalaparvi",tip:"Krusning + matande fåglar.",v:2},
+    {n:"Maneter",fi:"Meduusat",tip:"Genomskinliga öronmaneter.",v:1},
+    {n:"Kardinalmärke",fi:"Kardinaaliviitta",tip:"Gul/svart — visar säkert vatten.",v:2},
+    {n:"Lateralmärke",fi:"Lateraaliviitta",tip:"Röd babord, grön styrbord.",v:1},
+    {n:"Båk / dagermärke",fi:"Pooki",tip:"Stort byggt sjömärke på ö.",v:3,rare:true},
+    {n:"Vindkraftverk",fi:"Tuulivoimala",tip:"",v:2},
+    {n:"Flaggstång m. vimpel",fi:"Lipputanko",tip:"Vid nästan varje stuga.",v:1},
+    {n:"Regnbåge",fi:"Sateenkaari",tip:"Efter en skur.",v:4,rare:true},
+    {n:"Åskmoln (bymoln)",fi:"Ukkospilvi",tip:"Städformat — håll utkik.",v:3,rare:true},
+    {n:"Solnedgång i havsband",fi:"Auringonlasku",tip:"Sen kväll mot öppna havet.",v:2},
+    {n:"Stjärnklart / Vintergatan",fi:"Linnunrata",tip:"Mörk natt utan månsken.",v:3,rare:true},
+    {n:"Morgondimma",fi:"Aamusumu",tip:"Lugn morgon över sundet.",v:2},
+  ]},
+};
+const SOUNDS=[
+  {n:"Havsörn",fi:"Merikotka",sci:"Haliaeetus-albicilla",call:"Ett gällt, skrattande <b>kli-kli-kli-kli</b> — förvånansvärt högt och pipigt för en så stor fågel."},
+  {n:"Storlom",fi:"Kuikka",sci:"Gavia-arctica",call:"Klagande, jamande <b>aa-oo</b> som bär långt över stilla vatten, ofelbart skärgårdskvällar."},
+  {n:"Storskarv",fi:"Merimetso",sci:"Phalacrocorax-carbo",call:"Djupa, grymtande <b>krora-krora</b> från kolonin — låter nästan som grisar."},
+  {n:"Knölsvan",fi:"Kyhmyjoutsen",sci:"Cygnus-olor",call:"Mest tyst, men vingarna ger ett rytmiskt <b>vin-vin-vin</b> i flykten — hörs på långt håll."},
+  {n:"Ejder",fi:"Haahka",sci:"Somateria-mollissima",call:"Hanens mjuka, förvånade <b>a-OOH-e</b> — ett klassiskt vårljud bland kobbarna."},
+  {n:"Fisktärna",fi:"Kalatiira",sci:"Sterna-hirundo",call:"Skarpt, nedåtgående <b>kee-arr</b> och ettrigt <b>kik-kik</b> vid kolonin."},
+  {n:"Silvertärna",fi:"Lapintiira",sci:"Sterna-paradisaea",call:"Likt fisktärnan men kortare, vassare <b>kii-kii</b> och ett pipigt <b>pii-pii</b>."},
+  {n:"Skräntärna",fi:"Räyskä",sci:"Hydroprogne-caspia",call:"Hest, häftigt kråkliknande <b>kraa-aa</b> — kraftfullt, matchar den stora kroppen."},
+  {n:"Gråtrut",fi:"Harmaalokki",sci:"Larus-argentatus",call:"Det klassiska skratttande <b>kjau-kjau-kjau</b> — själva ljudet av hamn och hav."},
+  {n:"Skrattmås",fi:"Naurulokki",sci:"Chroicocephalus-ridibundus",call:"Sträva, gnälliga <b>krriarr</b> i livliga kolonier — ger arten dess namn."},
+  {n:"Strandskata",fi:"Meriharakka",sci:"Haematopus-ostralegus",call:"Genomträngande, pipande <b>kli-kli-kliip</b> som stegras när den blir störd."},
+  {n:"Fiskgjuse",fi:"Sääksi",sci:"Pandion-haliaetus",call:"Ljusa, visslande <b>pyu-pyu-pyu</b> — mjukare och vekare än man väntar av en rovfågel."},
+];
+const QUIZ=[
+  {q:"Ungefär hur många öar och skär har Skärgårdshavet enligt den vidaste räkningen?",a:["Cirka 5 000","Cirka 50 000","Cirka 500 000"],c:1,e:"Räknar man med de minsta kobbarna och skären landar man på omkring 50 000 — en av världens tätaste öskärgårdar."},
+  {q:"Varför fortsätter nya skär att stiga ur havet här?",a:["Sjunkande havsnivå","Landhöjning efter istiden","Tidvatten"],c:1,e:"Landet reser sig fortfarande efter inlandsisens tyngd — cirka 4–10 mm per år i det här området."},
+  {q:"Vad är berggrunden i skärgården mest gjord av?",a:["Kalksten","Granit och gnejs","Sandsten"],c:1,e:"Hård granit och gnejs — därför vinner landhöjningen över erosionen och öarna består."},
+  {q:"Sedan vilket år är Skärgårdshavet ett UNESCO-biosfärområde?",a:["1982","1995","2007"],c:0,e:"Utsett 1982, ett av de äldsta biosfärområdena i Norden."},
+  {q:"Vad är ungefär medeldjupet i Skärgårdshavet?",a:["5–10 m","23–27 m","60–80 m"],c:1,e:"Ganska grunt — i snitt 23–27 m, med enstaka rännor ner mot 80 m."},
+  {q:"Vilken är Nordens största fågel du kan möta här, med upp till 2,5 m vingbredd?",a:["Havsörn","Storskarv","Knölsvan"],c:0,e:"Havsörnen har en betydande häckande stam just i Skärgårdshavet."},
+  {q:"Vad kallas den gula vägfärjan som binder ihop öarna?",a:["Förbindelsefärja","Isbrytare","Lotsbåt"],c:0,e:"Förbindelsefärjorna (yhteysalus) är ofta gratis och en del av vägnätet."},
+  {q:"Vilket sjödäggdjur kan du med tur se sola på yttre kobbar?",a:["Utter","Gråsäl","Bäver"],c:1,e:"Gråsälen är vanligast; den mycket sällsynta tumlaren är skärgårdens stora drömsyn."},
+  {q:"Vad visar ett kardinalmärke (gul/svart prick) för sjöfararen?",a:["Var det är säkert att passera","Var fisket är förbjudet","Var man får ankra"],c:0,e:"Kardinalmärken pekar mot säkert vatten i förhållande till en fara."},
+  {q:"Vilken stad är den traditionella start-/slutpunkten för Skärgårdens ringväg?",a:["Helsingfors","Åbo","Mariehamn"],c:1,e:"Åbo räknas som ringvägens utgångspunkt genom Pargas, Nagu, Korpo m.fl."},
+  {q:"Storskarven sprider ofta ut vingarna sittande. Varför?",a:["För att skrämmas","För att torka fjädrarna","För att kyla sig"],c:1,e:"Skarvens fjädrar är inte helt vattentäta, så den torkar dem efter dyk."},
+  {q:"Vilket är ett klassiskt finländskt sommarljud bland kobbarna om våren?",a:["Ejderhanens 'a-ooh-e'","Påfågelns skrik","Göktytans hammrande"],c:0,e:"Ejderhanens mjuka, nästan förvånade kuttrande hörs vida kring häckkobbarna."},
+  {q:"OM BÅTEN: Vilken modell är Sun-Day?",a:["Degerö 33","Nauticat 33","Swan 36"],c:0,e:"Degerö 33 — finländsk långfärdsbåt, 9,81 m lång, 3,52 m bred, 5 200 kg."},
+  {q:"OM BÅTEN: Hur djupt sticker Sun-Day — viktigt vid grynnor och naturhamnar?",a:["1,0 m","1,5 m","2,2 m"],c:1,e:"Djupgående 1,5 m. Lägg på marginal — sjökortens djup är inga löften."},
+  {q:"OM BÅTEN: Hur hög är Sun-Days mast — tänk broar och luftledningar?",a:["12 m","15 m","18 m"],c:1,e:"15 m mast. Kolla alltid segelfri höjd på broar och kraftledningar i farleden."},
+  {q:"SVÅR: Vid cirka 90° mot vinden seglar man på vilken bog?",a:["Bidevind","Halvvind","Läns"],c:1,e:"Halvvind (beam reach) — vinden rakt in från sidan, ofta den snabbaste och bekvämaste bogen."},
+  {q:"SVÅR: Att vända fören genom vindögat kallas?",a:["Gipp","Stagvändning","Kullsegling"],c:1,e:"Stagvändning (tack) — fören går genom vinden. Gipp (gippning) är när aktern går genom vinden."},
+  {q:"SVÅR: 'Bidevind' (close-hauled) innebär ungefär vilken vinkel mot vinden?",a:["Cirka 45°","Cirka 90°","Cirka 135°"],c:0,e:"Omkring 45° — så nära vinden som seglet kan ge lyftkraft. Närmare än så hamnar man i no-go-zonen."},
+  {q:"SVÅR: Vilken lina används för att HISSA ett segel?",a:["Skot","Fall","Stag"],c:1,e:"Fall (halyard) hissar seglet. Skot (sheet) trimmar det. Stag är fast rigg som håller masten."},
+  {q:"SVÅR: Babords sida visar om natten vilket lanternljus?",a:["Grönt","Rött","Vitt"],c:1,e:"Rött om babord, grönt om styrbord. Minnesregel: 'rött vin är slut' / port=red (kortast orden)."},
+  {q:"SVÅR: Ett fartyg på styrbords halsar möter ett på babords halsar. Vem viker?",a:["Styrbords halsar viker","Babords halsar viker","Den till lä viker"],c:1,e:"Den på babords halsar väjer för den på styrbords halsar (segelreglerna, KSS regel 12)."},
+  {q:"SVÅR: Vad betyder att 'reva' seglet?",a:["Minska segelytan","Byta segel","Sänka masten"],c:0,e:"Reva = minska segelytan i hård vind, oftast genom att veckla in eller binda upp en del av storseglet."},
+  {q:"SVÅR: Skärgårdshavet är grunt — vad gör att nya skär ändå dyker upp snabbare än de eroderar?",a:["Sjunkande havsnivå","Hård granit + landhöjning","Sedimentpålagring"],c:1,e:"Landhöjningen (4–10 mm/år) vinner över erosionen eftersom berget är hård granit och gnejs."},
+  {q:"SVÅR: 'Läns' (running) innebär att vinden kommer?",a:["Rakt akterifrån","Rakt förifrån","Tvärs från sidan"],c:0,e:"Läns = undanvind, vinden rakt bakifrån. Akta för oavsiktlig gipp."},
+  {q:"SVÅR: Vad kallas den röd-gröna bojen som visar farledens sidor?",a:["Kardinalmärke","Lateralmärke","Mittledsmärke"],c:1,e:"Lateralmärken (röd babord, grön styrbord) markerar farledens kanter; kardinalmärken pekar mot väderstreck runt en fara."},
+];
+const TERMS=[
+  {grp:"Riktning & bogar"},
+  {n:"Bidevind",fi:"Vastatuuli / luovi",d:"Segla så nära vinden som möjligt, ca 45°. Seglen hårt intrimmade."},
+  {n:"Halvvind",fi:"Sivutuuli",d:"Vinden rakt in från sidan, 90°. Ofta snabbaste och bekvämaste bogen."},
+  {n:"Slör",fi:"Myötätuuli (avoin)",d:"Vinden akter om tvärs, mellan halvvind och läns. Seglen släpps ut mer."},
+  {n:"Läns / undanvind",fi:"Myötätuuli",d:"Vinden rakt akterifrån. Akta för oavsiktlig gipp."},
+  {n:"No-go-zonen",fi:"Vyöhyke vasten tuulta",d:"Sektorn ~45° kring vindögat där segel inte ger kraft. Här ligger man 'i stå'."},
+  {n:"Lovart / lä",fi:"Tuulen puoli / suojan puoli",d:"Lovart = mot vinden. Lä = den vindskyddade sidan."},
+  {grp:"Manövrer"},
+  {n:"Stagvändning",fi:"Käännös vastatuuleen",d:"Fören vänds genom vindögat. Engelska: tack."},
+  {n:"Gipp / gippning",fi:"Jiibi",d:"Aktern vänds genom vinden; bommen slår över. Engelska: gybe."},
+  {n:"Reva",fi:"Reivata",d:"Minska segelytan i hård vind, oftast på storseglet."},
+  {n:"Kryssa",fi:"Luovia",d:"Sicksacka mot vinden i upprepade stagvändningar för att nå ett mål i lovart."},
+  {n:"Falla av / lova",fi:"Pakata / luvata",d:"Falla av = svänga bort från vinden. Lova = svänga upp mot vinden."},
+  {grp:"Rigg & linor"},
+  {n:"Fall",fi:"Halyardi / nostoköysi",d:"Lina som hissar ett segel."},
+  {n:"Skot",fi:"Skuutti",d:"Lina som trimmar (drar in/släpper ut) ett segel."},
+  {n:"Stag & vant",fi:"Harukset / vantit",d:"Fast rigg som håller masten: stag förut/akter, vant i sidled."},
+  {n:"Bom",fi:"Puomi",d:"Horisontella spiran längs storseglets underkant."},
+  {n:"Genua / fock",fi:"Genova / fokka",d:"Försegel framför masten; genuan är den större."},
+  {grp:"Ombord & navigation"},
+  {n:"Babord / styrbord",fi:"Paapuuri / tyyrpuuri",d:"Vänster / höger sett föröver. Lanterna: röd babord, grön styrbord."},
+  {n:"För / akter",fi:"Keula / perä",d:"Fören är fram, aktern är bak."},
+  {n:"Tvärs / för om / akter om",fi:"Sivulla / edessä / takana",d:"Riktningar relativt båten: rakt ut åt sidan, framför, bakom."},
+  {n:"Knop",fi:"Solmu",d:"Fart i nautiska mil per timme; 1 knop ≈ 1,85 km/h."},
+  {n:"Kölvatten",fi:"Vanavesi",d:"Spåret av krusat vatten en båt lämnar efter sig."},
+  {n:"Pejling",fi:"Suuntima",d:"Riktningen till ett objekt, oftast i grader (kompass)."},
+];
+const PLACES=[
+  {n:"Barösund",t:"Gästhamn / sund",r:"4,1",lat:59.976,lng:23.855,fee:"ca 25 €/natt",svc:"⚡ el · 🚿 dusch · 🛒 sommarbutik · 🍽️ café/restaurang",note:"Måndagsnattens hamn för Martin & Patrik — idylliskt smalt sund halvvägs mot Hangö, skyddat i nästan all vind."},
+  {n:"Hangö Östra hamnen",t:"Gästhamn / mötespunkt",r:"4,2",lat:59.824444,lng:22.980556,fee:"ca 35–40 €/natt",svc:"⚡ el · 💧 vatten · 🚿 dusch · 🧖 bastu · 🧺 tvätt · 🍽️ hamnrestauranger · ⛽ bränsle · 🚽 septi",note:"Finlands sydspets och klassisk regattastad. Här kliver bilgänget (Roope, Tiina, Pernilla) ombord — mönstring och gemensam middag på hamnstråket!"},
+  {n:"Airisto Marina",t:"Gästhamn",r:"4,0",lat:60.251984,lng:22.109150,fee:"ca 30 €/natt",svc:"⚡ el · 💧 vatten · 🚿 dusch · 🧖 bastu · 🍽️ restaurang · ⛽ bränsle",note:"Nära Åbo — populär marina med restaurang och berömd pizza. Bra start/slut nära stan."},
+  {n:"Själö (Seili)",t:"Ö",r:"4,3",lat:60.238462,lng:21.960638,fee:"ca 20–25 €/natt",svc:"🛏️ gästbrygga · 🍽️ sommarcafé · 🚻 wc — enkelt, öns historia är grejen",note:"Historisk ö — forskningsstation, gammalt sjukhus och kyrka. Frigående boskap, stark stämning."},
+  {n:"Brännskär",t:"Naturhamn / ö",r:"4,8",lat:60.088175,lng:21.970499,fee:"ca 20 €/natt",svc:"🧖 bastu · 🍕 pizzacafé · 🚻 torrdass · 🛶 brygga",note:"Patriks 'dropped pin' vid Brännskärs sund. Charmig ö med stugor, bastu och hyllad pizza."},
+  {n:"Korpoström gästhamn",t:"Gästhamn",r:"4,0",lat:60.110254,lng:21.599407,fee:"ca 30 €/natt",svc:"⚡ el · 💧 vatten · 🧖 bastu · 🚿 dusch · 🍽️ restaurang · 🚽 septi",note:"Centralt läge, lätt att nå med bil — bra för byte av besättning. Bastu med utsikt."},
+  {n:"Aspö gästhamn",t:"Gästhamn",r:"4,6",lat:59.951253,lng:21.613969,fee:"ca 25 €/natt",svc:"🧖 bastu · 🛁 badtunna (hyra) · 🍲 fisksoppa dagligen · 🚻 torrdass",note:"En av skärgårdens vackraste hamnar. Daglig fisksoppa, bastu, hyrbar badtunna, lugnt läge."},
+  {n:"Seapoint Nötö",t:"Bränsle / brygga",r:"3,2",lat:59.954016,lng:21.756751,fee:"tankstopp — ej övernattning",svc:"⛽ bränsle 24h (obemannad, kortbetalning)",note:"Obemannad 24h bränslestation. Trång för långkölade/större segelbåtar — planera anlöpet."},
+  {n:"Naturhamn & Café Björkö",t:"Naturhamn",r:"4,8",lat:59.908768,lng:21.679617,fee:"gratis / frivillig avgift",svc:"⚓ ankarplatser · 🚻 torrdass · 🔥 ved/eldplats · ☕ café i land (sommar)",note:"Kanske skärgårdens finaste naturhamn. Gott om ankarplatser, torrdass, vedeldning, café i land."},
+  {n:"Helsingholm",t:"Gästhamn",r:"4,3",lat:60.030849,lng:22.282087,fee:"20 €/natt inkl. el",svc:"⚡ el ingår · 🧖 bastu · 🐟 rökt fisk från hamnen · 🛶 brygga",note:"Privatägd paradisö öppen för allmänheten. Färsk rökt lax direkt från hamnen."},
+  {n:"Högsåra",t:"Ö / by",r:"–",lat:59.955285,lng:22.361200,fee:"25 €/natt + el 5 €",svc:"⚡ el (5 €) · 🧖 bastu · 🍽️ Farmors café/restaurang · 🚿 dusch",note:"Pittoresk skärgårdsby med gästhamn och café/restaurang. Klassiskt anlöp på sydrutten."},
+  {n:"Kasnäs",t:"Marina",r:"4,6",lat:59.924602,lng:22.413263,fee:"från 34 €/natt (allt ingår)",svc:"⚡💧 el+vatten ingår · 🧖🚿 bastu+dusch ingår · 📶 wifi · 🏊 spa · 🍽️ restaurang · 🛒 butik · ⛽ bränsle · 🚽 septi",note:"Välutrustad marina med spa/hotell. Utgångspunkt för båt ut till Örö."},
+  {n:"Örö",t:"Fästningsö / nationalpark",r:"4,5",lat:59.810116,lng:22.337496,fee:"ca 30 €/natt",svc:"⚡ el · 🚿 dusch · 🍽️ restaurang (sommar) · 🥾 nationalparksleder",note:"Gammal fästningsö i Skärgårdshavets nationalpark. Militärhistoria, sällsynt natur, klart vatten."},
+  {n:"Dalsbruk Marina",t:"Marina",r:"4,3",lat:60.019048,lng:22.507366,fee:"ca 30 €/natt",svc:"⚡ el · 💧 vatten · 🧖 bastu · 🚿 dusch · 🧺 tvätt · 🚽 septi · 🛒 2 matbutiker · ⛽ bränsle",note:"Bra servad marina vid gammalt järnbruk. Två matbutiker nära, bra bränslepris, septiktömning."},
+  {n:"Nådendal (Naantali)",t:"Stadshamn / MÅL 🏁",r:"4,4",lat:60.4682,lng:22.0243,fee:"ca 40 €/natt",svc:"⚡💧🚿🧖 full service · 🍽️ restaurangstråk · 🛒 stad · 🎡 Muminvärlden",note:"Målhamn! Gamla stan vid vattnet, Muminvärlden och terrasstråk. Turistigt men ett perfekt avslut på törnen."},
+];
+const DEFAULT_ROUTE=["Barösund","Hangö","Airisto","Själö","Brännskär","Korpoström","Aspö","Nötö","Björkö","Helsingholm","Högsåra","Örö","Dalsbruk","NÅDENDAL"];
+let ROUTE=[...DEFAULT_ROUTE];
+let TILE_SHORT=["HELSINGFORS",...ROUTE];
+const ALT_HARBORS=[
+  {n:"Nagu gästhamn",t:"Servicehamn / by",fee:"ca 40 €/natt",svc:"⚡ el · 💧 vatten · 🚿 dusch · 🧖 bastu · 🍽️ restaurangstråk · 🛒 butik · ⛽ bränsle · 🚽 septi",note:"Skärgårdens livligaste knutpunkt — allt finns, men fullt i juli. Kom före kl 15."},
+  {n:"Korpo Verkan",t:"Gästhamn",fee:"ca 30 €/natt",svc:"⚡ el · 🚿 dusch · 🧖 bastu · 🍽️ restaurang/bryggeri",note:"Lugnare alternativ till Nagu, nära Korpo kyrkby. Bra väderskydd."},
+  {n:"Pargas Kalkholmen",t:"Gästhamn / stad",fee:"ca 30 €/natt",svc:"⚡ el · 💧 vatten · 🚿 dusch · 🛒 stadens service nära",note:"Stadshamn — bra för storhandling och om något behöver repareras."},
+  {n:"Utö",t:"Yttersta utpost",fee:"ca 30 €/natt",svc:"🚿 dusch · 🍽️ sommarrestaurang · 🛒 liten butik · 💡 fyrsamhälle",note:"Öppet hav sista biten — bara i stabilt väder. Magisk fyrmiljö."},
+  {n:"Jurmo",t:"Karg utö",fee:"ca 25 €/natt",svc:"🚻 enkelt · ☕ sommarcafé · unik alvarsnatur",note:"Som ingen annan ö i Östersjön. Trång brygga, kom tidigt. Utsatt i sydliga vindar."},
+  {n:"Berghamn (Houtskär)",t:"Gästhamn",fee:"ca 25 €/natt",svc:"🧖 bastu · ☕ café · 🚻 wc",note:"Stilla bykänsla väster om Korpo — bra skydd i västliga vindar."},
+  {n:"Kirjais",t:"Brygga / handel",fee:"ca 25 €/natt",svc:"⚡ el · 🛒 välsorterad sommarbutik",note:"Praktiskt proviantstopp söder om Nagu, i skyddade inomskärsleden."},
+  {n:"Vänö",t:"Naturhamn / by",fee:"ca 20 €/natt",svc:"☕ café · 🧖 bastu · 🚻 torrdass",note:"Liten idyll i yttre skärgården mellan Hitis och Örö. Skyddad liten hamnbassäng."},
+  {n:"Rosala",t:"Brygga / by",fee:"ca 25 €/natt",svc:"🛒 butik · 🏛️ vikingacentrum · ⚡ el",note:"Skyddat läge i Hitisarkipelagen — kul kulturstopp om vädret tvingar in er."},
+];
+const EXTRA_HARBORS=[
+  {n:"Porkkala (Kirkkonummi)",t:"Gästhamn",fee:"ca 25 €/natt",svc:"⚡ el · 🚿 dusch · 🍽️ sommarrestaurang · ⛽ bränsle",note:"Klassiskt första stopp väster om Helsingfors — bra läge för första natten efter avfärd från Katajanokka."},
+  {n:"Ekenäs gästhamn",t:"Stadshamn",fee:"25 €/natt",svc:"⚡ el · 💧 vatten · 🚿 dusch · 🧖 bastu · 🛒 stad · 🚽 septi",note:"Trästaden Ekenäs med full service — bra väderalternativ innan Hangö udd rundas."},
+  {n:"Bromarv",t:"Gästhamn / by",fee:"ca 20 €/natt",svc:"⚡ el · 🚿 dusch · 🛒 bybutik · ☕ café",note:"Lugn liten hamn mellan Hangö och Kimitoön — genväg in mot Dalsbruk-hållet."},
+  {n:"Näsby (Houtskär)",t:"Gästhamn",fee:"20 €/natt (<34 fot — allt ingår!)",svc:"⚡💧 el+vatten ingår · 🚿🧖 dusch+bastu ingår · 🚽 septi · 🍽️ café",note:"Kap för Sun-Day (33 fot): fast pris med allt inkluderat. Houtskärs huvudby."},
+  {n:"Norrby (Iniö)",t:"Gästhamn",fee:"27 €/natt",svc:"⚡ el · 🚿 dusch · 🧖 bastu · 🛒 butik · 🍽️ restaurang",note:"Nordligaste skärgårdskommunen — vacker omväg om ni vill norrut från Korpo."},
+  {n:"Röölä (Rimito)",t:"Bybrygga",fee:"ca 20 €/natt",svc:"⛽ bränsle · 🚽 septi · ☕ sommarcafé · 🐟 rökeri",note:"Gammal fiskeby vid Airisto — rökt fisk och genuin stämning."},
+  {n:"Nådendal (Naantali)",t:"Stadshamn",fee:"ca 40 €/natt",svc:"⚡💧🚿🧖 full service · 🍽️ restaurangstråk · 🛒 stad",note:"Muminland och gamla stan — turistigt men charmigt om rutten går norrut."},
+  {n:"Runsala (Åbo)",t:"Marina",fee:"ca 35 €/natt",svc:"⚡💧🚿🧖 · ⛽ bränsle · 🚽 septi · 🍽️ restaurang",note:"Åbos gröna ö — närmast staden ni kommer med egen köl."},
+  {n:"Västanfjärd",t:"Gästbrygga",fee:"ca 20 €/natt",svc:"⚡ el · 🧖 bastu · ☕ café",note:"Stilla vik på Kimitoöns sydsida, nära Dalsbruk — bra reservnatt."},
+  {n:"Tunnhamn",t:"Naturhamn",fee:"gratis / frivillig",svc:"⚓ ankring · 🚻 torrdass · orörd natur",note:"Klassisk naturhamn i yttre Hitisskärgården — bara ni och sälarna."},
+  {n:"Bodö",t:"Gästhamn / ö",fee:"ca 25 €/natt",svc:"🍽️ bistrocafé · 🧖 flytande bastu­flotte! · 🛒 liten puoti · 🥾 naturstigar",note:"F.d. sjöbevakningsstation mitt i Skärgårdshavet, nära Kirjais. Skyddad hamn och unik flottbastu — mycket er stil."},
+  {n:"Tackork Gård & Marina",t:"Marina / gård",fee:"ca 30 €/natt",svc:"⚡ el · 🚿 dusch · 🧖 saunavärld · 🍽️ restaurang med livemusik",note:"Vid Nagu ringväg — terrassdans på sommarkvällar och rejäl saunavärld."},
+  {n:"Villa Wolax (Kuusistö)",t:"Gästhamn / boutiquehotell",fee:"ca 30 €/natt",svc:"🍽️ restaurang · 🏖️ strandbar · 🧖 bastu · 🏄 SUP-uthyrning",note:"Nära Kaarina på vägen mot Airisto — strandbar och hotellmiddag om ni vill lyxa till en kväll."},
+  {n:"Åbo gästhamn (Aura å)",t:"Stadshamn",fee:"ca 35 €/natt",svc:"⚡💧🚿 · ☕ NOOA Café · 🛒 mitt i stan · restaurangstråk längs ån",note:"Segla rakt in i Åbos hjärta längs Aura å — närmast urban skärgård man kan komma."},
+  {n:"Vepsä",t:"Utflyktsö",fee:"ca 15 €/natt",svc:"🏖️ badstrand · ☕ kiosk/café · 🧖 hyrbastu · 🛶 kanoter",note:"Åbo stads friluftsö mitt på Airisto — gammalt smugglarnäste, numera familjefavorit."},
+];
+const HARBOR_CH={
+  "Barösund":{t:"Första natten",d:"Måndagsnattens hamn för Martin & Patrik. Säkra förtöjningen för natten, logga positionen i skeppschatten och fira första etappen med solnedgångsfika."},
+  "Hangö":{t:"Mönstring!",d:"Bilgänget (Roope, Tiina, Pernilla) kliver ombord hos Patrik & Martin — hela besättningen samlad. Fira med gemensam skål eller fika!"},
+  "Airisto":{t:"Pålstek-provet",d:"Knyt en pålstek på max 30 sekunder medan en kompis tar tid."},
+  "Själö":{t:"Öns berättelse",d:"Berätta för besättningen varför Själö är känt — spetälske- och hospitalhistorien."},
+  "Brännskär":{t:"Doppdags",d:"Doppa dig (eller åtminstone fötterna) från båten eller bryggan."},
+  "Korpoström":{t:"Rorsman",d:"Håll rodret i 30 minuter utan avlösning."},
+  "Aspö":{t:"Skeppskock",d:"Servera besättningen något — kaffe, dram eller snacks — med stil."},
+  "Nötö":{t:"Maskinchef",d:"Kolla olja, kylvatten eller bränslenivå och rapportera till skepparen."},
+  "Björkö":{t:"Ankringsmästare",d:"Var med och lägg eller ta upp ankaret."},
+  "Helsingholm":{t:"Fisksmak",d:"Köp och smaka något rökt/lokalt — eller fånga en egen fisk."},
+  "Högsåra":{t:"Fotouppdrag",d:"Ta ett vykortsvärdigt foto av byn eller hamnen och visa besättningen."},
+  "Örö":{t:"Historikern",d:"Berätta ett faktum om Örös militärhistoria för besättningen."},
+  "Dalsbruk":{t:"Förtöjningsproffs",d:"Dubbelt halvslag runt pollare + snygg förtöjning vid bryggan."},
+  "NÅDENDAL":{t:"Målgång!",d:"I mål i Nådendal! Gamla stan vid vattnet, Muminvärlden och en skål för hela törnen. 🍾"},
+};
+let CHALLENGES=ROUTE.map(n=>HARBOR_CH[n]);
+function setRoute(r){
+  if(!Array.isArray(r)||r.length!==14)return;
+  ROUTE=[...r];
+  TILE_SHORT=["HELSINGFORS",...ROUTE];
+  CHALLENGES=ROUTE.map(n=>HARBOR_CH[n]||{t:"Hamnstopp",d:"Utforska "+n+" tillsammans — kaptenens specialstopp."});
+}
+let SETTINGS={captain:"Martin"};
+function isCaptain(s){const who=s||me;
+  return !!(who&&who.name&&who.name.trim().toLowerCase()===String(SETTINGS.captain||"").trim().toLowerCase());}
+const CP_PTS=5;
+const KNOTS=[
+  {n:"Pålstek",en:"Bowline",fi:"Paalusolmu",d:"Kungen av knopar — en fast ögla som aldrig glider och alltid går att öppna. Förtöjning, säkerhet.",v:3,url:"https://www.animatedknots.com/bowline-knot"},
+  {n:"Dubbelt halvslag",en:"Clove hitch + halvslag",fi:"Siansorkka",d:"Snabb fästning runt pollare, räcke eller ring. Säkra med extra halvslag.",v:2,url:"https://www.animatedknots.com/clove-hitch-knot-rope-end-method"},
+  {n:"Skotstek",en:"Sheet bend",fi:"Jalussolmu",d:"Knyter ihop två linor — även av olika grovlek. Bättre än råbandsknop för det.",v:2,url:"https://www.animatedknots.com/sheet-bend-knot"},
+  {n:"Råbandsknop",en:"Reef knot",fi:"Merimiessolmu",d:"Två lika linor samman, klassikern vid revning. 'Höger över vänster, vänster över höger.'",v:2,url:"https://www.animatedknots.com/square-knot"},
+  {n:"Åttaknop",en:"Figure 8",fi:"Kahdeksikko",d:"Stoppknop i änden av skot och fall så linan inte smiter genom blocket.",v:1,url:"https://www.animatedknots.com/figure-8-knot"},
+  {n:"Knapslag",en:"Cleat hitch",fi:"Kiinnitys knaapiin",d:"Förtöjning på knap — åttor och ett låsande halvslag. Ser enkelt ut, görs ofta fel.",v:2,url:"https://www.animatedknots.com/cleat-hitch-knot-halyard"},
+];
+const SURPRISES=[
+  {em:"⏱️",t:"Knopracet — snabbast pålstek ombord vinner. Vinnaren loggar.",v:5},
+  {em:"📸",t:"Fotoutmaning — hela besättningen och seglen i samma bild. Fotografen loggar.",v:4},
+  {em:"🛟",t:"MOB-övning — kasta fendern ('Bosse') och rädda honom med båtshake. Rorsmannen loggar.",v:5},
+  {em:"🤫",t:"Tyst kvart — 15 minuter segling helt utan prat. Den som först märker att tiden gått loggar.",v:3},
+  {em:"🎶",t:"Snapsvisa — lär besättningen en ny visa vid middagen. Försångaren loggar.",v:3},
+  {em:"🌤️",t:"Väderoraklet — alla gissar vindstyrkan, kolla mot mätare/prognos. Närmast loggar.",v:4},
+  {em:"🍳",t:"Kockduell — dagens bästa bidrag till måltiden. Besättningen röstar, vinnaren loggar.",v:4},
+  {em:"🔭",t:"Utkiken — först att ropa ut en sällsynt (orange) art idag loggar.",v:5},
+  {em:"🥶",t:"Morgondopp — först i vattnet före frukost loggar.",v:5},
+  {em:"🗺️",t:"Kartmästaren — peka ut båtens position på sjökortet utan GPS, max 1 M fel.",v:4},
+];
+const EMOJIS=["⛵","🦅","🐟","🦭","🌊","⚓","🧭","🏴‍☠️","🦞","🐚"];
+const POPQUIZ=[
+  {q:"Nordmärkets topptecken?",a:["Två koner, spetsarna uppåt","Två koner, spetsarna nedåt","Två svarta klot"],c:0,e:"Nord: båda spetsarna uppåt, svart över gult. Passera NORR om märket."},
+  {q:"Sydmärkets topptecken?",a:["Två koner, spetsarna uppåt","Två koner, spetsarna nedåt","En kon uppåt"],c:1,e:"Syd: båda spetsarna nedåt, gult över svart. Passera SÖDER om märket."},
+  {q:"Västmärkets topptecken liknar…?",a:["Ett vinglas (spetsar mot varandra)","En diamant (spetsar isär)","Ett klot"],c:0,e:"Väst = Vinglas — spetsarna MOT varandra. Gul-svart-gul. Passera väster om."},
+  {q:"Ostmärkets topptecken?",a:["Spetsarna mot varandra","Spetsarna från varandra (basen ihop)","Två klot"],c:1,e:"Ost: spetsarna pekar isär, svart-gul-svart. Passera öster om märket."},
+  {q:"Rött lateralmärke — vilken sida när du går IN i farleden?",a:["Babord (vänster)","Styrbord (höger)","Valfri sida"],c:0,e:"Röd babord, grön styrbord i farledsriktningen. Minnesregel: 'rött till vänster in i hamnen'."},
+  {q:"Svart boj med röda band och två svarta klot i toppen betyder?",a:["Punktfara — håll avstånd runt om","Mittled — passera valfri sida","Fiskeförbud"],c:0,e:"Punktfaremärke (isolated danger) — fara precis vid märket, passera med god marginal."},
+  {q:"Röd-vit vertikalrandig boj med klot i toppen?",a:["Mittledsmärke — fritt vatten runt om","Kardinalmärke","Förtöjningsboj"],c:0,e:"Säkert vatten-märke (mittled) — kan passeras på båda sidor, ofta i angöringen."},
+  {q:"En gul boj utan topptecken markerar oftast?",a:["Specialområde (kabel, mätning, badzon)","Djupaste rännan","Gästhamn"],c:0,e:"Gula specialmärken varnar för kablar, mätinstrument, badområden m.m. — inte navigationsled."},
+  {q:"Hur djupt sticker Sun-Day?",a:["1,2 m","1,5 m","2,0 m"],c:1,e:"1,5 m djupgående. Lägg alltid på marginal vid grynnor och i naturhamnar."},
+  {q:"Sun-Days mast är 15 m — vad måste ni kolla i farleder?",a:["Segelfri höjd på broar och ledningar","Vattentemperaturen","Strömriktningen"],c:0,e:"Segelfri höjd! Broar och luftledningar anges i sjökortet — 15 m mast kräver koll."},
+  {q:"Hur bred är Sun-Day?",a:["2,98 m","3,52 m","4,10 m"],c:1,e:"3,52 m bredd — bra att veta när ni bokar trång boxplats i gästhamn."},
+  {q:"Vad väger Sun-Day?",a:["3 200 kg","5 200 kg","7 500 kg"],c:1,e:"5 200 kg deplacement — därför tar det tid att stanna. Tänk på det vid tilläggning."},
+  {q:"Vilken riggtyp är Sun-Day?",a:["Ketch (två master)","Slup (en mast)","Yawl"],c:1,e:"Slup — en mast med storsegel och försegel. Degerö 33 är en finländsk långfärdsklassiker."},
+  {q:"Ett långt ljudsignal från fartyg i dimma betyder?",a:["Maskindrivet fartyg som gör fart","Man överbord","Jag ankrar"],c:0,e:"Ett långt (4–6 s) varannan minut = maskindrivet fartyg på väg. Lyssna i tjocka!"},
+  {q:"Två korta ljudstötar från ett fartyg betyder?",a:["Jag girar styrbord","Jag girar babord","Jag backar"],c:1,e:"En kort = styrbord, två korta = babord, tre korta = jag backar."},
+  {q:"Grönt ljus ser du på ett mötande fartyg om natten — vilken sida ser du?",a:["Dess styrbordssida","Dess babordssida","Aktern"],c:0,e:"Grön lanterna = styrbord. Ser du grönt+rött samtidigt är fartyget på väg RAKT mot er."},
+];
+const RECIPES=[
+  {n:"Skärgårdens fisksoppa",m:"⏱ 30 min · 🍳 1 kastrull · 🌊 klassikern",ing:"Potatis, lök, fiskbuljongtärning, matgrädde, färsk eller varmrökt fisk, dill, smör",s:"Fräs lök i smör, lägg i tärnad potatis + buljong och vatten så det täcker. Koka 12 min. Grädde i, fisken i bitar sist — sjud 5 min. Dill över. Servera med rågbröd i sittbrunnen."},
+  {n:"One-pot puttanesca",m:"⏱ 15 min · 🍳 1 kastrull · 🥫 skafferisäker",ing:"Spagetti, burktomat, oliver, kapris, sardellfilé (eller tonfisk), vitlök, chiliflakes, olivolja",s:"Allt i kastrullen + vatten tills pastan nätt och jämnt täcks. Koka under omrörning ~11 min tills pastan är klar och såsen tjocknat. Funkar i sjögång — inget durkslag behövs."},
+  {n:"Korvstroganoff på svaj",m:"⏱ 20 min · 🍳 1 kastrull · 👶 besättningsfavorit",ing:"Falukorv/länkkorv, burktomat, matgrädde, lök, senap, ris eller snabbmakaroner",s:"Stek korvstrimlor + lök. Tomat, grädde och en sked senap i, sjud 10 min. Koka riset i samma spad om du vågar — eller servera med bröd."},
+  {n:"Stormgrytan (chili)",m:"⏱ 25 min · 🍳 1 kastrull · 💪 värmer i blåst",ing:"Köttfärs eller sojafärs, bönor på burk, majs, burktomat, tacokrydda, lök",s:"Bryn färs + lök, häll i allt annat, sjud 15 min. Blir bara bättre dag två — gör dubbel sats i hamn och värm till sjöss."},
+  {n:"Halloumiwraps",m:"⏱ 10 min · 🍳 1 stekpanna · ☀️ ankarlunch",ing:"Halloumi, tortillabröd, svarta bönor på burk, salsa, ev. avokado",s:"Stek halloumiskivor gyllene. Värm tortillan i samma panna. Fyll med bönor, salsa och halloumi. Noll disk om ni äter ur handen."},
+  {n:"Hamnens pyttipanna",m:"⏱ 15 min · 🍳 1 stekpanna · ♻️ resträddaren",ing:"Förkokt potatis, lök, gårdagens korv/kött, ägg, smör",s:"Tärna och stek allt hårt i smör. Stek äggen ovanpå sista minuterna med lock. Rödbetor från burk om ni är fancy."},
+  {n:"Räkmacka i solnedgången",m:"⏱ 5 min · 🔪 ingen värme · 🌅 fredagsklass",ing:"Räkor (färska från hamnen!), majonnäs, kokt ägg, rågbröd eller levain, dill, citron",s:"Rör räkor med en sked majonnäs och dill. Bygg högt på brödet med äggskivor. Citron över. Ät på fördäck, obligatoriskt."},
+  {n:"Skepparens morgongröt",m:"⏱ 8 min · 🍳 1 kastrull · 🌤 vaktbyte",ing:"Havregryn, vatten + nypa salt, russin, kanel, honung, ev. äppelbitar",s:"Koka gryn med russin 5 min. Kanel + honung över. Den som har hundvakten får första skopan."},
+];
+const LEG=30; // poäng per etapp på spelplanen (14 etapper → 420 p till Nådendal)
+function aisType(t){
+  if(t==null) return "Fartyg";
+  if(t>=60&&t<=69) return "Passagerarfartyg";
+  if(t>=70&&t<=79) return "Fraktfartyg";
+  if(t>=80&&t<=89) return "Tankfartyg";
+  if(t===30) return "Fiskefartyg";
+  if(t===31||t===32||t===52) return "Bogserbåt";
+  if(t===36) return "Segelbåt";
+  if(t===37) return "Fritidsbåt";
+  if(t===50) return "Lotsbåt";
+  if(t===51) return "Sjöräddning";
+  if(t===35) return "Myndighetsfartyg";
+  return "Fartyg";
+}
+// ================= CORE: server, session, sync =================
+const SB=(window.CONFIG&&CONFIG.SUPABASE_URL&&CONFIG.SUPABASE_URL.indexOf("https")===0&&window.supabase)
+  ?window.supabase.createClient(CONFIG.SUPABASE_URL,CONFIG.SUPABASE_ANON_KEY):null;
+const LOCAL_MODE=!SB;
+let me=JSON.parse(localStorage.getItem("ss_session")||"null");
+let sailors=[];
+let serverLogs=[];
+let queue=JSON.parse(localStorage.getItem("ss_queue")||"[]");
+const saveQueue=()=>localStorage.setItem("ss_queue",JSON.stringify(queue));
+const saveLocalLogs=()=>localStorage.setItem("ss_logs",JSON.stringify(serverLogs));
+const saveLocalSailors=()=>localStorage.setItem("ss_sailors",JSON.stringify(sailors));
+function uuid(){return crypto.randomUUID?crypto.randomUUID():"x"+Date.now()+Math.random().toString(16).slice(2);}
+async function sha256(s){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s));
+  return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("");}
+function today(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+
+async function loadSailors(){
+  if(LOCAL_MODE){sailors=JSON.parse(localStorage.getItem("ss_sailors")||"[]");return;}
+  try{const{data,error}=await SB.from("sailors").select("id,name,emoji,pin_hash").order("created_at");
+    if(!error&&data)sailors=data;}catch(e){}
+}
+async function loadLogs(){
+  if(LOCAL_MODE){serverLogs=JSON.parse(localStorage.getItem("ss_logs")||"[]");return;}
+  try{const{data,error}=await SB.from("logs").select("*");
+    if(!error&&data)serverLogs=data;}catch(e){}
+}
+async function loadSettings(){
+  if(LOCAL_MODE)return;
+  try{const{data}=await SB.from("settings").select("*");
+    if(data)data.forEach(r=>{
+      if(r.key==="route")setRoute(r.value);
+      if(r.key==="captain"&&r.value)SETTINGS.captain=String(r.value);
+    });}catch(e){}
+}
+async function saveRoute(){
+  try{
+    const{error}=await SB.from("settings").upsert({key:"route",value:ROUTE});
+    if(error)throw error;
+    showToast("Ny rutt satt — synkas till hela besättningen! 🧭");
+  }catch(e){showToast("Kunde inte spara rutten — kolla nätet");}
+}
+function routeEditor(){
+  const box=document.getElementById("introBox");
+  const rows=ROUTE.slice(0,13).map((n,i)=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(11,36,54,.08)">
+    <span class="pnum">${i+1}</span><span style="flex:1;font-weight:600;font-size:14px">${n}</span>
+    <button class="cpBtn" data-up="${i}" style="padding:6px 12px">↑</button>
+    <button class="cpBtn" data-dn="${i}" style="padding:6px 12px">↓</button></div>`).join("");
+  box.innerHTML=`<div class="introWrap"><div class="introCard" style="text-align:left;max-height:82vh;overflow-y:auto">
+    <h2 style="text-align:center;margin-top:0">🧑‍✈️ Kaptenens ruttordning</h2>
+    <p style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#4a5a62;margin-bottom:10px">Ändra ordningen med pilarna. Nya rutten synkas direkt till hela besättningen och spelplanen ritas om. Avklarade hamnutmaningar följer med sina hamnar.</p>
+    ${rows}
+    <div style="display:flex;align-items:center;gap:8px;padding:8px 0">
+      <span class="pnum">14</span><span style="flex:1;font-weight:600;font-size:14px">${ROUTE[13]}</span>
+      <span style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#6c7c84;font-weight:700">🔒 MÅL</span></div>
+    <button class="goBtn" id="reSave" style="margin-top:12px">Spara ny rutt ⚓</button>
+    <button class="introSkip" id="reCancel">Avbryt</button></div></div>`;
+  box.querySelectorAll("[data-up]").forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.up;if(i>0){const r=[...ROUTE];[r[i-1],r[i]]=[r[i],r[i-1]];setRoute(r);routeEditor();}});
+  box.querySelectorAll("[data-dn]").forEach(b=>b.onclick=()=>{
+    const i=+b.dataset.dn;if(i<12){const r=[...ROUTE];[r[i+1],r[i]]=[r[i],r[i+1]];setRoute(r);routeEditor();}});
+  document.getElementById("reSave").onclick=async()=>{await saveRoute();box.innerHTML="";render();};
+  document.getElementById("reCancel").onclick=async()=>{await loadSettings();box.innerHTML="";render();};
+}
+function allLogs(){
+  const del=new Set(queue.filter(q=>q.op==="delete").map(q=>q.client_id));
+  const ins=queue.filter(q=>q.op==="insert").map(q=>q.row);
+  const seen=new Set();
+  return serverLogs.concat(ins).filter(l=>{
+    const k=l.client_id||l.id;
+    if(del.has(l.client_id)||seen.has(k))return false;
+    seen.add(k);return true;});
+}
+function logsFor(id){return allLogs().filter(l=>l.sailor_id===id);}
+function ptsFor(id){return logsFor(id).reduce((s,l)=>s+(l.points||0),0);}
+function crewPts(){return allLogs().reduce((s,l)=>s+(l.points||0),0);}
+function hasLog(id,kind,ref){return allLogs().some(l=>l.sailor_id===id&&l.kind===kind&&l.ref===ref);}
+function whoLogged(kind,ref){return allLogs().filter(l=>l.kind===kind&&l.ref===ref).map(l=>sailors.find(s=>s.id===l.sailor_id)).filter(Boolean);}
+function tileFor(pts,legPts){return Math.min(14,Math.floor(Math.max(0,pts)/legPts));}
+
+function addLog(kind,ref,points,note){
+  if(!me)return;
+  const row={client_id:uuid(),sailor_id:me.id,kind,ref,points,note:note||null};
+  if(LOCAL_MODE){row.created_at=new Date().toISOString();serverLogs.push(row);saveLocalLogs();updateSync();return;}
+  queue.push({op:"insert",row});saveQueue();updateSync();flush();
+}
+function removeLog(kind,ref){
+  if(!me)return;
+  const mine=allLogs().find(l=>l.sailor_id===me.id&&l.kind===kind&&l.ref===ref);
+  if(!mine)return;
+  if(LOCAL_MODE){serverLogs=serverLogs.filter(l=>(l.client_id||l.id)!==(mine.client_id||mine.id));saveLocalLogs();updateSync();return;}
+  const qi=queue.findIndex(q=>q.op==="insert"&&q.row.client_id===mine.client_id);
+  if(qi>=0)queue.splice(qi,1);else queue.push({op:"delete",client_id:mine.client_id});
+  saveQueue();updateSync();flush();
+}
+let flushing=false;
+async function flush(){
+  if(LOCAL_MODE||flushing||!queue.length)return;
+  flushing=true;
+  try{
+    while(queue.length){
+      const op=queue[0];
+      if(op.op==="insert"){
+        const{error}=await SB.from("logs").insert(op.row);
+        if(error&&!/duplicate|unique|23505/i.test(error.message+error.code))throw error;
+      }else{
+        const{error}=await SB.from("logs").delete().eq("client_id",op.client_id);
+        if(error)throw error;
+      }
+      queue.shift();saveQueue();
+    }
+    await loadLogs();
+  }catch(e){/* offline eller serverfel — försöker igen senare */}
+  flushing=false;updateSync();
+}
+setInterval(flush,15000);
+window.addEventListener("online",flush);
+if(SB){
+  SB.channel("logs-ch").on("postgres_changes",{event:"*",schema:"public",table:"logs"},async()=>{
+    await loadLogs();
+    if(current==="board"||current==="spot")render();else updateTop();
+  }).subscribe();
+  setInterval(async()=>{await loadLogs();if(current==="board"||current==="spot")render();else updateTop();},90000);
+}
+function updateSync(){
+  const el=document.getElementById("syncLine");
+  if(LOCAL_MODE){el.innerHTML='<span class="dot" style="background:#8fb6c8"></span>Lokalt läge — poängen sparas bara i den här telefonen';return;}
+  el.innerHTML=queue.length
+    ?`<span class="dot" style="background:#f2c14e"></span>${queue.length} händelser väntar på nät — synkas automatiskt`
+    :'<span class="dot" style="background:#7fc79a"></span>Synkad med besättningen';
+}
+
+// ================= LOGIN =================
+function renderLogin(){
+  document.getElementById("loginView").style.display="block";
+  document.getElementById("appShell").style.display="none";
+  document.getElementById("whoami").innerHTML="";
+  const g=document.getElementById("crewGrid");g.innerHTML="";
+  sailors.forEach(s=>{
+    const b=document.createElement("button");b.className="sailorBtn";
+    b.innerHTML=`<span class="em">${s.emoji}</span>${s.name}`;
+    b.onclick=()=>pinPrompt(s);g.appendChild(b);
+  });
+  const nb=document.createElement("button");nb.className="sailorBtn new";
+  nb.innerHTML=`<span class="em">➕</span>Mönstra på`;
+  nb.onclick=newSailorForm;g.appendChild(nb);
+  document.getElementById("pinBox").innerHTML="";
+  document.getElementById("newSailorBox").innerHTML="";
+}
+function pinPrompt(s){
+  document.getElementById("newSailorBox").innerHTML="";
+  const box=document.getElementById("pinBox");
+  box.innerHTML=`<div class="pinBox"><div class="t">${s.emoji} ${s.name} — ange PIN</div>
+    <input id="pinIn" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off">
+    <button class="goBtn" id="pinGo">Ombord ⚓</button><div class="errMsg" id="pinErr"></div></div>`;
+  const inp=document.getElementById("pinIn");inp.focus();
+  const go=async()=>{
+    const h=await sha256(inp.value.trim());
+    if(h===s.pin_hash){
+      me={id:s.id,name:s.name,emoji:s.emoji};
+      localStorage.setItem("ss_session",JSON.stringify(me));
+      enterApp();
+    }else document.getElementById("pinErr").textContent="Fel PIN — försök igen.";
+  };
+  document.getElementById("pinGo").onclick=go;
+  inp.onkeydown=e=>{if(e.key==="Enter")go();};
+}
+function newSailorForm(){
+  document.getElementById("pinBox").innerHTML="";
+  let emoji=EMOJIS[0];
+  const box=document.getElementById("newSailorBox");
+  box.innerHTML=`<div class="pinBox"><div class="t">Ny seglare</div>
+    <div class="field"><label>Namn</label><input id="nsName" maxlength="20" placeholder="t.ex. Patrik"></div>
+    <div class="field"><label>Välj din symbol</label><div class="emojiRow" id="nsEm"></div></div>
+    <div class="field"><label>Välj en PIN (4 siffror)</label><input id="nsPin" inputmode="numeric" maxlength="4" placeholder="1234"></div>
+    <button class="goBtn" id="nsGo">Mönstra på ⛵</button><div class="errMsg" id="nsErr"></div></div>`;
+  const er=document.getElementById("nsEm");
+  EMOJIS.forEach(e=>{
+    const b=document.createElement("button");b.textContent=e;
+    if(e===emoji)b.className="sel";
+    b.onclick=()=>{emoji=e;er.querySelectorAll("button").forEach(x=>x.className="");b.className="sel";};
+    er.appendChild(b);
+  });
+  document.getElementById("nsGo").onclick=async()=>{
+    const name=document.getElementById("nsName").value.trim();
+    const pin=document.getElementById("nsPin").value.trim();
+    const err=document.getElementById("nsErr");
+    if(!name){err.textContent="Skriv ett namn.";return;}
+    if(!/^\d{4}$/.test(pin)){err.textContent="PIN ska vara 4 siffror.";return;}
+    if(sailors.some(s=>s.name.toLowerCase()===name.toLowerCase())){err.textContent="Namnet är taget — välj ett annat.";return;}
+    const pin_hash=await sha256(pin);
+    if(LOCAL_MODE){
+      const s={id:uuid(),name,emoji,pin_hash};sailors.push(s);saveLocalSailors();
+      me={id:s.id,name,emoji};localStorage.setItem("ss_session",JSON.stringify(me));enterApp();
+    }else{
+      const{data,error}=await SB.from("sailors").insert({name,emoji,pin_hash}).select().single();
+      if(error){err.textContent="Kunde inte skapa — kolla nätet och försök igen.";return;}
+      sailors.push(data);
+      me={id:data.id,name,emoji};localStorage.setItem("ss_session",JSON.stringify(me));enterApp();
+    }
+  };
+}
+function logout(){me=null;localStorage.removeItem("ss_session");renderLogin();}
+async function enterApp(){
+  document.getElementById("loginView").style.display="none";
+  document.getElementById("appShell").style.display="block";
+  document.getElementById("whoami").innerHTML=`${me.emoji} <b>${me.name}</b> ombord på s/y Sun-Day &nbsp;<button onclick="logout()">byt seglare</button> · <button onclick="showIntro()">❓ guide</button>`;
+  await Promise.all([loadLogs(),loadSettings()]);flush();render();
+  loadWind();loadChat();loadNotes();
+  if(!localStorage.getItem("ss_intro"))showIntro();
+  else setTimeout(maybePopQuiz,2300);
+}
+
+// ================= TABS & RENDER =================
+let current="board",curCat="vessels",moreOpen=false;
+const NAV_PRIMARY=[["board","🎲","Plan"],["spot","🔭","Spana"],["knots","🪢","Knopar"],["sur","🎁","Dagens"],["arcade","🕹️","Spel"]];
+const NAV_MORE=[["chat","💬","Skeppschatt"],["gallery","📸","Galleri"],["report","📜","Törnrapport"],["navskola","🧭","Navigationsskolan"],["recipes","🍳","Byssan"],["trivia","❓","Frågesport"],["sounds","🔊","Läten"],["terms","⚓","Sjötermer"],["live","📡","Live AIS"],["places","🗺️","Seglandet 2026"]];
+const TABS=()=>NAV_PRIMARY.concat(NAV_MORE).map(([k,ic,l])=>[k,ic+" "+l]);
+const RANKS=[[0,"Jungman"],[30,"Lättmatros"],[60,"Matros"],[130,"Båtsman"],[220,"Styrman"],[320,"Skeppare"],[420,"Kommodor 🏆"]];
+function rankFor(p){let r=RANKS[0][1];RANKS.forEach(([t,n])=>{if(p>=t)r=n;});return r;}
+function floatPts(x,y,txt){
+  const s=document.createElement("span");s.className="floatPts";s.textContent=txt;
+  s.style.left=(x-14)+"px";s.style.top=(y-24)+"px";
+  document.body.appendChild(s);setTimeout(()=>s.remove(),1000);
+}
+function confetti(n){
+  const cols=["#d8612e","#f2c14e","#3f7d5a","#5ec8e5","#e8eef0"];
+  for(let i=0;i<(n||36);i++){
+    const c=document.createElement("div");c.className="cf";
+    c.style.left=Math.random()*100+"vw";
+    c.style.background=cols[i%cols.length];
+    c.style.animationDuration=(1.6+Math.random()*1.4)+"s";
+    c.style.animationDelay=(Math.random()*.4)+"s";
+    document.body.appendChild(c);setTimeout(()=>c.remove(),3600);
+  }
+}
+let sweeping=false;
+function navTo(k){
+  if(k===current){moreOpen=false;render();return;}
+  const sw=document.getElementById("sweep");
+  if(sweeping||!sw){current=k;moreOpen=false;render();return;}
+  sweeping=true;sw.classList.add("go");
+  setTimeout(()=>{current=k;moreOpen=false;render();},230);
+  setTimeout(()=>{sw.classList.remove("go");sweeping=false;},520);
+}
+function buildTabs(){
+  const tabsEl=document.getElementById("tabs");tabsEl.innerHTML="";
+  NAV_PRIMARY.forEach(([k,ic,label])=>{
+    const b=document.createElement("div");b.className="tab"+(k===current?" active":"");
+    b.innerHTML=`<span class="ic">${ic}</span>${label}`;
+    b.onclick=()=>navTo(k);tabsEl.appendChild(b);
+  });
+  const inMore=NAV_MORE.some(([k])=>k===current);
+  const mb=document.createElement("div");mb.className="tab"+(inMore||moreOpen?" active":"");
+  mb.innerHTML=`<span class="ic">⋯</span>Mer`;
+  mb.onclick=()=>{moreOpen=!moreOpen;render();};tabsEl.appendChild(mb);
+  const sheet=document.getElementById("moreSheet");
+  if(moreOpen){
+    sheet.style.display="block";sheet.className="moreSheet";sheet.innerHTML="";
+    NAV_MORE.forEach(([k,ic,label])=>{
+      const r=document.createElement("div");r.className="moreRow"+(k===current?" active":"");
+      r.innerHTML=`<span class="ic">${ic}</span>${label}`;
+      r.onclick=()=>navTo(k);sheet.appendChild(r);
+    });
+  }else{sheet.style.display="none";sheet.innerHTML="";}
+}
+let _lastPts=-1;
+function updateTop(){
+  const p=me?ptsFor(me.id):0;
+  const el=document.getElementById("hudPts");
+  el.textContent="⭐ "+p;
+  if(_lastPts>=0&&p>_lastPts){el.classList.remove("pulse");void el.offsetWidth;el.classList.add("pulse");}
+  if(_lastPts>=0&&tileFor(p,LEG)>tileFor(_lastPts,LEG)){
+    confetti(40);showToast("⚓ Ny hamn: "+TILE_SHORT[tileFor(p,LEG)]+"! Din pjäs seglar vidare.");
+  }
+  _lastPts=p;
+  document.getElementById("hudCrew").textContent="⛵ "+crewPts();
+  if(me)document.getElementById("hudMe").innerHTML=
+    `<div class="hudAva">${me.emoji}</div><div class="hudName">${me.name}<small>${rankFor(p)}${isCaptain()?" · KAPTEN 🧑‍✈️":""}</small></div>`;
+  const t=tileFor(p,LEG);
+  const into=t>=14?LEG:Math.max(0,p-t*LEG);
+  document.getElementById("xpFill").style.width=Math.min(100,into/LEG*100)+"%";
+  document.getElementById("xpFrom").textContent=TILE_SHORT[Math.min(t,14)];
+  document.getElementById("xpTo").textContent=t>=14?"I MÅL!":TILE_SHORT[t+1];
+  document.getElementById("xpInfo").textContent=t>=14?"Kommodor!":(LEG-into)+" p till nästa hamn";
+  updateSync();
+}
+const VIEW_IDS=["boardView","gameView","liveView","soundView","triviaView","termsView","knotsView","surView","arcadeView","placesView","chatView","recipesView","navView","galleryView","reportView"];
+function render(){
+  buildTabs();updateTop();
+  if(current!=="arcade"){stopTet();stopSnake();}
+  VIEW_IDS.forEach(id=>document.getElementById(id).style.display="none");
+  const show=id=>{const el=document.getElementById(id);el.style.display="block";
+    el.classList.remove("viewIn");void el.offsetWidth;el.classList.add("viewIn");};
+  if(current==="board"){show("boardView");renderBoard();return;}
+  if(current==="live"){show("liveView");return;}
+  if(current==="sounds"){show("soundView");renderSounds();return;}
+  if(current==="trivia"){show("triviaView");if(!quiz.order.length)startQuiz();renderQuestion();return;}
+  if(current==="terms"){show("termsView");renderTerms();return;}
+  if(current==="knots"){show("knotsView");renderKnots();return;}
+  if(current==="sur"){show("surView");renderSur();return;}
+  if(current==="arcade"){show("arcadeView");renderArcade();return;}
+  if(current==="places"){show("placesView");renderPlaces();loadNotes().then(renderPlaces);return;}
+  if(current==="chat"){show("chatView");renderChat();loadChat().then(renderChat);return;}
+  if(current==="recipes"){show("recipesView");renderRecipes();return;}
+  if(current==="navskola"){show("navView");renderNavSchool();return;}
+  if(current==="gallery"){show("galleryView");renderGallery();loadNotes().then(renderGallery);return;}
+  if(current==="report"){show("reportView");renderReport();return;}
+  show("gameView");renderSpotGrid();
+}
+function renderSpotGrid(){
+  const chipsEl=document.getElementById("catChips");chipsEl.innerHTML="";
+  Object.entries(GAMES).forEach(([k,g])=>{
+    const b=document.createElement("div");b.className="chip"+(k===curCat?" active":"");
+    b.textContent=g.label;b.onclick=()=>{curCat=k;renderSpotGrid();};chipsEl.appendChild(b);
+  });
+  const g=GAMES[curCat],gridEl=document.getElementById("grid");gridEl.innerHTML="";
+  g.items.forEach((it,i)=>{
+    const ref=curCat+":"+i;
+    const doneByMe=me&&hasLog(me.id,"spot",ref);
+    const others=whoLogged("spot",ref).filter(s=>!me||s.id!==me.id).map(s=>s.emoji).join("");
+    const c=document.createElement("div");c.className="card"+(doneByMe?" done":"")+(it.rare&&!doneByMe?" rareCard":"");
+    const q=encodeURIComponent(it.n+" "+it.fi);
+    c.innerHTML=`<div><div class="name">${it.n}</div><div class="fi">${it.fi}</div>
+      ${it.tip?`<div class="tip">${it.tip}</div>`:""}</div>
+      <div class="val${it.rare?' rare':''}">${it.v} p</div>
+      ${others?`<div class="others" title="Andra som sett den">${others}</div>`:""}
+      <a class="factBtn" href="https://www.google.com/search?tbm=isch&q=${q}" target="_blank" rel="noopener" title="Se bilder — facit vid tvist">📷 facit</a>`;
+    c.querySelector(".factBtn").onclick=e=>e.stopPropagation();
+    c.onclick=e=>{
+      if(doneByMe)removeLog("spot",ref);
+      else{addLog("spot",ref,it.v,it.n);floatPts(e.clientX,e.clientY,"+"+it.v+" p");}
+      renderSpotGrid();updateTop();
+    };
+    gridEl.appendChild(c);
+  });
+  const mine=g.items.filter((_,i)=>me&&hasLog(me.id,"spot",curCat+":"+i));
+  document.getElementById("total").textContent=g.items.length;
+  document.getElementById("count").textContent=mine.length;
+  document.getElementById("points").textContent=mine.reduce((s,it)=>s+it.v,0);
+}
+document.getElementById("shareBtn").onclick=async()=>{
+  const meds=["🥇","🥈","🥉"];
+  const lb=[...sailors].map(s=>({s,p:ptsFor(s.id)})).sort((a,b)=>b.p-a.p);
+  const n=Math.max(1,sailors.length);
+  const lines=["⚓ Skärgårdsspaning — ställning"];
+  lb.forEach((r,i)=>lines.push(`${meds[i]||"·"} ${r.s.emoji} ${r.s.name}: ${r.p} p — vid ${TILE_SHORT[tileFor(r.p,LEG)]}`));
+  lines.push(`🌊 Besättningen: ${crewPts()} p — vid ${TILE_SHORT[tileFor(crewPts(),LEG*n)]}`);
+  const text=lines.join("\n");
+  try{if(navigator.share){await navigator.share({text});}else{await navigator.clipboard.writeText(text);showToast("Ställningen kopierad!");}}
+  catch(e){try{await navigator.clipboard.writeText(text);showToast("Ställningen kopierad!");}catch(_){showToast("Kunde inte dela");}}
+};
+document.getElementById("refreshBtn").onclick=async()=>{
+  await flush();await loadLogs();await loadSailors();render();showToast("Uppdaterad!");
+};
+function showToast(m){const toastEl=document.getElementById("toast");toastEl.textContent=m;toastEl.classList.add("show");
+  clearTimeout(toastEl._t);toastEl._t=setTimeout(()=>toastEl.classList.remove("show"),2400);}
+function haversine(la1,lo1,la2,lo2){const R=6371,d=x=>x*Math.PI/180;
+  const a=Math.sin(d(la2-la1)/2)**2+Math.cos(d(la1))*Math.cos(d(la2))*Math.sin(d(lo2-lo1)/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
+document.getElementById("findBtn").onclick=()=>{
+  const status=document.getElementById("liveStatus");const list=document.getElementById("shipList");list.innerHTML="";
+  if(!navigator.geolocation){status.textContent="Platstjänst stöds inte i den här webbläsaren.";return;}
+  status.textContent="Hämtar din plats…";
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const{latitude:lat,longitude:lon}=pos.coords;status.textContent="Hämtar fartyg i närheten…";
+    try{
+      const[locRes,metaRes]=await Promise.all([
+        fetch("https://meri.digitraffic.fi/api/ais/v1/locations",{headers:{"Digitraffic-User":"SkargardsSpaning/1.0"}}),
+        fetch("https://meri.digitraffic.fi/api/ais/v1/vessels",{headers:{"Digitraffic-User":"SkargardsSpaning/1.0"}})
+      ]);
+      if(!locRes.ok) throw new Error("status "+locRes.status);
+      const loc=await locRes.json();
+      let meta={};try{const m=await metaRes.json();(m.features?m.features.map(f=>f.properties):m).forEach(v=>{if(v&&v.mmsi)meta[v.mmsi]={name:v.name,type:v.shipType};});}catch(_){}
+      const feats=loc.features||[];
+      const near=feats.map(f=>{const[lo,la]=f.geometry.coordinates;const p=f.properties||{};const mm=p.mmsi;const md=meta[mm]||{};
+        return{name:(md.name||"").trim(),type:md.type,sog:p.sog,dist:haversine(lat,lon,la,lo)};})
+        .filter(s=>s.dist<=25).sort((a,b)=>a.dist-b.dist).slice(0,12);
+      if(!near.length){status.textContent="Inga fartyg inom 25 km just nu. Prova igen om en stund.";return;}
+      status.textContent=`${near.length} fartyg inom 25 km — närmast överst:`;
+      near.forEach(s=>{const d=document.createElement("div");d.className="ship";
+        const nm=s.name||"Okänt fartyg";const ty=aisType(s.type);
+        const spd=(s.sog!=null&&s.sog<102.3)?`${s.sog.toFixed(1)} kn`:"i hamn/stilla";
+        d.innerHTML=`<div><div class="sn">${nm}</div><div class="st">${ty}</div><div class="spd">${spd}</div></div><div class="dist">${s.dist.toFixed(1)} km</div>`;
+        list.appendChild(d);});
+    }catch(err){status.innerHTML="Kunde inte hämta live-data direkt i webbläsaren (vanligt pga säkerhetsspärr/CORS). Öppna istället <b>meri.digitraffic.fi</b> eller MarineTraffic-appen. Spelkorten fungerar ändå!";}
+  },err=>{document.getElementById("liveStatus").textContent="Kunde inte läsa din plats. Tillåt platsåtkomst och försök igen.";},
+  {enableHighAccuracy:true,timeout:10000});
+};
+// ================= BOARD (Monopoly-stil) =================
+function tilePos(i){
+  const xs=[10,86,162,238];
+  const row=Math.floor(i/4),col=i%4;
+  return[row%2?xs[3-col]:xs[col],388-row*78];
+}
+function boardSVG(){
+  const n=Math.max(1,sailors.length);
+  const cTile=tileFor(crewPts(),LEG*n);
+  const myTile=me?tileFor(ptsFor(me.id),LEG):0;
+  const C=[];for(let i=0;i<15;i++){const[x,y]=tilePos(i);C.push([x+36,y+30]);}
+  // slingrande saga-väg: bred ljus led + streckad mittlinje
+  const pts=C.map(c=>c.join(",")).join(" ");
+  let path=`<polyline points="${pts}" fill="none" stroke="#ffffff" stroke-width="16" stroke-linejoin="round" stroke-linecap="round" opacity=".45"/>
+    <polyline class="seaPath" points="${pts}" fill="none" stroke="#14506b" stroke-width="3" stroke-dasharray="1 9" stroke-linecap="round" opacity=".7"/>`;
+  let nodes="",tokens="";
+  for(let i=0;i<15;i++){
+    const[cx,cy]=C[i];
+    const start=i===0,goal=i===14,gift=(i===3||i===6||i===9||i===12);
+    const passed=myTile>i,here=myTile===i;
+    const r=start||goal?21:17;
+    const fill=goal?"#d8612e":passed?"#3f7d5a":start?"#3f7d5a":"#f4efe4";
+    nodes+=`<circle cx="${cx}" cy="${cy+3.5}" r="${r}" fill="rgba(0,0,0,.28)"/>`;
+    nodes+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${fill}" stroke="${passed||start?"#2c5b40":goal?"#963d13":"#14506b"}" stroke-width="3"/>`;
+    nodes+=`<circle cx="${cx-r*.3}" cy="${cy-r*.4}" r="${r*.32}" fill="rgba(255,255,255,.35)"/>`;
+    if(here)nodes+=`<circle class="cur" cx="${cx}" cy="${cy}" r="${r+6}" fill="none" stroke="#f2c14e" stroke-width="3"/>`;
+    if(start)nodes+=`<text x="${cx}" y="${cy+5.5}" text-anchor="middle" font-size="16">🏠</text>`;
+    else if(goal)nodes+=`<text x="${cx}" y="${cy+5.5}" text-anchor="middle" font-size="16">🏁</text>`;
+    else if(passed)nodes+=`<text x="${cx}" y="${cy+5.5}" text-anchor="middle" font-size="14">⭐</text>`;
+    else nodes+=`<text x="${cx}" y="${cy+4.5}" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="12.5" font-weight="800" fill="#14506b">${i}</text>`;
+    const fog=!passed&&!here&&!start&&!goal&&i>myTile+1;
+    if(gift&&!passed&&!fog)nodes+=`<text x="${cx+r-3}" y="${cy-r+6}" text-anchor="middle" font-size="12">🎁</text>`;
+    const nm=fog?"— ? —":TILE_SHORT[i];
+    nodes+=`<text x="${cx}" y="${cy+r+13}" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="${nm.length>10?7.5:8.5}" font-weight="800" fill="#0b2436" opacity="${fog?".4":".85"}">${nm}</text>`;
+  }
+  // besättningens skepp — stor pjäs med guldring vid besättningens nod
+  {const[cx,cy]=C[cTile];
+   tokens+=`<g class="bob"><circle cx="${cx+22}" cy="${cy-22}" r="14" fill="#fff" stroke="#f2c14e" stroke-width="3"/>
+     <text x="${cx+22}" y="${cy-16.5}" text-anchor="middle" font-size="15">⛵</text></g>`;}
+  // seglarnas pjäser runt sina noder
+  const offs=[[-24,-16],[-28,8],[24,14],[-6,-28],[10,26],[28,-8]];
+  const byTile={};
+  sailors.forEach(s=>{const t=tileFor(ptsFor(s.id),LEG);(byTile[t]=byTile[t]||[]).push(s);});
+  Object.entries(byTile).forEach(([t,list])=>{
+    const[cx,cy]=C[+t];
+    list.slice(0,6).forEach((s,k)=>{
+      const[ox,oy]=offs[k];
+      tokens+=`<g class="bob" style="animation-delay:${(k*.4).toFixed(1)}s">
+        <circle cx="${cx+ox}" cy="${cy+oy+2.5}" r="10" fill="rgba(0,0,0,.3)"/>
+        <circle cx="${cx+ox}" cy="${cy+oy}" r="10" fill="#fff" stroke="#14506b" stroke-width="2"/>
+        <text x="${cx+ox}" y="${cy+oy+4}" text-anchor="middle" font-size="11">${s.emoji}</text></g>`;
+    });
+  });
+  // öar i bakgrunden för saga-känsla
+  const isles=`<ellipse cx="52" cy="140" rx="34" ry="12" fill="#9dc9a8" opacity=".55"/>
+    <ellipse cx="52" cy="134" rx="22" ry="9" fill="#7db98c" opacity=".6"/>
+    <text x="48" y="138" font-size="12">🌲</text>
+    <ellipse cx="262" cy="118" rx="28" ry="10" fill="#9dc9a8" opacity=".55"/>
+    <text x="258" y="120" font-size="11">🌲</text>
+    <ellipse cx="160" cy="96" rx="20" ry="7" fill="#9dc9a8" opacity=".45"/>`;
+  return `<svg viewBox="0 0 320 470" role="img" aria-label="Spelplan Helsingfors till Åbo">
+    <defs>
+      <linearGradient id="seaBg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#bfe5f2"/><stop offset="1" stop-color="#8fc8de"/>
+      </linearGradient>
+    </defs>
+    <rect x="0" y="0" width="320" height="470" rx="14" fill="url(#seaBg)"/>
+    <text x="160" y="27" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="14" font-weight="800" letter-spacing="3" fill="#14506b">${TILE_SHORT[0]} → ${TILE_SHORT[14]}</text>
+    <text x="160" y="42" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" font-weight="600" fill="#3a6b80">${LEG} p per hamn · ⭐ avklarad · 🎁 överraskning</text>
+    <text x="160" y="55" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" font-weight="600" fill="#3a6b80">⛵ besättningen · guldring = du är här</text>
+    <text x="26" y="70" font-size="14" opacity=".85">🕊️</text>
+    <text x="284" y="62" font-size="13" opacity=".85">🕊️</text>
+    <text x="152" y="72" font-size="17">🌤️</text>
+    ${isles}${path}${nodes}${tokens}
+  </svg>`;
+}
+function renderBoard(){
+  const n=Math.max(1,sailors.length);
+  const cpts=crewPts(),goal=LEG*n*14;
+  const cTile=tileFor(cpts,LEG*n);
+  document.getElementById("crewBar").innerHTML=`<div class="lab">Besättningens resa</div>
+    <div class="row"><b>${cTile===14?"Framme i "+TILE_SHORT[14]+"! 🎉":TILE_SHORT[cTile]}</b><span class="pts">${cpts} / ${goal} p</span></div>
+    <div class="crewbarTrack"><div class="crewbarFill" style="width:${Math.min(100,cpts/goal*100)}%"></div></div>`;
+  document.getElementById("boardMap").innerHTML=boardSVG()
+    +`<div class="cap">Alla poäng flyttar din pjäs — ${LEG} p per etapp. Besättningens skepp ⛵ seglar på summan av allas poäng.</div>`
+    +(isCaptain()?`<button class="cpBtn" id="routeEd" style="display:block;margin:8px auto 4px">🧑‍✈️ Ändra ruttordning</button>`:"");
+  if(isCaptain()){const b=document.getElementById("routeEd");if(b)b.onclick=routeEditor;}
+  const meds=["🥇","🥈","🥉"];
+  const lb=[...sailors].map(s=>({s,p:ptsFor(s.id)})).sort((a,b)=>b.p-a.p);
+  const lbEl=document.getElementById("lbList");lbEl.innerHTML="";
+  if(!lb.length)lbEl.innerHTML='<p class="soundIntro">Inga seglare ännu — mönstra på besättningen!</p>';
+  lb.forEach((r,i)=>{
+    const d=document.createElement("div");
+    d.className="lbRow"+(me&&r.s.id===me.id?" meRow":"");
+    d.style.cursor="pointer";
+    d.innerHTML=`<div class="med">${meds[i]||i+1}</div><div class="em">${r.s.emoji}</div>
+      <div class="mid"><div class="nm">${r.s.name}</div><div class="at">${rankFor(r.p)} · vid ${TILE_SHORT[tileFor(r.p,LEG)]} · tryck för detaljer</div></div>
+      <div class="p">${r.p} p</div>`;
+    d.onclick=()=>showProfile(r.s);
+    lbEl.appendChild(d);
+  });
+  const cpEl=document.getElementById("cpList");cpEl.innerHTML="";
+  const myP=me?ptsFor(me.id):0,myTile=tileFor(myP,LEG);
+  const START_CH={t:"Avfärdskontroll",d:"Packa Sun-Day och gå igenom systemen innan ni kastar loss: rigg och segel, motor (olja/kylvatten), bränsle, färskvatten, gasol, lanternor, VHF, säkerhetsutrustning (västar, nödraketer, brandsläckare, länspump). Martin & Patrik kvitterar — men alla som hjälper till att packa får ta poängen!"};
+  refreshFix(()=>{if(current==="board")renderBoard();});
+  const allCh=[[0,START_CH]].concat(CHALLENGES.map((ch,i)=>[i+1,ch]));
+  allCh.forEach(([ti,ch])=>{
+    const ref="cp:"+TILE_SHORT[ti];
+    const done=me&&hasLog(me.id,"checkpoint",ref);
+    const gpsNear=ti>0&&nearHarbor(TILE_SHORT[ti]);
+    const locked=ti>0&&myTile<ti&&!gpsNear;
+    const d=document.createElement("div");
+    d.className="cpCard"+(done?" done":locked?" locked":"");
+    d.innerHTML=`<div class="t"><span class="pnum">${ti===0?"⚓":ti}</span>${TILE_SHORT[ti]} — ${ch.t}${done?" ✓":""}</div>
+      <div class="d">${ch.d}</div>
+      ${!done&&gpsNear&&myTile<ti?'<div style="font-family:\'Helvetica Neue\',Arial,sans-serif;font-size:11px;font-weight:700;color:#3f7d5a;margin-top:6px">📍 GPS: ni är här — utmaningen upplåst!</div>':""}
+      ${done?"":locked?`<span class="lockTag">🔒 Segla hit först (${ti*LEG} p — eller var på plats 📍)</span>`
+        :`<button class="cpBtn">Klar! +${CP_PTS} p</button>`}`;
+    if(!done&&!locked)d.querySelector(".cpBtn").onclick=()=>{
+      addLog("checkpoint",ref,CP_PTS,TILE_SHORT[ti]+": "+ch.t);confetti(28);showToast("Hamnutmaning klar! +"+CP_PTS+" p ⚓");render();};
+    cpEl.appendChild(d);
+  });
+}
+// ================= KNOPAR =================
+function renderKnots(){
+  const kl=document.getElementById("knotList");kl.innerHTML="";
+  KNOTS.forEach((k,i)=>{
+    const ref="knot:"+i;
+    const done=me&&hasLog(me.id,"knot",ref);
+    const d=document.createElement("div");d.className="scard";
+    if(done)d.style.background="var(--green)",d.style.color="#eef6f0";
+    d.innerHTML=`<div class="top"><div><div class="nm">${k.n}${done?" ✓":""}</div><div class="lat" ${done?'style="color:#cfe6d8"':''}>${k.en} · ${k.fi}</div></div>
+      <a class="play" href="${k.url}" target="_blank" rel="noopener">Se hur ▶</a></div>
+      <div class="call" ${done?'style="color:#eef6f0"':''}>${k.d}</div>
+      <button class="cpBtn" style="margin-top:10px">${done?"Ångra":"Visad för besättningen! +"+k.v+" p"}</button>`;
+    d.querySelector(".cpBtn").onclick=()=>{
+      done?removeLog("knot",ref):addLog("knot",ref,k.v,k.n);
+      if(!done)showToast("Knop godkänd! +"+k.v+" p 🪢");render();};
+    kl.appendChild(d);
+  });
+}
+// ================= DAGENS ÖVERRASKNING =================
+function renderSur(){
+  const idx=[...today()].reduce((a,c)=>a+c.charCodeAt(0),0)%SURPRISES.length;
+  const s=SURPRISES[idx],ref="sur:"+today();
+  const claim=allLogs().find(l=>l.kind==="surprise"&&l.ref===ref);
+  const claimer=claim?sailors.find(x=>x.id===claim.sailor_id):null;
+  document.getElementById("surBox").innerHTML=`<div class="surCard">
+    <div class="em">${s.em}</div>
+    <div class="pts">DAGENS ÖVERRASKNING · +${s.v} P</div>
+    <div class="big">${s.t}</div>
+    ${claim?`<div class="claimed">Tagen av ${claimer?claimer.emoji+" "+claimer.name:"någon i besättningen"} 🎉</div>`
+      :`<button class="goBtn" id="surGo">Vi klarade den — jag loggar! (+${s.v} p)</button>`}
+    </div>
+    <p class="soundIntro" style="margin-top:14px">Ny överraskning varje dag. Först till kvarn — bara en ombord kan ta poängen. Gör upp ärligt vem som förtjänar den!</p>`;
+  const b=document.getElementById("surGo");
+  if(b)b.onclick=()=>{addLog("surprise",ref,s.v,s.t);showToast("Överraskning tagen! +"+s.v+" p 🎁");render();};
+}
+// ================= SPELRUM =================
+let arcGame=null;
+function renderArcade(){
+  const menu=document.getElementById("arcMenu");menu.innerHTML="";
+  [["tet","📦","Lastrummet","Tetris till sjöss"],["mem","🧠","Skärgårdsminne","Para sv ↔ fi"],
+   ["m3","🐟","Bojkrossen","Match 3 i viken"],["snake","🐍","Ålen","Ät fisk & väx"]].forEach(([k,em,t,sub])=>{
+    const b=document.createElement("button");b.className="arcBtn"+(arcGame===k?" active":"");
+    b.innerHTML=`<span class="em">${em}</span>${t}<div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:10.5px;color:#6c7c84;margin-top:2px">${sub}</div>`;
+    b.onclick=()=>{arcGame=k;renderArcade();};menu.appendChild(b);
+  });
+  const box=document.getElementById("arcadeBox");
+  stopTet();stopSnake();
+  if(arcGame==="tet")startTetris(box);
+  else if(arcGame==="mem")startMemory(box);
+  else if(arcGame==="m3")startM3(box);
+  else if(arcGame==="snake")startSnake(box);
+  else box.innerHTML='<p class="soundIntro">Välj ett spel ovan. Bäst resultat idag kan bokföras som poäng — en gång per spel och dag.</p>';
+}
+function arcAwardBtn(kind,pts,label){
+  if(!me||pts<=0)return"";
+  const ref=kind+":"+today();
+  if(hasLog(me.id,"minigame",ref))return'<button class="logBtn" disabled>Dagens poäng redan bokförd</button>';
+  return`<button class="logBtn" onclick="arcAward('${kind}',${pts},'${label}')">Bokför +${pts} p</button>`;
+}
+function arcAward(kind,pts,label){
+  const ref=kind+":"+today();
+  if(!me||hasLog(me.id,"minigame",ref))return;
+  addLog("minigame",ref,pts,label);showToast("+"+pts+" p bokförda! 🕹️");renderArcade();
+}
+// ---- Lastrummet (tetris) ----
+const TET={grid:null,piece:null,px:0,py:0,score:0,lines:0,over:false,timer:null,W:10,H:16,S:18};
+const SHAPES=[[[1,1,1,1]],[[1,1],[1,1]],[[0,1,0],[1,1,1]],[[1,0,0],[1,1,1]],[[0,0,1],[1,1,1]],[[1,1,0],[0,1,1]],[[0,1,1],[1,1,0]]];
+const TCOLS=["#5ec8e5","#f2c14e","#b07cc6","#d8612e","#3f7d5a","#c0392b","#e8eef0"];
+function stopTet(){if(TET.timer){clearInterval(TET.timer);TET.timer=null;}}
+function startTetris(box){
+  box.innerHTML=`<div class="arcScore">Poäng: <b id="tetScore">0</b> · Rader: <span id="tetLines">0</span></div>
+    <canvas id="tet" width="${TET.W*TET.S}" height="${TET.H*TET.S}"></canvas>
+    <div class="padRow"><button id="tL">◀</button><button id="tR">⟳</button><button id="tRt">▶</button><button id="tD">▼</button></div>
+    <div id="tetEnd"></div>
+    <p class="soundIntro" style="margin-top:10px">Packa lastrummet! Fulla rader ger poäng. ◀ ▶ flyttar, ⟳ roterar, ▼ släpper. Bokför = poäng ÷ 100, max 5 p/dag.</p>`;
+  TET.grid=Array.from({length:TET.H},()=>Array(TET.W).fill(0));
+  TET.score=0;TET.lines=0;TET.over=false;
+  tetSpawn();
+  TET.timer=setInterval(tetTick,600);
+  document.getElementById("tL").onclick=()=>tetMove(-1);
+  document.getElementById("tRt").onclick=()=>tetMove(1);
+  document.getElementById("tR").onclick=tetRotate;
+  document.getElementById("tD").onclick=tetDrop;
+  tetDraw();
+}
+function tetSpawn(){
+  const i=Math.floor(Math.random()*SHAPES.length);
+  TET.piece={s:SHAPES[i].map(r=>[...r]),c:i+1};
+  TET.px=Math.floor((TET.W-TET.piece.s[0].length)/2);TET.py=0;
+  if(tetHit(TET.piece.s,TET.px,TET.py))tetOver();
+}
+function tetHit(s,px,py){
+  for(let y=0;y<s.length;y++)for(let x=0;x<s[y].length;x++){
+    if(!s[y][x])continue;
+    const gx=px+x,gy=py+y;
+    if(gx<0||gx>=TET.W||gy>=TET.H)return true;
+    if(gy>=0&&TET.grid[gy][gx])return true;
+  }
+  return false;
+}
+function tetMerge(){
+  TET.piece.s.forEach((r,y)=>r.forEach((v,x)=>{if(v&&TET.py+y>=0)TET.grid[TET.py+y][TET.px+x]=TET.piece.c;}));
+  let cleared=0;
+  TET.grid=TET.grid.filter(r=>{if(r.every(v=>v)){cleared++;return false;}return true;});
+  while(TET.grid.length<TET.H)TET.grid.unshift(Array(TET.W).fill(0));
+  if(cleared){TET.lines+=cleared;TET.score+=100*cleared*cleared;}
+  TET.score+=10;
+  document.getElementById("tetScore").textContent=TET.score;
+  document.getElementById("tetLines").textContent=TET.lines;
+  tetSpawn();
+}
+function tetTick(){
+  if(TET.over)return;
+  if(!tetHit(TET.piece.s,TET.px,TET.py+1))TET.py++;else tetMerge();
+  tetDraw();
+}
+function tetMove(dx){if(TET.over)return;if(!tetHit(TET.piece.s,TET.px+dx,TET.py))TET.px+=dx;tetDraw();}
+function tetRotate(){
+  if(TET.over)return;
+  const s=TET.piece.s[0].map((_,i)=>TET.piece.s.map(r=>r[i]).reverse());
+  if(!tetHit(s,TET.px,TET.py))TET.piece.s=s;tetDraw();
+}
+function tetDrop(){if(TET.over)return;while(!tetHit(TET.piece.s,TET.px,TET.py+1))TET.py++;tetMerge();tetDraw();}
+function tetOver(){
+  TET.over=true;stopTet();
+  const p=Math.min(5,Math.floor(TET.score/100));
+  document.getElementById("tetEnd").innerHTML=`<div class="arcScore" style="margin-top:10px"><b>Lastrummet fullt!</b> Slutpoäng ${TET.score}</div>
+    ${arcAwardBtn("tetris",p,"Lastrummet "+TET.score)}
+    <button class="logBtn" style="background:var(--sea)" onclick="startTetris(document.getElementById('arcadeBox'))">Spela igen</button>`;
+}
+function tetDraw(){
+  const c=document.getElementById("tet");if(!c)return;
+  const ctx=c.getContext("2d");const S=TET.S;
+  ctx.fillStyle="#0e2b3d";ctx.fillRect(0,0,c.width,c.height);
+  const cell=(x,y,col)=>{ctx.fillStyle=col;ctx.fillRect(x*S+1,y*S+1,S-2,S-2);};
+  TET.grid.forEach((r,y)=>r.forEach((v,x)=>{if(v)cell(x,y,TCOLS[v-1]);}));
+  if(!TET.over&&TET.piece)TET.piece.s.forEach((r,y)=>r.forEach((v,x)=>{if(v&&TET.py+y>=0)cell(TET.px+x,TET.py+y,TCOLS[TET.piece.c-1]);}));
+}
+document.addEventListener("keydown",e=>{
+  if(current!=="arcade"||arcGame!=="tet"||TET.over||!TET.timer)return;
+  if(e.key==="ArrowLeft")tetMove(-1);
+  else if(e.key==="ArrowRight")tetMove(1);
+  else if(e.key==="ArrowUp")tetRotate();
+  else if(e.key==="ArrowDown")tetDrop();
+});
+// ---- Skärgårdsminne (memory) ----
+let MEM={cards:[],open:[],flips:0,found:0};
+function startMemory(box){
+  const birds=[...GAMES.seabirds.items].sort(()=>Math.random()-.5).slice(0,8);
+  MEM={cards:[],open:[],flips:0,found:0};
+  birds.forEach((b,i)=>{MEM.cards.push({id:i,txt:b.n,fi:false});MEM.cards.push({id:i,txt:b.fi,fi:true});});
+  MEM.cards.sort(()=>Math.random()-.5);
+  box.innerHTML=`<div class="arcScore">Vändningar: <b id="memFlips">0</b> · Par: <span id="memFound">0</span>/8</div>
+    <div class="memGrid" id="memGrid"></div><div id="memEnd"></div>
+    <p class="soundIntro" style="margin-top:10px">Para ihop fågelns svenska och finska namn. Färre vändningar = fler poäng (max 4 p/dag).</p>`;
+  const g=document.getElementById("memGrid");
+  MEM.cards.forEach((c,i)=>{
+    const d=document.createElement("div");d.className="memCard";d.textContent="〰️";d.dataset.i=i;
+    d.onclick=()=>memFlip(i);g.appendChild(d);
+  });
+}
+function memFlip(i){
+  const c=MEM.cards[i];
+  const el=document.querySelector(`.memCard[data-i="${i}"]`);
+  if(c.done||MEM.open.some(o=>o.i===i)||MEM.open.length>=2)return;
+  el.classList.add("open");el.textContent=c.txt;
+  MEM.open.push({i,c});
+  if(MEM.open.length===2){
+    MEM.flips++;document.getElementById("memFlips").textContent=MEM.flips;
+    const[a,b]=MEM.open;
+    if(a.c.id===b.c.id&&a.c.fi!==b.c.fi){
+      a.c.done=b.c.done=true;MEM.found++;
+      document.getElementById("memFound").textContent=MEM.found;
+      document.querySelectorAll(`.memCard[data-i="${a.i}"],.memCard[data-i="${b.i}"]`).forEach(x=>x.classList.add("pair"));
+      MEM.open=[];
+      if(MEM.found===8){
+        const p=MEM.flips<=14?4:MEM.flips<=20?3:MEM.flips<=28?2:1;
+        document.getElementById("memEnd").innerHTML=`<div class="arcScore" style="margin-top:10px"><b>Alla par!</b> ${MEM.flips} vändningar</div>
+          ${arcAwardBtn("memory",p,"Skärgårdsminne "+MEM.flips+" vändningar")}
+          <button class="logBtn" style="background:var(--sea)" onclick="startMemory(document.getElementById('arcadeBox'))">Spela igen</button>`;
+      }
+    }else{
+      setTimeout(()=>{
+        MEM.open.forEach(o=>{const x=document.querySelector(`.memCard[data-i="${o.i}"]`);x.classList.remove("open");x.textContent="〰️";});
+        MEM.open=[];
+      },800);
+    }
+  }
+}
+// ---- Bojkrossen (match 3) ----
+const M3={g:[],sel:-1,score:0,moves:25,busy:false,W:7,H:8};
+const M3EMO=["🐟","🦀","🐚","⭐","🪼"];
+function startM3(box){
+  M3.score=0;M3.moves=25;M3.sel=-1;M3.busy=false;
+  M3.g=Array.from({length:M3.W*M3.H},()=>Math.floor(Math.random()*M3EMO.length));
+  let m=m3Matches();
+  while(m.size){m.forEach(i=>M3.g[i]=Math.floor(Math.random()*M3EMO.length));m=m3Matches();}
+  box.innerHTML=`<div class="arcScore">Poäng: <b id="m3Score">0</b> · Drag kvar: <span id="m3Moves">25</span></div>
+    <div class="m3Grid" id="m3Grid"></div><div id="m3End"></div>
+    <p class="soundIntro" style="margin-top:10px">Tryck på en boj, sedan på grannen — tre lika i rad krossas. Kedjereaktioner ger bonus. Bokför = poäng ÷ 300, max 5 p/dag.</p>`;
+  m3Draw();
+}
+function m3Draw(){
+  const g=document.getElementById("m3Grid");if(!g)return;g.innerHTML="";
+  M3.g.forEach((v,i)=>{
+    const c=document.createElement("div");c.className="m3Cell"+(M3.sel===i?" sel":"");
+    c.textContent=v<0?"":M3EMO[v];
+    c.onclick=()=>m3Tap(i);g.appendChild(c);
+  });
+  const sc=document.getElementById("m3Score");if(sc)sc.textContent=M3.score;
+  const mv=document.getElementById("m3Moves");if(mv)mv.textContent=M3.moves;
+}
+function m3Matches(){
+  const s=new Set(),W=M3.W,H=M3.H,g=M3.g;
+  for(let y=0;y<H;y++)for(let x=0;x<W-2;x++){const i=y*W+x;
+    if(g[i]>=0&&g[i]===g[i+1]&&g[i]===g[i+2]){s.add(i);s.add(i+1);s.add(i+2);}}
+  for(let x=0;x<W;x++)for(let y=0;y<H-2;y++){const i=y*W+x;
+    if(g[i]>=0&&g[i]===g[i+W]&&g[i]===g[i+2*W]){s.add(i);s.add(i+W);s.add(i+2*W);}}
+  return s;
+}
+async function m3Tap(i){
+  if(M3.busy||M3.moves<=0)return;
+  if(M3.sel<0){M3.sel=i;m3Draw();return;}
+  const a=M3.sel,b=i;M3.sel=-1;
+  const adj=(Math.abs(a%M3.W-b%M3.W)+Math.abs(Math.floor(a/M3.W)-Math.floor(b/M3.W)))===1;
+  if(!adj){m3Draw();return;}
+  [M3.g[a],M3.g[b]]=[M3.g[b],M3.g[a]];
+  if(!m3Matches().size){[M3.g[a],M3.g[b]]=[M3.g[b],M3.g[a]];m3Draw();return;}
+  M3.moves--;M3.busy=true;m3Draw();
+  let chain=0,m=m3Matches();
+  while(m.size){
+    chain++;M3.score+=m.size*10*chain;
+    m.forEach(x=>M3.g[x]=-1);m3Draw();
+    await new Promise(r=>setTimeout(r,220));
+    for(let x=0;x<M3.W;x++){
+      const stack=[];
+      for(let y=M3.H-1;y>=0;y--){const v=M3.g[y*M3.W+x];if(v>=0)stack.push(v);}
+      for(let y=M3.H-1;y>=0;y--){M3.g[y*M3.W+x]=stack.length?stack.shift():Math.floor(Math.random()*M3EMO.length);}
+    }
+    m3Draw();await new Promise(r=>setTimeout(r,150));
+    m=m3Matches();
+  }
+  M3.busy=false;m3Draw();
+  if(M3.moves<=0){
+    const p=Math.min(5,Math.floor(M3.score/300));
+    document.getElementById("m3End").innerHTML=`<div class="arcScore" style="margin-top:10px"><b>Slut på drag!</b> ${M3.score} poäng</div>
+      ${arcAwardBtn("m3",p,"Bojkrossen "+M3.score)}
+      <button class="logBtn" style="background:var(--sea)" onclick="startM3(document.getElementById('arcadeBox'))">Spela igen</button>`;
+  }
+}
+// ---- Ålen (snake) ----
+const SNK={s:[],dir:[1,0],nd:[1,0],food:[3,3],timer:null,over:false,N:15,S:19,score:0};
+function stopSnake(){if(SNK.timer){clearInterval(SNK.timer);SNK.timer=null;}}
+function startSnake(box){
+  stopSnake();
+  SNK.s=[[7,7],[6,7],[5,7]];SNK.dir=[1,0];SNK.nd=[1,0];SNK.score=0;SNK.over=false;
+  box.innerHTML=`<div class="arcScore">Poäng: <b id="snScore">0</b></div>
+    <canvas id="snakeCv" width="${SNK.N*SNK.S}" height="${SNK.N*SNK.S}"></canvas>
+    <div class="padRow"><button id="snL">◀</button><button id="snU">▲</button><button id="snD">▼</button><button id="snR">▶</button></div>
+    <div id="snEnd"></div>
+    <p class="soundIntro" style="margin-top:10px">Ålen äter fiskar och växer — kör inte på land eller dig själv! Bokför = poäng ÷ 50, max 4 p/dag.</p>`;
+  snFood();
+  document.getElementById("snL").onclick=()=>snDir(-1,0);
+  document.getElementById("snR").onclick=()=>snDir(1,0);
+  document.getElementById("snU").onclick=()=>snDir(0,-1);
+  document.getElementById("snD").onclick=()=>snDir(0,1);
+  SNK.timer=setInterval(snTick,190);
+  snDraw();
+}
+function snDir(x,y){if(SNK.over)return;if(x===-SNK.dir[0]&&y===-SNK.dir[1])return;SNK.nd=[x,y];}
+function snFood(){
+  do{SNK.food=[Math.floor(Math.random()*SNK.N),Math.floor(Math.random()*SNK.N)];}
+  while(SNK.s.some(p=>p[0]===SNK.food[0]&&p[1]===SNK.food[1]));
+}
+function snTick(){
+  if(SNK.over)return;
+  SNK.dir=SNK.nd;
+  const h=[SNK.s[0][0]+SNK.dir[0],SNK.s[0][1]+SNK.dir[1]];
+  if(h[0]<0||h[0]>=SNK.N||h[1]<0||h[1]>=SNK.N||SNK.s.some(p=>p[0]===h[0]&&p[1]===h[1])){snOver();return;}
+  SNK.s.unshift(h);
+  if(h[0]===SNK.food[0]&&h[1]===SNK.food[1]){
+    SNK.score+=10;const sc=document.getElementById("snScore");if(sc)sc.textContent=SNK.score;snFood();
+  }else SNK.s.pop();
+  snDraw();
+}
+function snOver(){
+  SNK.over=true;stopSnake();
+  const p=Math.min(4,Math.floor(SNK.score/50));
+  document.getElementById("snEnd").innerHTML=`<div class="arcScore" style="margin-top:10px"><b>Ålen gick på grund!</b> ${SNK.score} poäng</div>
+    ${arcAwardBtn("snake",p,"Ålen "+SNK.score)}
+    <button class="logBtn" style="background:var(--sea)" onclick="startSnake(document.getElementById('arcadeBox'))">Spela igen</button>`;
+}
+function snDraw(){
+  const c=document.getElementById("snakeCv");if(!c)return;
+  const ctx=c.getContext("2d"),S=SNK.S;
+  ctx.fillStyle="#0e2b3d";ctx.fillRect(0,0,c.width,c.height);
+  ctx.font=(S-2)+"px serif";
+  ctx.fillText("🐟",SNK.food[0]*S,SNK.food[1]*S+S-3);
+  SNK.s.forEach((p,i)=>{ctx.fillStyle=i?"#3f7d5a":"#7fc79a";ctx.fillRect(p[0]*S+1,p[1]*S+1,S-2,S-2);});
+}
+document.addEventListener("keydown",e=>{
+  if(current!=="arcade"||arcGame!=="snake"||!SNK.timer)return;
+  if(e.key==="ArrowLeft")snDir(-1,0);else if(e.key==="ArrowRight")snDir(1,0);
+  else if(e.key==="ArrowUp")snDir(0,-1);else if(e.key==="ArrowDown")snDir(0,1);
+});
+// ================= ÖVRIGA VYER =================
+function renderSounds(){
+  const sl=document.getElementById("soundList");sl.innerHTML="";
+  SOUNDS.forEach(s=>{
+    const d=document.createElement("div");d.className="scard";
+    d.innerHTML=`<div class="top"><div><div class="nm">${s.n}</div><div class="lat">${s.fi}</div></div></div>
+      <div class="call">${s.call}</div><div class="sndBox" style="margin-top:9px"></div>`;
+    const box=d.querySelector(".sndBox");
+    const au=document.createElement("audio");
+    au.controls=true;au.preload="metadata";au.style.width="100%";
+    au.src="sounds/"+s.sci.toLowerCase()+".mp3";
+    au.onerror=()=>{box.innerHTML=`<a class="play" style="display:inline-block;text-decoration:none" href="https://xeno-canto.org/species/${s.sci}" target="_blank" rel="noopener">▶ Lyssna (extern, kräver nät)</a>`;};
+    box.appendChild(au);
+    sl.appendChild(d);
+  });
+}
+function renderTerms(){
+  const tl=document.getElementById("termsList");tl.innerHTML="";
+  const boatDia=document.createElement("div");boatDia.className="diagram";
+  boatDia.innerHTML=sloopSVG()+`<div class="cap">Vår båt <i>${BOAT.name}</i> — ${BOAT.model}, slup med en mast.<br>
+    LOA ${BOAT.loa} · bredd ${BOAT.beam} · djupgående ${BOAT.draft} · mast ${BOAT.mast} · deplacement ${BOAT.weight}</div>`;
+  tl.appendChild(boatDia);
+  TERMS.forEach(t=>{
+    if(t.grp){
+      const h=document.createElement("div");h.className="termgrp";h.textContent=t.grp;tl.appendChild(h);
+      if(t.grp==="Riktning & bogar"){const d=document.createElement("div");d.className="diagram";
+        d.innerHTML=pointsOfSailSVG()+`<div class="cap">Vinden uppifrån. Skuggad sektor = no-go-zonen (~45° åt vardera håll).</div>`;tl.appendChild(d);}
+      if(t.grp==="Ombord & navigation"){const d=document.createElement("div");d.className="diagram";
+        d.innerHTML=boatAnatomySVG()+`<div class="cap">Båten uppifrån, fören uppåt. Röd = babord, grön = styrbord.</div>`;tl.appendChild(d);}
+      return;
+    }
+    const d=document.createElement("div");d.className="scard";
+    d.innerHTML=`<div class="top"><div class="nm">${t.n}</div></div>
+      <div class="lat">${t.fi}</div><div class="call">${t.d}</div>`;
+    tl.appendChild(d);
+  });
+}
+let portNotes=[],noteFormOpen=null,extraHarborsOpen=false;
+async function loadNotes(){
+  if(LOCAL_MODE)return;
+  try{const{data}=await SB.from("port_notes").select("*").order("created_at",{ascending:true});
+    if(data)portNotes=data;}catch(e){}
+}
+function stars(n){return "★".repeat(n||0)+"☆".repeat(5-(n||0));}
+function initHarborMap(){
+  const mapDiv=document.getElementById("placeMap");
+  if(!window.L){
+    if(!mapDiv.querySelector("svg"))mapDiv.innerHTML=`<div class="diagram">${routeMapSVG()}<div class="cap">Schematisk offline-karta. Riktig karta laddas när nät finns (ladda om sidan).</div></div>`;
+    return;
+  }
+  if(window._osm){setTimeout(()=>window._osm.invalidateSize(),60);return;}
+  mapDiv.innerHTML=`<div class="mapBtns">
+      <button class="mapBtn" id="mbFs">⛶ Helskärm</button>
+      <button class="mapBtn" id="mbFollow">📍 Följ oss</button>
+      <button class="mapBtn" id="mbRec">⏺ Logga färd</button>
+      <button class="mapBtn" id="mbTrack">🛤️ Dagens spår</button>
+    </div>
+    <div id="osmMap" style="height:340px;border-radius:14px;border:2.5px solid rgba(11,36,54,.14);box-shadow:0 5px 0 rgba(0,0,0,.24)"></div>
+    <div class="trkBar" id="trkBar"></div>
+    <p style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:10.5px;color:#7fa3b4;text-align:center;margin:6px 0 12px">© OpenStreetMap · farleder © Väylävirasto · sjömärken © OpenSeaMap syns vid inzoomning<br>Översiktskarta — INTE för navigation, använd sjökort ombord</p>`;
+  try{
+    const m=L.map("osmMap",{scrollWheelZoom:false});
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:16,attribution:"© OpenStreetMap"}).addTo(m);
+    const seamarks=L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",
+      {maxZoom:16,opacity:.95,attribution:"© OpenSeaMap"});
+    const farleder=L.tileLayer.wms("https://julkinen.vayla.fi/inspirepalvelu/avoin/wms",
+      {layers:"vaylat,vaylaalueet",format:"image/png",transparent:true,opacity:.65,attribution:"© Väylävirasto"});
+    farleder.addTo(m);
+    L.control.layers(null,{"🛟 Farleder (officiella)":farleder,"⚓ Sjömärken (zooma in)":seamarks},
+      {collapsed:false,position:"topright"}).addTo(m);
+    const grp=L.featureGroup();
+    PLACES.forEach((p,i)=>{
+      const mk=L.marker([p.lat,p.lng]).bindPopup(`<b>${i+1}. ${p.n}</b><br>${p.t}${p.fee?`<br>💶 ${p.fee}`:""}`);
+      grp.addLayer(mk);
+    });
+    L.circleMarker([60.1675,24.9686],{radius:7,color:"#3f7d5a",fillColor:"#3f7d5a",fillOpacity:.9})
+      .bindPopup("<b>⚓ Helsingfors (Katajanokka)</b><br>Avfärd — Martin & Patrik kastar loss").addTo(m);
+    grp.addTo(m);
+    m.fitBounds(grp.getBounds().pad(0.12));
+    window._osm=m;
+    document.getElementById("mbFs").onclick=mapToggleFs;
+    document.getElementById("mbFollow").onclick=trkToggleFollow;
+    document.getElementById("mbRec").onclick=trkToggleRec;
+    document.getElementById("mbTrack").onclick=trkShowToday;
+  }catch(e){mapDiv.innerHTML=`<div class="diagram">${routeMapSVG()}</div>`;}
+}
+// ================= FÄRDLOGG (GPS-spår) =================
+const TRK={watch:null,rec:false,follow:false,pts:[],queue:[],marker:null,line:null,lastQ:0};
+let lastFix=null;
+const msToKn=ms=>ms*1.9438;
+function trkBarMsg(msg){const b=document.getElementById("trkBar");if(b)b.innerHTML=msg||"";}
+function mapToggleFs(){
+  const pm=document.getElementById("placeMap");pm.classList.toggle("fs");
+  document.getElementById("mbFs").textContent=pm.classList.contains("fs")?"✕ Stäng":"⛶ Helskärm";
+  setTimeout(()=>window._osm&&window._osm.invalidateSize(),150);
+}
+function trkDist(pts){let d=0;for(let i=1;i<pts.length;i++)d+=haversine(pts[i-1].lat,pts[i-1].lng,pts[i].lat,pts[i].lng);return d/1.852;}
+function trkPos(p){
+  const lat=p.coords.latitude,lng=p.coords.longitude;
+  const t=Date.now();
+  lastFix={lat,lng,t};
+  let sog=p.coords.speed!=null?msToKn(p.coords.speed):null;
+  const last=TRK.pts[TRK.pts.length-1];
+  if(sog==null&&last){const km=haversine(last.lat,last.lng,lat,lng);const h=(t-last.t)/3600000;if(h>0)sog=km/1.852/h;}
+  if(window._osm){
+    if(!TRK.marker)TRK.marker=L.circleMarker([lat,lng],{radius:9,color:"#fff",weight:2.5,fillColor:"#d8612e",fillOpacity:1})
+      .addTo(window._osm).bindPopup("⛵ Sun-Day — här är ni");
+    else TRK.marker.setLatLng([lat,lng]);
+    if(TRK.follow)window._osm.setView([lat,lng],Math.max(window._osm.getZoom(),12));
+  }
+  if(TRK.rec){
+    if(!last||haversine(last.lat,last.lng,lat,lng)>0.02||t-last.t>15000){
+      TRK.pts.push({lat,lng,t});
+      TRK.queue.push({sailor_id:me?me.id:null,lat,lng,sog:sog!=null?+sog.toFixed(1):null,ts:new Date(t).toISOString()});
+      if(window._osm){
+        if(!TRK.line)TRK.line=L.polyline([],{color:"#d8612e",weight:4,opacity:.85}).addTo(window._osm);
+        TRK.line.addLatLng([lat,lng]);
+      }
+      trkFlush(false);
+    }
+    trkBarMsg(`⏺ ${sog!=null?sog.toFixed(1):"–"} kn · ${trkDist(TRK.pts).toFixed(1)} M loggade`);
+  }else trkBarMsg(`📍 ${sog!=null&&sog>0.5?sog.toFixed(1)+" kn":"stilla"}`);
+}
+async function trkFlush(force){
+  if(LOCAL_MODE||!TRK.queue.length)return;
+  if(!force&&(Date.now()-TRK.lastQ<45000))return;
+  const batch=TRK.queue.splice(0);TRK.lastQ=Date.now();
+  try{await SB.from("track_points").insert(batch);}
+  catch(e){TRK.queue.unshift(...batch);}
+}
+function trkWatch(on){
+  if(on&&!TRK.watch&&navigator.geolocation){
+    TRK.watch=navigator.geolocation.watchPosition(trkPos,()=>trkBarMsg("GPS-fel — tillåt platsåtkomst"),{enableHighAccuracy:true,maximumAge:3000});
+  }else if(!on&&TRK.watch&&!TRK.follow&&!TRK.rec){
+    navigator.geolocation.clearWatch(TRK.watch);TRK.watch=null;trkBarMsg("");
+    if(TRK.marker){TRK.marker.remove();TRK.marker=null;}
+  }
+}
+function trkToggleFollow(){
+  TRK.follow=!TRK.follow;
+  document.getElementById("mbFollow").classList.toggle("on",TRK.follow);
+  trkWatch(TRK.follow||TRK.rec);
+}
+function trkToggleRec(){
+  TRK.rec=!TRK.rec;
+  const b=document.getElementById("mbRec");
+  b.classList.toggle("on",TRK.rec);b.textContent=TRK.rec?"⏹ Stoppa":"⏺ Logga färd";
+  if(TRK.rec){showToast("Färdlogg PÅ — håll fliken öppen, ladda telefonen ⚡");trkWatch(true);}
+  else{trkFlush(true);showToast("Färdlogg sparad! Se den under 🛤️ eller i Törnrapporten.");trkWatch(false);}
+}
+async function trkShowToday(){
+  if(LOCAL_MODE){showToast("Kräver server");return;}
+  try{
+    const{data}=await SB.from("track_points").select("lat,lng,sog,ts").gte("ts",today()+"T00:00:00").order("ts",{ascending:true}).limit(20000);
+    if(!data||!data.length){showToast("Inga spårpunkter idag ännu — starta ⏺ Logga färd");return;}
+    if(window._dayLine)window._dayLine.remove();
+    window._dayLine=L.polyline(data.map(p=>[p.lat,p.lng]),{color:"#14506b",weight:4,opacity:.8}).addTo(window._osm);
+    window._osm.fitBounds(window._dayLine.getBounds().pad(.15));
+    const dist=trkDist(data.map(p=>({lat:p.lat,lng:p.lng})));
+    const maxS=Math.max(0,...data.map(p=>p.sog||0));
+    trkBarMsg(`🛤️ Idag: ${dist.toFixed(1)} M · toppfart ${maxS.toFixed(1)} kn`);
+  }catch(e){showToast("Kunde inte hämta spåret");}
+}
+window.addEventListener("beforeunload",()=>trkFlush(true));
+// GPS-upplåsning av hamnutmaningar
+let _fixPending=false;
+function refreshFix(cb){
+  if(!navigator.geolocation)return;
+  if(_fixPending||(lastFix&&Date.now()-lastFix.t<120000))return;
+  _fixPending=true;
+  navigator.geolocation.getCurrentPosition(
+    p=>{_fixPending=false;lastFix={lat:p.coords.latitude,lng:p.coords.longitude,t:Date.now()};if(cb)cb();},
+    ()=>{_fixPending=false;},{maximumAge:300000,timeout:8000});
+}
+function harborCoords(name){
+  if(name==="HELSINGFORS")return[60.1675,24.9686];
+  const n=name.toLowerCase();
+  const p=PLACES.find(x=>x.n.toLowerCase().includes(n));
+  return p?[p.lat,p.lng]:null;
+}
+function nearHarbor(name){
+  if(!lastFix||Date.now()-lastFix.t>15*60000)return false;
+  const c=harborCoords(name);if(!c)return false;
+  return haversine(lastFix.lat,lastFix.lng,c[0],c[1])<=1.5;
+}
+// ================= TÖRNRAPPORT =================
+async function renderReport(){
+  const r=document.getElementById("reportList");if(!r)return;
+  r.innerHTML='<p class="soundIntro">Räknar samman törnen…</p>';
+  let track=[];
+  if(!LOCAL_MODE){
+    try{const{data}=await SB.from("track_points").select("lat,lng,sog,ts").order("ts",{ascending:true}).limit(20000);track=data||[];}catch(e){}
+    await loadNotes();await loadChat();
+  }
+  r.innerHTML="";
+  const days={};track.forEach(p=>{const d=p.ts.slice(0,10);(days[d]=days[d]||[]).push(p);});
+  let tot=0,topS=0;
+  const dayRows=Object.entries(days).map(([d,pts])=>{
+    const dist=trkDist(pts);tot+=dist;
+    const mx=Math.max(0,...pts.map(p=>p.sog||0));topS=Math.max(topS,mx);
+    const h=(new Date(pts[pts.length-1].ts)-new Date(pts[0].ts))/3600000;
+    return `<div class="repRow"><span>${d.slice(5)}</span><b>${dist.toFixed(1)} M · ${h.toFixed(1)} h · max ${mx.toFixed(1)} kn</b></div>`;
+  }).join("");
+  const segl=document.createElement("div");segl.className="repCard";
+  segl.innerHTML=`<h3>⛵ Så seglade ni</h3>
+    ${track.length?`<div class="repRow"><span>Total loggad distans</span><b>${tot.toFixed(1)} M</b></div>
+    <div class="repRow"><span>Toppfart</span><b>${topS.toFixed(1)} kn</b></div>${dayRows}`
+    :'<div class="repRow"><span>Inget färdspår ännu — starta ⏺ Logga färd på kartan under segling.</span></div>'}`;
+  r.appendChild(segl);
+  const meds=["🥇","🥈","🥉"];
+  [...sailors].map(s=>({s,p:ptsFor(s.id)})).sort((a,b)=>b.p-a.p).forEach((row,i)=>{
+    const Ls=logsFor(row.s.id);
+    const c=k=>Ls.filter(l=>l.kind===k).length;
+    const harbors=Ls.filter(l=>l.kind==="checkpoint").map(l=>l.ref.slice(3));
+    const myNotes=portNotes.filter(x=>x.sailor_id===row.s.id);
+    const myChat=chatMsgs.filter(mm=>mm.sailor_id===row.s.id).length;
+    const d=document.createElement("div");d.className="repCard";
+    d.innerHTML=`<h3>${meds[i]||"·"} ${row.s.emoji} ${escHtml(row.s.name)} — ${row.p} p · ${rankFor(row.p)}${isCaptain(row.s)?" 🧑‍✈️":""}</h3>
+      <div class="repRow"><span>🔭 Spaningar</span><b>${c("spot")}</b></div>
+      <div class="repRow"><span>⚓ Hamnutmaningar</span><b>${c("checkpoint")}</b></div>
+      <div class="repRow"><span>🪢 Knopar & navskola</span><b>${c("knot")}</b></div>
+      <div class="repRow"><span>❓ Quizdagar (inkl. pop-quiz)</span><b>${c("quiz")}</b></div>
+      <div class="repRow"><span>🕹️ Spelrumsdagar</span><b>${c("minigame")}</b></div>
+      <div class="repRow"><span>🎁 Överraskningar vunna</span><b>${c("surprise")}</b></div>
+      <div class="repRow"><span>📓 Loggbok / 📸 foton</span><b>${myNotes.length} / ${myNotes.filter(x=>x.photo_url).length}</b></div>
+      <div class="repRow"><span>💬 Chattmeddelanden</span><b>${myChat}</b></div>
+      ${harbors.length?`<div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;margin-top:7px;color:#4a5a62"><b>Utmaningar klarade i:</b> ${harbors.map(escHtml).join(" · ")}</div>`:""}`;
+    r.appendChild(d);
+  });
+  const totC=document.createElement("div");totC.className="repCard";
+  const spots=allLogs().filter(l=>l.kind==="spot").length;
+  totC.innerHTML=`<h3>🌊 Besättningen tillsammans</h3>
+    <div class="repRow"><span>Poäng totalt</span><b>${crewPts()}</b></div>
+    <div class="repRow"><span>Arter & syner spanade</span><b>${spots}</b></div>
+    <div class="repRow"><span>Skeppet ⛵ nådde</span><b>${TILE_SHORT[tileFor(crewPts(),LEG*Math.max(1,sailors.length))]}</b></div>
+    <div class="repRow"><span>Loggboksinlägg totalt</span><b>${portNotes.length}</b></div>
+    <div class="repRow"><span>Foton i galleriet</span><b>${portNotes.filter(x=>x.photo_url).length}</b></div>`;
+  r.appendChild(totC);
+}
+function renderPlaces(){
+  initHarborMap();
+  const pl=document.getElementById("placeList");pl.innerHTML="";
+  PLACES.forEach((p,i)=>{
+    const card=document.createElement("div");card.className="pcard";card.style.cursor="default";
+    const rate=p.r&&p.r!=="–"?` · ★ ${p.r}`:"";
+    const notes=portNotes.filter(x=>x.place===p.n);
+    const notesHtml=notes.map(x=>`<div style="border-top:1px solid rgba(11,36,54,.1);padding-top:7px;margin-top:7px">
+      <span style="color:#e9a02e;font-size:12px">${stars(x.rating)}</span>
+      <b style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:11.5px"> ${escHtml(x.author)}</b>
+      <div class="pnote" style="margin-top:3px">${escHtml(x.body||"")}</div>
+      ${x.photo_url?`<img src="${x.photo_url}" loading="lazy" style="width:100%;border-radius:10px;margin-top:6px;display:block">`:""}</div>`).join("");
+    card.innerHTML=`<div class="top"><div class="pn"><span class="pnum">${i+1}</span>${p.n}</div>
+      <a class="open" href="https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}" target="_blank" rel="noopener">Karta ⤴</a></div>
+      <div class="meta"><b>${p.t}</b>${rate}${p.fee?` · <b>💶 ${p.fee}</b>`:""}</div>
+      ${p.svc?`<div class="meta" style="margin-top:5px;line-height:1.6">${p.svc}</div>`:""}
+      <div class="pnote">${p.note}</div>
+      ${notesHtml?`<div style="margin-top:4px">${notesHtml}</div>`:""}
+      <div class="noteForm" data-p="${i}"></div>
+      <button class="cpBtn" style="margin-top:10px;background:var(--sea)" data-w="${i}">✍️ Loggboka hamnen</button>`;
+    card.querySelector(`[data-w="${i}"]`).onclick=()=>{noteFormOpen=noteFormOpen===i?null:i;renderPlaces();};
+    pl.appendChild(card);
+    if(noteFormOpen===i)buildNoteForm(card.querySelector(".noteForm"),p);
+  });
+  const h=document.createElement("div");h.className="termgrp";h.textContent="Fler hamnar i området";pl.appendChild(h);
+  const info=document.createElement("p");info.className="soundIntro";
+  info.textContent="Reservalternativ om vind eller servicebehov ändrar rutten. Priser uppskattade — kolla på plats.";
+  pl.appendChild(info);
+  const harborCard=p=>{
+    const c=document.createElement("div");c.className="pcard";c.style.cursor="default";
+    c.innerHTML=`<div class="top"><div class="pn">${p.n}</div>
+      <a class="open" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.n+" gästhamn")}" target="_blank" rel="noopener">Karta ⤴</a></div>
+      <div class="meta"><b>${p.t}</b> · <b>💶 ${p.fee}</b></div>
+      <div class="meta" style="margin-top:5px;line-height:1.6">${p.svc}</div>
+      <div class="pnote">${p.note}</div>`;
+    return c;
+  };
+  ALT_HARBORS.forEach(p=>pl.appendChild(harborCard(p)));
+  if(extraHarborsOpen){
+    EXTRA_HARBORS.forEach(p=>pl.appendChild(harborCard(p)));
+    const less=document.createElement("button");less.className="cpBtn";
+    less.style.cssText="display:block;margin:10px auto";less.textContent="− Visa färre";
+    less.onclick=()=>{extraHarborsOpen=false;renderPlaces();};
+    pl.appendChild(less);
+  }else{
+    const more=document.createElement("button");more.className="goBtn";
+    more.style.marginTop="6px";more.textContent=`＋ Fler gästhamnar (${EXTRA_HARBORS.length} till — hela vägen Porkkala→Åbo)`;
+    more.onclick=()=>{extraHarborsOpen=true;renderPlaces();};
+    pl.appendChild(more);
+  }
+}
+function buildNoteForm(holder,p){
+  if(LOCAL_MODE){holder.innerHTML='<div class="meta" style="margin-top:8px">Loggboken kräver nät och server.</div>';return;}
+  let rating=4;
+  holder.innerHTML=`<div style="margin-top:10px;border-top:1px solid rgba(11,36,54,.1);padding-top:10px">
+    <div id="nfStars" style="font-size:22px;cursor:pointer;letter-spacing:3px;color:#e9a02e"></div>
+    <input id="nfBody" maxlength="300" placeholder="Vad var bra/dåligt? Tips till nästa gång…"
+      style="width:100%;margin-top:8px;font-size:14px;padding:10px;border-radius:10px;border:2px solid #d9d2c4;font-family:inherit">
+    <label style="display:block;margin-top:8px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:700;color:#6c7c84">📸 FOTO (VALFRITT)
+      <input type="file" id="nfPhoto" accept="image/*" style="display:block;margin-top:4px;font-size:12px;width:100%"></label>
+    <button class="cpBtn" id="nfSave" style="margin-top:10px">Spara i loggboken</button></div>`;
+  const paint=()=>holder.querySelector("#nfStars").textContent=stars(rating);
+  holder.querySelector("#nfStars").onclick=e=>{
+    const rect=e.currentTarget.getBoundingClientRect();
+    rating=Math.max(1,Math.min(5,Math.ceil((e.clientX-rect.left)/rect.width*5)));paint();};
+  paint();
+  holder.querySelector("#nfSave").onclick=async()=>{
+    const body=holder.querySelector("#nfBody").value.trim();
+    if(!me)return;
+    const btn=holder.querySelector("#nfSave");btn.textContent="Sparar…";btn.disabled=true;
+    try{
+      let photo_url=null;
+      const f=holder.querySelector("#nfPhoto").files[0];
+      if(f){
+        const blob=await shrinkImage(f,1280);
+        const path=today()+"/"+Date.now()+"-"+Math.random().toString(16).slice(2)+".jpg";
+        const{error:upErr}=await SB.storage.from("photos").upload(path,blob,{contentType:"image/jpeg"});
+        if(upErr)throw upErr;
+        photo_url=SB.storage.from("photos").getPublicUrl(path).data.publicUrl;
+      }
+      await SB.from("port_notes").insert({sailor_id:me.id,author:me.emoji+" "+me.name,place:p.n,rating,body,photo_url});
+      noteFormOpen=null;await loadNotes();renderPlaces();showToast("Sparat i hamnloggboken! 📓");
+    }catch(e){showToast("Kunde inte spara — kolla nätet");btn.textContent="Spara i loggboken";btn.disabled=false;}
+  };
+}
+async function shrinkImage(file,max){
+  const img=await new Promise((res,rej)=>{
+    const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=URL.createObjectURL(file);});
+  const k=Math.min(1,max/Math.max(img.width,img.height));
+  const cv=document.createElement("canvas");
+  cv.width=Math.round(img.width*k);cv.height=Math.round(img.height*k);
+  cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);
+  URL.revokeObjectURL(img.src);
+  return new Promise(res=>cv.toBlob(res,"image/jpeg",0.8));
+}
+// ================= GALLERI =================
+function renderGallery(){
+  const g=document.getElementById("galleryList");if(!g)return;g.innerHTML="";
+  if(LOCAL_MODE){g.innerHTML='<p class="soundIntro">Galleriet kräver nät och server.</p>';return;}
+  const ph=portNotes.filter(x=>x.photo_url);
+  if(!ph.length){g.innerHTML='<p class="soundIntro">Inga bilder ännu — bli först att föreviga en hamn! 📸</p>';return;}
+  ph.slice().reverse().forEach(x=>{
+    const d=document.createElement("div");d.className="scard";d.style.padding="10px";
+    d.innerHTML=`<img src="${x.photo_url}" loading="lazy" style="width:100%;border-radius:10px;display:block">
+      <div class="lat" style="margin-top:7px">${escHtml(x.author)} · <b>${escHtml(x.place)}</b>${x.rating?' · <span style="color:#e9a02e">'+stars(x.rating)+"</span>":""}</div>
+      ${x.body?`<div class="call" style="margin-top:3px">${escHtml(x.body)}</div>`:""}`;
+    g.appendChild(d);
+  });
+}
+// ================= PROFIL =================
+function showProfile(who){
+  const s=who||me;
+  if(!s)return;
+  const my=logsFor(s.id);
+  const cnt=k=>my.filter(l=>l.kind===k).length;
+  const pts=k=>my.filter(l=>l.kind===k).reduce((sum,l)=>sum+l.points,0);
+  const p=ptsFor(s.id);
+  const visited=[];
+  my.filter(l=>l.kind==="checkpoint").forEach(l=>{
+    if(l.ref.startsWith("cp:")){const v=l.ref.slice(3);visited.push(/^\d+$/.test(v)?(TILE_SHORT[+v]||v):v);}});
+  const myNotes=portNotes.filter(x=>x.sailor_id===s.id);
+  const rows=[["🔭 Spaningar",cnt("spot"),pts("spot")],["⚓ Hamnutmaningar",cnt("checkpoint"),pts("checkpoint")],
+    ["🪢 Knopar & navskola",cnt("knot"),pts("knot")],["❓ Quiz",cnt("quiz"),pts("quiz")],
+    ["🕹️ Spelrum",cnt("minigame"),pts("minigame")],["🎁 Överraskningar",cnt("surprise"),pts("surprise")]];
+  const box=document.getElementById("introBox");
+  box.innerHTML=`<div class="introWrap"><div class="introCard" style="text-align:left">
+    <div style="text-align:center"><div class="em">${s.emoji}</div>
+    <h2 style="margin-bottom:2px">${escHtml(s.name)}</h2>
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#ba7517;font-weight:700;letter-spacing:.1em;text-transform:uppercase">${rankFor(p)} · ${p} p</div></div>
+    <table style="width:100%;font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;margin-top:14px;border-collapse:collapse">
+      ${rows.map(r=>`<tr><td style="padding:4px 0;color:#4a5a62">${r[0]}</td><td style="text-align:right;color:#6c7c84">${r[1]} st</td><td style="text-align:right;font-weight:700;color:#14506b;width:52px">${r[2]} p</td></tr>`).join("")}
+    </table>
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6c7c84;margin-top:14px">Besökta hamnar</div>
+    <div style="font-size:14px;margin-top:4px">${visited.length?visited.join(" · "):"Inga hamnutmaningar avklarade ännu."}</div>
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#6c7c84;margin-top:12px">Mina loggboksinlägg</div>
+    ${myNotes.length?myNotes.map(x=>`<div style="font-size:13px;margin-top:5px"><span style="color:#e9a02e">${stars(x.rating)}</span> <b>${escHtml(x.place)}</b><br><span style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#4a5a62">${escHtml(x.body||"")}</span></div>`).join(""):'<div style="font-size:13px;margin-top:4px">Inga inlägg ännu — loggboka en hamn under 🗺️!</div>'}
+    <button class="goBtn" id="profClose" style="margin-top:16px">Stäng</button></div></div>`;
+  document.getElementById("profClose").onclick=()=>{box.innerHTML="";};
+}
+document.getElementById("hudMe").onclick=()=>showProfile(me);
+// ================= FRÅGESPORT =================
+const quiz={order:[],idx:0,score:0,answered:false};
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function startQuiz(){quiz.order=shuffle(QUIZ.map((_,i)=>i));quiz.idx=0;quiz.score=0;quiz.answered=false;}
+function renderQuestion(){
+  const box=document.getElementById("quizBox");
+  document.getElementById("qTot").textContent=quiz.order.length;
+  document.getElementById("qScore").textContent=quiz.score;
+  if(quiz.idx>=quiz.order.length){
+    document.getElementById("qNum").textContent=quiz.order.length;
+    const ref="quiz:"+today();
+    const canLog=me&&quiz.score>0&&!hasLog(me.id,"quiz",ref);
+    box.innerHTML=`<div class="qcard qdone"><div class="big"><span>${quiz.score}</span> / ${quiz.order.length} rätt</div>
+      <p style="font-family:Helvetica Neue,Arial,sans-serif;font-size:13px;color:#5a6b73;margin:10px 0 16px">${quiz.score===quiz.order.length?"Skärgårdsmästare! 🏆":quiz.score>=quiz.order.length*0.6?"Vasskipper — bra koll! ⚓":"Mer tid på däck behövs! 🌊"}</p>
+      ${canLog?`<button class="logBtn" id="qLog">Bokför +${quiz.score} p (en gång per dag)</button>`:me&&hasLog(me.id,"quiz",ref)?'<p style="font-family:Helvetica Neue,Arial,sans-serif;font-size:12px;color:#5a6b73">Dagens frågesportpoäng är redan bokförda.</p>':""}
+      <button class="qnext show" id="qRestart">Spela igen</button></div>`;
+    if(canLog)document.getElementById("qLog").onclick=()=>{
+      addLog("quiz","quiz:"+today(),quiz.score,"Frågesport "+quiz.score+"/"+quiz.order.length);
+      showToast("+"+quiz.score+" p bokförda! ❓");renderQuestion();};
+    document.getElementById("qRestart").onclick=()=>{startQuiz();renderQuestion();};
+    return;
+  }
+  document.getElementById("qNum").textContent=quiz.idx+1;
+  const item=QUIZ[quiz.order[quiz.idx]];quiz.answered=false;
+  let opts=item.a.map((t,i)=>`<button class="opt" data-i="${i}">${t}</button>`).join("");
+  box.innerHTML=`<div class="qcard"><div class="qtext">${item.q}</div>${opts}
+    <div class="qexpl" id="qExpl">${item.e}</div>
+    <button class="qnext" id="qNext">Nästa fråga →</button></div>`;
+  box.querySelectorAll(".opt").forEach(b=>{
+    b.onclick=()=>{
+      if(quiz.answered)return;quiz.answered=true;
+      const pick=+b.dataset.i;const correct=item.c;
+      box.querySelectorAll(".opt").forEach(o=>{
+        const oi=+o.dataset.i;
+        if(oi===correct)o.classList.add("correct");
+        else if(oi===pick)o.classList.add("wrong");
+        else o.classList.add("dim");
+      });
+      if(pick===correct)quiz.score++;
+      document.getElementById("qScore").textContent=quiz.score;
+      document.getElementById("qExpl").classList.add("show");
+      document.getElementById("qNext").classList.add("show");
+    };
+  });
+  document.getElementById("qNext").onclick=()=>{quiz.idx++;renderQuestion();};
+}
+// ================= DIAGRAM (inline SVG, offline) =================
+function routeMapSVG(){
+  const W=320,H=320,pad=34;
+  const lats=PLACES.map(p=>p.lat),lngs=PLACES.map(p=>p.lng);
+  const minLa=Math.min(...lats),maxLa=Math.max(...lats),minLo=Math.min(...lngs),maxLo=Math.max(...lngs);
+  const X=lo=>pad+((lo-minLo)/(maxLo-minLo))*(W-2*pad);
+  const Y=la=>pad+((maxLa-la)/(maxLa-minLa))*(H-2*pad);
+  let dots="",i=0;
+  PLACES.forEach((p)=>{
+    i++;const x=X(p.lng).toFixed(1),y=Y(p.lat).toFixed(1);
+    dots+=`<circle cx="${x}" cy="${y}" r="9" fill="#d8612e"/>
+      <text x="${x}" y="${(+y+3.3).toFixed(1)}" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="10" font-weight="700" fill="#fff">${i}</text>`;
+  });
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Route overview map">
+    <rect x="0" y="0" width="${W}" height="${H}" fill="#cfe0e6" opacity="0.35" rx="12"/>
+    <text x="${W-18}" y="22" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="11" font-weight="700" fill="#14506b">N</text>
+    <line x1="${W-18}" y1="26" x2="${W-18}" y2="40" stroke="#14506b" stroke-width="1.5"/>
+    <path d="M${W-18},24 l-3.5,7 l7,0 Z" fill="#14506b"/>
+    <text x="22" y="${H-14}" text-anchor="start" font-family="Helvetica Neue,Arial,sans-serif" font-size="10.5" font-style="italic" fill="#5a6b73">← mot Hangö / söder</text>
+    <text x="${W-22}" y="20" text-anchor="end" font-family="Helvetica Neue,Arial,sans-serif" font-size="10.5" font-style="italic" fill="#5a6b73">Åbo / Pargas →</text>
+    ${dots}
+  </svg>`;
+}
+function sloopSVG(){
+  return `<svg viewBox="0 0 320 310" role="img" aria-label="Sloop sail plan, Sun-Day">
+    <line x1="14" y1="226" x2="306" y2="226" stroke="#9fb6c2" stroke-width="1.5" stroke-dasharray="4 4"/>
+    <path d="M44,226 C72,250 232,252 278,230 C282,228 284,227 282,226 Z" fill="#e8eef0" stroke="#14506b" stroke-width="2.5"/>
+    <path d="M150,250 L147,292 L171,292 L174,249 Z" fill="#14506b"/>
+    <path d="M236,246 L234,276 L244,276 L246,244 Z" fill="#14506b"/>
+    <line x1="158" y1="48" x2="58" y2="220" stroke="#0b2436" stroke-width="1"/>
+    <line x1="158" y1="48" x2="250" y2="220" stroke="#0b2436" stroke-width="1"/>
+    <line x1="158" y1="226" x2="158" y2="44" stroke="#0b2436" stroke-width="3"/>
+    <line x1="158" y1="198" x2="92" y2="202" stroke="#0b2436" stroke-width="3.5"/>
+    <path d="M158,56 L158,196 L96,200 Z" fill="#f4efe4" stroke="#14506b" stroke-width="1.6"/>
+    <path d="M158,60 L246,214 L158,196 Z" fill="#fff" stroke="#14506b" stroke-width="1.6"/>
+    <text x="158" y="244" text-anchor="middle" font-family="Iowan Old Style,Palatino,Georgia,serif" font-size="13" font-style="italic" font-weight="700" fill="#0b2436">Sun-Day</text>
+    ${lbl(158,38,"Mast","middle")}
+    ${lbl(108,116,"Storsegel","middle")}
+    ${lbl(212,150,"Genua/fock","middle")}
+    ${lbl(84,206,"Bom","end")}
+    ${lbl(252,232,"Förstag","start")}
+    ${lbl(56,232,"Akterstag","end")}
+    ${lbl(159,306,"Köl","middle")}
+    ${lbl(240,290,"Roder","start")}
+    <text x="300" y="222" text-anchor="end" font-family="Helvetica Neue,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#14506b">för →</text>
+    <text x="20" y="222" text-anchor="start" font-family="Helvetica Neue,Arial,sans-serif" font-size="10.5" font-weight="700" fill="#14506b">← akter</text>
+  </svg>`;
+}
+function lbl(x,y,t,anchor){
+  return `<text x="${x}" y="${y}" text-anchor="${anchor}" font-family="Helvetica Neue,Arial,sans-serif" font-size="11" font-weight="700" fill="#0b2436">${t}</text>`;
+}
+function pointsOfSailSVG(){
+  const cx=160,cy=150,R=120,W=66;
+  const P=(deg,r)=>{const a=(deg-90)*Math.PI/180;return[cx+r*Math.cos(a),cy+r*Math.sin(a)];};
+  const [nx1,ny1]=P(-45,W),[nx2,ny2]=P(45,W);
+  function boat(deg,label,sub){
+    const [x,y]=P(deg,95);const rot=deg;
+    return `<g transform="translate(${x.toFixed(1)},${y.toFixed(1)}) rotate(${rot})">
+      <path d="M0,-13 C5,-6 5,8 0,13 C-5,8 -5,-6 0,-13 Z" fill="#14506b"/>
+      <line x1="0" y1="-2" x2="0" y2="10" stroke="#fff" stroke-width="1.4"/>
+    </g>
+    <text x="${x.toFixed(1)}" y="${(y+(y<cy-10?-18:24)).toFixed(1)}" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="12" font-weight="700" fill="#0b2436">${label}</text>
+    <text x="${x.toFixed(1)}" y="${(y+(y<cy-10?-6:36)).toFixed(1)}" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="9.5" fill="#6c7c84">${sub}</text>`;
+  }
+  return `<svg viewBox="0 0 320 300" role="img" aria-label="Points of sail">
+    <circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="#d9d2c4" stroke-width="1"/>
+    <path d="M${cx},${cy} L${nx1.toFixed(1)},${ny1.toFixed(1)} A${W},${W} 0 0,1 ${nx2.toFixed(1)},${ny2.toFixed(1)} Z" fill="#d8612e" opacity="0.15"/>
+    <line x1="${cx}" y1="14" x2="${cx}" y2="54" stroke="#0b2436" stroke-width="2.2"/>
+    <path d="M${cx},58 l-5,-9 l10,0 Z" fill="#0b2436"/>
+    <text x="${cx}" y="12" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="11" font-weight="700" fill="#0b2436">VIND</text>
+    ${boat(45,"Bidevind","~45°")}
+    ${boat(90,"Halvvind","90°")}
+    ${boat(135,"Slör","~135°")}
+    ${boat(180,"Läns","180°")}
+    <text x="${cx}" y="${cy-14}" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="9" fill="#d8612e" font-weight="700">no-go</text>
+  </svg>`;
+}
+function boatAnatomySVG(){
+  return `<svg viewBox="0 0 300 240" role="img" aria-label="Boat anatomy">
+    <path d="M150,18 C190,70 190,170 168,210 L132,210 C110,170 110,70 150,18 Z" fill="#e8eef0" stroke="#14506b" stroke-width="2.5"/>
+    <path d="M150,18 C110,70 110,170 132,210 L150,210 Z" fill="#c0392b" opacity="0.10"/>
+    <path d="M150,18 C190,70 190,170 168,210 L150,210 Z" fill="#3f7d5a" opacity="0.12"/>
+    <circle cx="150" cy="100" r="4.5" fill="#0b2436"/>
+    <line x1="150" y1="100" x2="150" y2="175" stroke="#0b2436" stroke-width="2.5"/>
+    <text x="150" y="12" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="12" font-weight="700" fill="#0b2436">FÖR (keula)</text>
+    <text x="150" y="232" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="12" font-weight="700" fill="#0b2436">AKTER (perä)</text>
+    <text x="86" y="118" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="12" font-weight="700" fill="#c0392b">BABORD</text>
+    <text x="84" y="132" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="9.5" fill="#6c7c84">vänster · röd</text>
+    <text x="214" y="118" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="12" font-weight="700" fill="#3f7d5a">STYRBORD</text>
+    <text x="214" y="132" text-anchor="middle" font-family="Helvetica Neue,Arial,sans-serif" font-size="9.5" fill="#6c7c84">höger · grön</text>
+    <text x="166" y="98" font-family="Helvetica Neue,Arial,sans-serif" font-size="10.5" fill="#0b2436">mast</text>
+    <text x="166" y="150" font-family="Helvetica Neue,Arial,sans-serif" font-size="10.5" fill="#0b2436">bom</text>
+  </svg>`;
+}
+// ================= BYSSAN =================
+function renderRecipes(){
+  const rl=document.getElementById("recipeList");rl.innerHTML="";
+  RECIPES.forEach(r=>{
+    const d=document.createElement("div");d.className="scard";
+    d.innerHTML=`<div class="top"><div class="nm">${r.n}</div></div>
+      <div class="lat">${r.m}</div>
+      <div class="call" style="margin-top:6px"><b>Du behöver:</b> ${r.ing}</div>
+      <div class="call" style="margin-top:6px">${r.s}</div>`;
+    rl.appendChild(d);
+  });
+}
+// ================= SKEPPSCHATT =================
+let chatMsgs=[];
+function escHtml(s){const d=document.createElement("div");d.textContent=s;return d.innerHTML;}
+async function loadChat(){
+  if(LOCAL_MODE)return;
+  try{const{data}=await SB.from("chat").select("*").order("created_at",{ascending:true}).limit(200);
+    if(data)chatMsgs=data;}catch(e){}
+}
+function renderChat(){
+  const l=document.getElementById("chatList");if(!l)return;
+  l.innerHTML="";
+  if(LOCAL_MODE){l.innerHTML='<p class="soundIntro">Chatten kräver nät och server — den funkar i den delade versionen.</p>';return;}
+  if(!chatMsgs.length){l.innerHTML='<p class="soundIntro">Inga meddelanden ännu — säg hej till besättningen! 👋</p>';return;}
+  chatMsgs.forEach(m=>{
+    const mine=me&&m.sailor_id===me.id;
+    const gem=/gemma/i.test(m.author||"");
+    const d=document.createElement("div");
+    d.className="msg"+(mine?" mine":"")+(gem?" gemma":"");
+    const time=m.created_at?new Date(m.created_at).toLocaleTimeString("sv-SE",{hour:"2-digit",minute:"2-digit"}):"";
+    d.innerHTML=`<div class="au">${escHtml(m.author||"?")} · ${time}</div>${escHtml(m.body||"")}`;
+    l.appendChild(d);
+  });
+}
+async function sendChat(){
+  const inp=document.getElementById("chatIn");
+  const body=inp.value.trim();
+  if(!body||!me||LOCAL_MODE)return;
+  inp.value="";
+  try{
+    await SB.from("chat").insert({sailor_id:me.id,author:me.emoji+" "+me.name,body});
+    await loadChat();renderChat();
+    if(/^@gemma/i.test(body))showToast("Skickat till Gemma — svar kommer när hembasen är online ⚓");
+  }catch(e){showToast("Kunde inte skicka — kolla nätet");inp.value=body;}
+}
+document.getElementById("chatSendBtn").onclick=sendChat;
+document.getElementById("chatIn").addEventListener("keydown",e=>{if(e.key==="Enter")sendChat();});
+if(SB){
+  SB.channel("chat-ch").on("postgres_changes",{event:"INSERT",schema:"public",table:"chat"},async()=>{
+    await loadChat();if(current==="chat")renderChat();
+  }).subscribe();
+  SB.channel("settings-ch").on("postgres_changes",{event:"*",schema:"public",table:"settings"},async()=>{
+    await loadSettings();
+    if(current==="board")render();
+    showToast("Kaptenen har uppdaterat rutten! 🧭");
+  }).subscribe();
+}
+// ================= VIND =================
+function windCompass(d){return["N","NO","O","SO","S","SV","V","NV"][Math.round(d/45)%8];}
+function renderWind(w,cached){
+  const el=document.getElementById("windBar");if(!el||!w)return;
+  const age=Math.round((Date.now()-w.t)/60000);
+  el.innerHTML=`💨 <b>${Math.round(w.s)} m/s</b> från <b>${windCompass(w.d)}</b>
+    <span style="display:inline-block;transform:rotate(${(w.d+90)%360}deg)">➤</span>
+    · byar ${Math.round(w.g)} m/s${cached?` · <span style="opacity:.7">${age} min gammal</span>`:""}`;
+}
+async function loadWind(){
+  const el=document.getElementById("windBar");
+  const cached=JSON.parse(localStorage.getItem("ss_wind")||"null");
+  if(cached)renderWind(cached,true);
+  const go=async(lat,lon)=>{
+    try{
+      const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&current=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=ms`);
+      const j=await r.json();const c=j.current;
+      const w={s:c.wind_speed_10m,d:c.wind_direction_10m,g:c.wind_gusts_10m,t:Date.now()};
+      localStorage.setItem("ss_wind",JSON.stringify(w));renderWind(w,false);
+    }catch(e){if(!cached&&el)el.textContent="💨 Vind: ingen täckning just nu — tryck för nytt försök";}
+  };
+  if(navigator.geolocation)navigator.geolocation.getCurrentPosition(
+    p=>go(p.coords.latitude,p.coords.longitude),()=>go(59.95,22.4),{timeout:8000,maximumAge:600000});
+  else go(59.95,22.4);
+}
+document.getElementById("windBar").onclick=loadWind;
+// ================= GUIDE (första gången) =================
+const INTRO=[
+  {em:"🔭",t:"Spana & samla poäng",p:"Ser du något från däck — fartyg, fågel, säl? Öppna Spaning och tryck på kortet. Orange kort är sällsynta och värda mer."},
+  {em:"🎲",t:"Segla på spelplanen",p:"Varje poäng flyttar din pjäs mot Nådendal — 30 p per hamn. Besättningens gemensamma skepp ⛵ seglar på summan av allas poäng."},
+  {em:"⚓",t:"Hamnutmaningar & knopar",p:"När din pjäs når en hamn låses dess utmaning upp (+5 p). Visa knopar för en kompis för extra poäng — och klättra i rang, från Jungman mot Kommodor."},
+  {em:"🎁",t:"Dagens & Spelrummet",p:"Varje dag väntar en överraskning — först till kvarn i besättningen! Vid stiltje: Lastrummet och Skärgårdsminne i Spelrummet."},
+  {em:"📶",t:"Funkar utan täckning",p:"Allt sparas i telefonen och synkas när nätet kommer tillbaka — grön prick uppe vid namnet betyder synkad. Lycka till, sjöman!"}];
+let introIdx=0;
+function showIntro(){introIdx=0;renderIntro();}
+function renderIntro(){
+  const box=document.getElementById("introBox");
+  const s=INTRO[introIdx];
+  if(!s){box.innerHTML="";localStorage.setItem("ss_intro","1");return;}
+  box.innerHTML=`<div class="introWrap"><div class="introCard">
+    <div class="em">${s.em}</div><h2>${s.t}</h2><p>${s.p}</p>
+    <div class="dots">${INTRO.map((_,i)=>`<span class="${i===introIdx?'on':''}"></span>`).join("")}</div>
+    <button class="goBtn" id="inNext">${introIdx<INTRO.length-1?"Nästa →":"Nu seglar vi! ⛵"}</button>
+    <br><button class="introSkip" id="inSkip">Hoppa över</button></div></div>`;
+  document.getElementById("inNext").onclick=()=>{introIdx++;renderIntro();};
+  document.getElementById("inSkip").onclick=()=>{introIdx=INTRO.length;renderIntro();};
+}
+// ================= NAVIGATIONSSKOLAN =================
+const NAVLESSONS=[
+  {em:"🗺️",t:"1 · Läs sjökortet",d:"Sjökortet är sanningen — inte plottern. Blå ton = grunt, djupkurvor (3, 6, 10 m) är dina staket, kryss och prickar är stenar. Kolla alltid kortets skala innan du bedömer avstånd.",task:"Öppna papperssjökortet: hitta er nästa hamn, dagens rutt och tre faror längs vägen. Visa dem för en kompis."},
+  {em:"📏",t:"2 · Enslinjer",d:"Två fasta föremål i linje (fyr bakom båk, skorstenar, uddar) ger en exakt positionslinje utan instrument — du är någonstans på den linjen. Farleder är ofta byggda kring ensmärken.",task:"Hitta en enslinje i verkligheten (två sjömärken/landmärken i linje), identifiera samma linje i sjökortet."},
+  {em:"🧭",t:"3 · Krysspejling",d:"Ta kompassbäring mot två-tre kända föremål (fyr, kyrktorn, udde). Rita linjerna i kortet — där de korsar är ni. Välj föremål med ~60–90° mellanrum för skarpast kryss.",dia:"cross",task:"Krysspejla två märken med handkompass eller telefonens kompass, pricka positionen i kortet — jämför sedan med GPS. Under 0,3 M fel = mästare!"},
+  {em:"⏱️",t:"4 · Död räkning",d:"Från senast kända position: kurs + fart × tid = ny position. 5 knop i 30 min = 2,5 M längs kursen. Korrigera för avdrift i sidvind. Så navigerade man över oceaner i sekler.",dia:"dr",task:"Notera position, logg och klockslag. Segla 30 min på stadig kurs, räkna ut var ni borde vara — kolla mot GPS."},
+  {em:"📉",t:"5 · Djupkurvan som ledstång",d:"Ekolodet är en positionslinje: följer ni 10-meterskurvan i kortet vet ni ungefär var ni är även i dis. Ett tvärt uppgrundande säger direkt att något är fel.",task:"Följ en djupkurva i kortet med hjälp av ekolodet i 10 minuter och håll koll på var ni är utan att titta på plottern."},
+  {em:"💡",t:"6 · Fyrkaraktärer & sektorer",d:"Varje fyr blinkar sin egen rytm (t.ex. 'Fl 3s' = blixt var tredje sekund) som står i kortet — så vet du VILKEN fyr du ser. Sektorfyrar visar vitt i den säkra sektorn, rött/grönt utanför.",task:"I skymning: identifiera en fyr genom att ta tid på blinkningarna och matcha karaktären mot sjökortet."},
+];
+function navDiaSVG(kind){
+  if(kind==="cross")return `<svg viewBox="0 0 300 170">
+    <rect width="300" height="170" rx="10" fill="#cfe0e6" opacity=".4"/>
+    <text x="44" y="30" font-size="16">🗼</text><text x="248" y="42" font-size="16">⛪</text>
+    <line x1="52" y1="34" x2="170" y2="122" stroke="#c0392b" stroke-width="2" stroke-dasharray="6 4"/>
+    <line x1="250" y1="46" x2="170" y2="122" stroke="#14506b" stroke-width="2" stroke-dasharray="6 4"/>
+    <text x="150" y="118" font-size="15">⛵</text>
+    <text x="90" y="92" font-size="10" font-family="Helvetica Neue,Arial,sans-serif" fill="#c0392b" font-weight="700">bäring 1</text>
+    <text x="212" y="92" font-size="10" font-family="Helvetica Neue,Arial,sans-serif" fill="#14506b" font-weight="700">bäring 2</text>
+    <text x="150" y="150" text-anchor="middle" font-size="10.5" font-family="Helvetica Neue,Arial,sans-serif" fill="#0b2436" font-weight="700">Där linjerna korsar = er position</text></svg>`;
+  if(kind==="dr")return `<svg viewBox="0 0 300 120">
+    <rect width="300" height="120" rx="10" fill="#cfe0e6" opacity=".4"/>
+    <circle cx="48" cy="60" r="6" fill="#3f7d5a"/>
+    <text x="48" y="42" text-anchor="middle" font-size="10" font-family="Helvetica Neue,Arial,sans-serif" fill="#0b2436" font-weight="700">kl. 12:00 (känd)</text>
+    <line x1="56" y1="60" x2="230" y2="60" stroke="#14506b" stroke-width="2.5"/>
+    <path d="M236,60 l-10,-5 l0,10 Z" fill="#14506b"/>
+    <text x="145" y="52" text-anchor="middle" font-size="10" font-family="Helvetica Neue,Arial,sans-serif" fill="#14506b" font-weight="700">kurs 270° · 5 kn · 30 min</text>
+    <circle cx="248" cy="60" r="6" fill="#d8612e"/>
+    <text x="248" y="86" text-anchor="middle" font-size="10" font-family="Helvetica Neue,Arial,sans-serif" fill="#0b2436" font-weight="700">kl. 12:30 = 2,5 M</text></svg>`;
+  return "";
+}
+function renderNavSchool(){
+  const nl=document.getElementById("navList");nl.innerHTML="";
+  NAVLESSONS.forEach((les,i)=>{
+    const ref="nav:"+i;
+    const done=me&&hasLog(me.id,"knot",ref);
+    const d=document.createElement("div");d.className="scard";
+    if(done){d.style.background="var(--green)";d.style.color="#eef6f0";}
+    d.innerHTML=`<div class="top"><div class="nm">${les.em} ${les.t}${done?" ✓":""}</div></div>
+      <div class="call" ${done?'style="color:#eef6f0"':''}>${les.d}</div>
+      ${les.dia?`<div class="diagram" style="margin-top:10px">${navDiaSVG(les.dia)}</div>`:""}
+      <div class="call" style="margin-top:8px;${done?'color:#cfe6d8':''}"><b>⚓ Övning ombord:</b> ${les.task}</div>
+      <button class="cpBtn" style="margin-top:10px">${done?"Ångra":"Övning klar! +2 p"}</button>`;
+    d.querySelector(".cpBtn").onclick=()=>{
+      done?removeLog("knot",ref):addLog("knot",ref,2,"Navskolan: "+les.t);
+      if(!done){confetti(18);showToast("Lektion avklarad! +2 p 🧭");}
+      renderNavSchool();updateTop();};
+    nl.appendChild(d);
+  });
+}
+// ================= DAGLIG POP-QUIZ =================
+function maybePopQuiz(){
+  if(!me)return;
+  const ref="pop:"+today();
+  if(hasLog(me.id,"quiz",ref))return;
+  const idx=[...today()+"pop"].reduce((a,c)=>a+c.charCodeAt(0),0)%POPQUIZ.length;
+  const q=POPQUIZ[idx];
+  const box=document.getElementById("introBox");box._done=false;
+  box.innerHTML=`<div class="introWrap"><div class="introCard">
+    <div class="em">🚨</div><h2>Pop-quiz!</h2>
+    <p style="font-weight:600;font-size:15px;color:var(--ink)">${q.q}</p>
+    <div id="popOpts" style="text-align:left"></div>
+    <p id="popExpl" class="qexpl" style="text-align:left"></p>
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#8a9aa2;margin-top:10px">Rätt svar = +2 p · en fråga per dag</div>
+    <button class="introSkip" id="popSkip">Inte nu</button></div></div>`;
+  const opts=document.getElementById("popOpts");
+  q.a.forEach((t,i)=>{
+    const b=document.createElement("button");b.className="opt";b.textContent=t;
+    b.onclick=()=>{
+      if(box._done)return;box._done=true;
+      opts.querySelectorAll(".opt").forEach((o,oi)=>o.classList.add(oi===q.c?"correct":oi===i?"wrong":"dim"));
+      const right=i===q.c;
+      const ex=document.getElementById("popExpl");ex.textContent=q.e;ex.classList.add("show");
+      addLog("quiz",ref,right?2:0,"Pop-quiz: "+(right?"rätt":"fel"));
+      if(right){confetti(22);showToast("+2 p! 🧠");}else showToast("Rätt svar visas — imorgon ny chans!");
+      document.getElementById("popSkip").textContent="Stäng";
+      updateTop();
+    };
+    opts.appendChild(b);
+  });
+  document.getElementById("popSkip").onclick=()=>{box.innerHTML="";};
+}
+// ================= INIT =================
+(async function init(){
+  updateSync();
+  const t0=Date.now();
+  await loadSailors();
+  if(me&&!sailors.find(s=>s.id===me.id)){me=null;localStorage.removeItem("ss_session");}
+  if(me)enterApp();else renderLogin();
+  const wait=Math.max(0,1700-(Date.now()-t0));
+  setTimeout(()=>{
+    const sp=document.getElementById("splash");
+    if(sp){sp.classList.add("hide");setTimeout(()=>sp.remove(),650);}
+  },wait);
+})();
+</script>
+</body>
+</html>
