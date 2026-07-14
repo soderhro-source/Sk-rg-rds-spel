@@ -2,17 +2,27 @@ import type { Config } from "@netlify/functions";
 
 // Skepps-AI-brygga #2: molnreserv för @gemma i Skeppschatten.
 //
-// gemma_bridge.py (körs på Roope's hemdator) svarar normalt inom sekunder.
-// Den bryggan finns bara när hans dator är på. Den här funktionen körs
-// istället i molnet var 2:a minut, oavsett om någon dator är på — men
-// väntar först en nådatid så att den lokala Gemma alltid får chansen att
-// svara själv. Kräver miljövariabeln MISTRAL_API_KEY (satt i Netlifys
+// gemma_bridge.py (körs på Roope's hemdator) svarar normalt inom sekunder,
+// NÄR datorn är på. Den här funktionen körs istället i molnet var minut,
+// oavsett om någon dator är på.
+//
+// TILLFÄLLIGT LÄGE (satt 2026-07-14 på begäran): GRACE_MS är nedskruvad
+// till nästan noll, så Mistral svarar direkt istället för att vänta in
+// lokala Gemma — eftersom hemdatorns brygga inte verkar köra just nu
+// (flera @gemma-frågor från tidigare i veckan står obesvarade). Om/när
+// Roope har gemma_bridge.py igång igen permanent, höj GRACE_MS tillbaka
+// till t.ex. 3*60*1000 så lokala Gemma får förtur igen (den är gratis
+// och kör en större modell). Detta är bara en kodändring här — det finns
+// ingen "av/på-knapp" för själva Python-skriptet på hans dator; det stängs
+// bara av genom att stänga terminalfönstret/processen där lokalt.
+//
+// Kräver miljövariabeln MISTRAL_API_KEY (satt i Netlifys
 // projektinställningar — ALDRIG i den här filen eller i git).
 
 const SUPABASE_URL = "https://wptovqfypslbneobnjim.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndwdG92cWZ5cHNsYm5lb2JuamltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM3MDE3MTEsImV4cCI6MjA5OTI3NzcxMX0.FSk4R4QnKxV_X6FPIbZbTZPgwnomaiZjSkggv2UYkgc";
-const GRACE_MS = 3 * 60 * 1000; // ge lokala Gemma 3 min att svara själv först
+const GRACE_MS = 5 * 1000; // TILLFÄLLIGT: nästan ingen väntan, se kommentar ovan
 const STALE_MS = 30 * 60 * 1000; // svara inte på frågor äldre än detta
 const AUTHOR = "⚓ Gemma";
 const SYSTEM_PROMPT =
@@ -101,4 +111,4 @@ export default async (req: Request) => {
   }
 };
 
-export const config: Config = { schedule: "*/2 * * * *" };
+export const config: Config = { schedule: "* * * * *" }; // TILLFÄLLIGT: var minut (Netlifys minsta intervall) istället för var 2:a
