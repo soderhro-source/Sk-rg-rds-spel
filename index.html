@@ -1993,6 +1993,42 @@ async function loadNotes(){
     if(data)portNotes=data;}catch(e){}
 }
 function stars(n){return "★".repeat(n||0)+"☆".repeat(5-(n||0));}
+// ================= SKEPPARENS LOGGBOK =================
+let captainLog=[];
+async function loadCaptainLog(){
+  const b=myBoat();
+  if(LOCAL_MODE){
+    const all=JSON.parse(localStorage.getItem("ss_captainlog")||"[]");
+    captainLog=b?all.filter(x=>x.boat_id===b.id):all;return;
+  }
+  if(!b){captainLog=[];return;}
+  try{const{data,error}=await SB.from("captain_log").select("*").eq("boat_id",b.id).order("departure_time",{ascending:false});
+    if(!error&&data)captainLog=data;}catch(e){}
+}
+async function addCaptainLogEntry(entry){
+  const b=myBoat();if(!b||!me)return false;
+  const row={boat_id:b.id,sailor_id:me.id,...entry};
+  if(LOCAL_MODE){
+    row.id=uuid();row.created_at=new Date().toISOString();
+    const all=JSON.parse(localStorage.getItem("ss_captainlog")||"[]");
+    all.unshift(row);localStorage.setItem("ss_captainlog",JSON.stringify(all));
+    captainLog.unshift(row);return true;
+  }
+  try{
+    const{data,error}=await SB.from("captain_log").insert(row).select().single();
+    if(error)throw error;
+    captainLog.unshift(data);return true;
+  }catch(e){showToast("Kunde inte spara loggboksinlägget — kolla nätet");return false;}
+}
+async function deleteCaptainLogEntry(id){
+  if(LOCAL_MODE){
+    const all=JSON.parse(localStorage.getItem("ss_captainlog")||"[]").filter(x=>x.id!==id);
+    localStorage.setItem("ss_captainlog",JSON.stringify(all));
+    captainLog=captainLog.filter(x=>x.id!==id);return;
+  }
+  try{await SB.from("captain_log").delete().eq("id",id);captainLog=captainLog.filter(x=>x.id!==id);}
+  catch(e){showToast("Kunde inte ta bort — kolla nätet");}
+}
 function initHarborMap(){
   const mapDiv=document.getElementById("placeMap");
   if(!window.L){
@@ -2164,6 +2200,7 @@ async function renderReport(){
     }catch(e){}
     await loadNotes();await loadChat();
   }
+  await loadCaptainLog();
   r.innerHTML="";
   const days={};track.forEach(p=>{const d=p.ts.slice(0,10);(days[d]=days[d]||[]).push(p);});
   let tot=0,topS=0;
@@ -2179,8 +2216,9 @@ async function renderReport(){
     <div class="repRow"><span>Toppfart</span><b>${topS.toFixed(1)} kn</b></div>${dayRows}`
     :'<div class="repRow"><span>Inget färdspår ännu — starta ⏺ Logga färd på kartan under segling.</span></div>'}`;
   r.appendChild(segl);
+  renderCaptainLogCard(r,track);
   const meds=["🥇","🥈","🥉"];
-  [...sailors].map(s=>({s,p:ptsFor(s.id)})).sort((a,b)=>b.p-a.p).forEach((row,i)=>{
+  [...mySailors()].map(s=>({s,p:ptsFor(s.id)})).sort((a,b)=>b.p-a.p).forEach((row,i)=>{
     const Ls=logsFor(row.s.id);
     const c=k=>Ls.filter(l=>l.kind===k).length;
     const harbors=Ls.filter(l=>l.kind==="checkpoint").map(l=>l.ref.slice(3));
@@ -2204,10 +2242,95 @@ async function renderReport(){
   totC.innerHTML=`<h3>🌊 Besättningen tillsammans</h3>
     <div class="repRow"><span>Poäng totalt</span><b>${crewPts()}</b></div>
     <div class="repRow"><span>Arter & syner spanade</span><b>${spots}</b></div>
-    <div class="repRow"><span>Skeppet ⛵ nådde</span><b>${TILE_SHORT[tileFor(crewPts(),LEG*Math.max(1,sailors.length))]}</b></div>
+    <div class="repRow"><span>${myBoat()?myBoat().name:"Skeppet"} ⛵ nådde</span><b>${TILE_SHORT[tileFor(mySailors().reduce((s,x)=>s+ptsFor(x.id),0),LEG*Math.max(1,mySailors().length))]}</b></div>
     <div class="repRow"><span>Loggboksinlägg totalt</span><b>${portNotes.length}</b></div>
     <div class="repRow"><span>Foton i galleriet</span><b>${portNotes.filter(x=>x.photo_url).length}</b></div>`;
   r.appendChild(totC);
+}
+const WEATHER_CHIPS=["Lugnt","Bris","Frisk vind","Kuling","Sol","Molnigt","Regn","Dimma"];
+function nowLocalDT(){
+  const d=new Date(),p=n=>String(n).padStart(2,"0");
+  return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+"T"+p(d.getHours())+":"+p(d.getMinutes());
+}
+function renderCaptainLogCard(r,track){
+  const b=myBoat();
+  const card=document.createElement("div");card.className="repCard";
+  const last=captainLog[0];
+  const defaultFrom=last?last.arrival_place:(me?TILE_SHORT[tileFor(ptsFor(me.id),LEG)]:"");
+  card.innerHTML=`<h3>📓 ${b?b.name+"s":"Skepparens"} loggbok</h3>
+    ${isCaptain()?`<button class="cpBtn" id="clogAddBtn" style="margin-bottom:10px">+ Nytt loggboksinlägg</button><div id="clogForm"></div>`:""}
+    <div id="clogList"></div>`;
+  r.appendChild(card);
+  const listEl=card.querySelector("#clogList");
+  if(!captainLog.length){
+    listEl.innerHTML='<p class="soundIntro">Inga loggboksinlägg än. '+(isCaptain()?"Lägg till det första ovan!":"Skepparen kan lägga till avgångar, ankomster, distans och väder här.")+'</p>';
+  }else{
+    listEl.innerHTML=captainLog.map(e=>{
+      const author=sailors.find(s=>s.id===e.sailor_id);
+      const dep=e.departure_time?new Date(e.departure_time).toLocaleString("sv-SE",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}):"–";
+      const arr=e.arrival_time?new Date(e.arrival_time).toLocaleString("sv-SE",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}):"–";
+      return `<div class="cpCard">
+        <div class="t"><span class="pnum">⛵</span>${escHtml(e.departure_place||"?")} → ${escHtml(e.arrival_place||"?")}
+          ${isCaptain()?`<button data-clogdel="${e.id}" style="float:right;border:none;background:none;color:#c0392b;font-size:15px;cursor:pointer">✕</button>`:""}</div>
+        <div class="d">${dep} → ${arr}${e.miles?" · "+Number(e.miles).toFixed(1)+" M":""}${e.weather?" · "+escHtml(e.weather):""}</div>
+        ${e.notes?`<div class="d" style="margin-top:4px;font-style:italic">${escHtml(e.notes)}</div>`:""}
+        <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:10.5px;color:#9aa28f;margin-top:6px">Infört av ${author?author.emoji+" "+escHtml(author.name):"okänd"}</div>
+      </div>`;
+    }).join("");
+    listEl.querySelectorAll("[data-clogdel]").forEach(btn=>btn.onclick=async()=>{
+      await deleteCaptainLogEntry(btn.dataset.clogdel);card.remove();renderCaptainLogCard(r,track);
+    });
+  }
+  if(!isCaptain())return;
+  const addBtn=card.querySelector("#clogAddBtn");
+  addBtn.onclick=()=>{
+    const formEl=card.querySelector("#clogForm");
+    if(formEl.innerHTML){formEl.innerHTML="";return;}
+    let weather="";
+    formEl.innerHTML=`<div class="cpCard">
+      <div class="field"><label>Avgångsplats</label><input id="clogFrom" value="${escHtml(defaultFrom||"")}" style="width:100%;padding:9px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit"></div>
+      <div class="field" style="margin-top:8px"><label>Avgångstid</label><input id="clogDepT" type="datetime-local" value="${nowLocalDT()}" style="width:100%;padding:9px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit"></div>
+      <div class="field" style="margin-top:8px"><label>Ankomstplats</label><input id="clogTo" placeholder="t.ex. nästa hamn" style="width:100%;padding:9px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit"></div>
+      <div class="field" style="margin-top:8px"><label>Ankomsttid</label><input id="clogArrT" type="datetime-local" value="${nowLocalDT()}" style="width:100%;padding:9px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit"></div>
+      <div class="field" style="margin-top:8px"><label>Distans (sjömil)</label>
+        <div style="display:flex;gap:8px"><input id="clogMiles" type="number" step="0.1" min="0" placeholder="0.0" style="flex:1;padding:9px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit">
+        <button type="button" class="cpBtn" id="clogFillMiles">Fyll i från spår</button></div></div>
+      <div class="field" style="margin-top:8px"><label>Väder</label>
+        <input id="clogWeather" placeholder="t.ex. Bris, NV 8 m/s" style="width:100%;padding:9px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit;margin-bottom:6px">
+        <div class="emojiRow" id="clogChips" style="flex-wrap:wrap"></div></div>
+      <div class="field" style="margin-top:8px"><label>Övrigt</label><textarea id="clogNotes" rows="2" placeholder="Incidenter, besättningsnoteringar, allt annat värt att minnas" style="width:100%;padding:9px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit;resize:vertical"></textarea></div>
+      <button class="goBtn" id="clogSave" style="margin-top:12px">Spara loggboksinlägg</button>
+      <div class="errMsg" id="clogErr"></div>
+    </div>`;
+    const chipsEl=formEl.querySelector("#clogChips");
+    WEATHER_CHIPS.forEach(w=>{
+      const cb=document.createElement("button");cb.type="button";cb.textContent=w;
+      cb.onclick=()=>{const inp=formEl.querySelector("#clogWeather");inp.value=inp.value?inp.value+", "+w:w;};
+      chipsEl.appendChild(cb);
+    });
+    formEl.querySelector("#clogFillMiles").onclick=()=>{
+      const dist=track&&track.length?trkDist(track):0;
+      formEl.querySelector("#clogMiles").value=dist.toFixed(1);
+    };
+    formEl.querySelector("#clogSave").onclick=async()=>{
+      const depPlace=formEl.querySelector("#clogFrom").value.trim();
+      const arrPlace=formEl.querySelector("#clogTo").value.trim();
+      const depT=formEl.querySelector("#clogDepT").value;
+      const arrT=formEl.querySelector("#clogArrT").value;
+      const miles=formEl.querySelector("#clogMiles").value;
+      const weatherV=formEl.querySelector("#clogWeather").value.trim();
+      const notes=formEl.querySelector("#clogNotes").value.trim();
+      const err=formEl.querySelector("#clogErr");
+      if(!depPlace||!arrPlace){err.textContent="Fyll i avgångs- och ankomstplats.";return;}
+      const ok=await addCaptainLogEntry({
+        departure_place:depPlace,departure_time:depT?new Date(depT).toISOString():null,
+        arrival_place:arrPlace,arrival_time:arrT?new Date(arrT).toISOString():null,
+        miles:miles?parseFloat(miles):null,weather:weatherV||null,notes:notes||null,
+      });
+      if(ok){showToast("Loggboksinlägg sparat! 📓");renderReport();}
+      else err.textContent="Kunde inte spara — försök igen.";
+    };
+  };
 }
 function renderPlaces(){
   initHarborMap();

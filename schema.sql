@@ -67,6 +67,20 @@ create table if not exists track_points (
   ts timestamptz default now()
 );
 
+create table if not exists captain_log (
+  id uuid primary key default gen_random_uuid(),
+  boat_id uuid references boats(id),
+  sailor_id uuid references sailors(id),
+  departure_place text,
+  departure_time timestamptz,
+  arrival_place text,
+  arrival_time timestamptz,
+  miles numeric,
+  weather text,
+  notes text,
+  created_at timestamptz default now()
+);
+
 -- En logg per sak och seglare (spots, hamnutmaningar, knopar, dagens quiz/minispel)
 create unique index if not exists one_per_sailor
   on logs (sailor_id, kind, ref)
@@ -85,6 +99,7 @@ alter table chat enable row level security;
 alter table port_notes enable row level security;
 alter table settings enable row level security;
 alter table track_points enable row level security;
+alter table captain_log enable row level security;
 
 create policy "anon read sailors"   on sailors for select to anon using (true);
 create policy "anon insert sailors" on sailors for insert to anon with check (true);
@@ -109,6 +124,10 @@ create policy "anon update settings" on settings for update to anon using (true)
 
 create policy "anon read track"     on track_points for select to anon using (true);
 create policy "anon insert track"   on track_points for insert to anon with check (true);
+
+create policy "anon read captain_log"   on captain_log for select to anon using (true);
+create policy "anon insert captain_log" on captain_log for insert to anon with check (true);
+create policy "anon delete captain_log" on captain_log for delete to anon using (true);
 
 -- Realtime så allas skärmar uppdateras direkt
 alter publication supabase_realtime add table logs;
