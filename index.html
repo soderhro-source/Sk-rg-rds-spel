@@ -2327,6 +2327,18 @@ async function renderReport(){
     :'<div class="repRow"><span>Inget färdspår ännu — starta ⏺ Logga färd på kartan under segling.</span></div>'}`;
   r.appendChild(segl);
   renderCaptainLogCard(r,track);
+  const dishCount=sid=>logsFor(sid).filter(l=>l.kind==="bonus"&&l.ref.startsWith("dishes:")).length;
+  const dishRanked=[...mySailors()].map(s=>({s,n:dishCount(s.id)})).filter(x=>x.n>0).sort((a,b)=>b.n-a.n);
+  if(dishRanked.length){
+    const top=dishRanked[0];
+    const tied=dishRanked.filter(x=>x.n===top.n);
+    const champs=tied.map(x=>x.s.emoji+" "+escHtml(x.s.name)).join(" & ");
+    const dishC=document.createElement("div");dishC.className="repCard";
+    dishC.innerHTML=`<h3>🍽️👑 Diskmästaren</h3>
+      <div class="repRow"><span>${champs}</span><b>${top.n} gång${top.n===1?"":"er"}</b></div>
+      ${dishRanked.length>1?dishRanked.slice(tied.length).map(x=>`<div class="repRow" style="opacity:.7"><span>${x.s.emoji} ${escHtml(x.s.name)}</span><b>${x.n}</b></div>`).join(""):""}`;
+    r.appendChild(dishC);
+  }
   const meds=["🥇","🥈","🥉"];
   [...mySailors()].map(s=>({s,p:ptsFor(s.id)})).sort((a,b)=>b.p-a.p).forEach((row,i)=>{
     const Ls=logsFor(row.s.id);
@@ -2342,6 +2354,7 @@ async function renderReport(){
       <div class="repRow"><span>❓ Quizdagar (inkl. pop-quiz)</span><b>${c("quiz")}</b></div>
       <div class="repRow"><span>🕹️ Spelrumsdagar</span><b>${c("minigame")}</b></div>
       <div class="repRow"><span>🎁 Överraskningar vunna</span><b>${c("surprise")}</b></div>
+      <div class="repRow"><span>🍽️ Diskat</span><b>${dishCount(row.s.id)}</b></div>
       <div class="repRow"><span>📓 Loggbok / 📸 foton</span><b>${myNotes.length} / ${myNotes.filter(x=>x.photo_url).length}</b></div>
       <div class="repRow"><span>💬 Chattmeddelanden</span><b>${myChat}</b></div>
       ${harbors.length?`<div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;margin-top:7px;color:#4a5a62"><b>Utmaningar klarade i:</b> ${harbors.map(escHtml).join(" · ")}</div>`:""}`;
