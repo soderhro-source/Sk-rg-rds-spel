@@ -8,6 +8,7 @@ create table if not exists boats (
   emoji text not null default '⛵',
   captain text,
   route jsonb not null default '[]'::jsonb,
+  roles jsonb not null default '{}'::jsonb,
   created_at timestamptz default now()
 );
 
@@ -69,7 +70,7 @@ create table if not exists track_points (
 -- En logg per sak och seglare (spots, hamnutmaningar, knopar, dagens quiz/minispel)
 create unique index if not exists one_per_sailor
   on logs (sailor_id, kind, ref)
-  where kind in ('spot','checkpoint','knot','quiz','minigame');
+  where kind in ('spot','checkpoint','knot','quiz','minigame','bonus');
 
 -- Dagens överraskning: först till kvarn — bara EN i hela besättningen
 create unique index if not exists one_surprise_claim

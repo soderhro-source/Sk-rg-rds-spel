@@ -795,6 +795,51 @@ const SURPRISES=[
   {em:"🥶",t:"Morgondopp — först i vattnet före frukost loggar.",v:5},
   {em:"🗺️",t:"Kartmästaren — peka ut båtens position på sjökortet utan GPS, max 1 M fel.",v:4},
 ];
+const ROLE_PTS=3;
+const ROLES=[
+  {k:"rorsman",em:"🧭",t:"Rorsman",sub:"Håller kursen"},
+  {k:"skeppskock",em:"🍳",t:"Skeppskock",sub:"Ansvarar för maten"},
+  {k:"maskinchef",em:"🔧",t:"Maskinchef",sub:"Koll på motor & vätskor"},
+  {k:"ankringsmastare",em:"⚓",t:"Ankringsmästare",sub:"Ansvarar för ankring & förtöjning"},
+  {k:"utkik",em:"🔭",t:"Utkik",sub:"Spanar efter sällsynta arter & faror"},
+  {k:"navigator",em:"🗺️",t:"Navigatör",sub:"Koll på position & rutt"},
+];
+const ROLE_TASKS={
+  rorsman:["Håll kursen stadigt i minst 30 minuter utan autopilot.","Öva en kontrollerad girning och förklara vad som händer med seglen för besättningen.","Håll koll på kompassen och rapportera kursen till kaptenen var 15:e minut en hel timme."],
+  skeppskock:["Planera och laga dagens huvudmål.","Trolla fram ett bra mellanmål av det som finns kvar i skafferiet.","Se till att alla i besättningen fått i sig tillräckligt med vatten idag."],
+  maskinchef:["Kolla oljenivå, kylvatten och bränsle — rapportera till skepparen.","Lyssna efter konstiga ljud från motorn under en timmes körning.","Kolla batteriernas laddningsnivå och rapportera."],
+  ankringsmastare:["Ansvara för att ankaret läggs säkert vid dagens stopp.","Kolla att alla förtöjningar sitter ordentligt inför natten.","Föreslå bästa ankringsplatsen på dagens sjökort innan ni lägger till."],
+  utkik:["Var först att ropa ut ett mötande fartyg idag.","Spana efter sällsynta (orange) arter i en hel timme.","Håll extra utkik efter faror — grund, bojar och annan trafik."],
+  navigator:["Peka ut båtens ungefärliga position på sjökortet utan att kolla GPS.","Räkna ut avstånd och ETA till nästa hamn.","Kolla farleden för nästa etapp och rapportera eventuella grunda partier."],
+};
+function roleTaskFor(k){
+  const pool=ROLE_TASKS[k]||["Hjälp besättningen på bästa sätt idag."];
+  const idx=[...today()+k].reduce((a,c)=>a+c.charCodeAt(0),0)%pool.length;
+  return pool[idx];
+}
+function myRole(){
+  const b=myBoat();if(!b||!me||!b.roles)return null;
+  const k=Object.keys(b.roles).find(rk=>b.roles[rk]===me.id);
+  return k?ROLES.find(r=>r.k===k):null;
+}
+function roleHolder(k){
+  const b=myBoat();if(!b||!b.roles||!b.roles[k])return null;
+  return sailors.find(s=>s.id===b.roles[k])||null;
+}
+async function assignRole(roleKey,sailorId){
+  const b=myBoat();if(!b)return;
+  const roles={...(b.roles||{})};
+  if(sailorId)roles[roleKey]=sailorId;else delete roles[roleKey];
+  if(LOCAL_MODE){
+    b.roles=roles;localStorage.setItem("ss_boats",JSON.stringify(BOATS));
+    showToast("Roll uppdaterad! ⚓");render();return;
+  }
+  try{
+    const{error}=await SB.from("boats").update({roles}).eq("id",b.id);
+    if(error)throw error;
+    b.roles=roles;showToast("Roll uppdaterad! ⚓");render();
+  }catch(e){showToast("Kunde inte spara — kolla nätet");}
+}
 const EMOJIS=["⛵","🦅","🐟","🦭","🌊","⚓","🧭","🏴‍☠️","🦞","🐚"];
 const POPQUIZ=[
   {q:"Nordmärkets topptecken?",a:["Två koner, spetsarna uppåt","Två koner, spetsarna nedåt","Två svarta klot"],c:0,e:"Nord: båda spetsarna uppåt, svart över gult. Passera NORR om märket."},
@@ -1415,8 +1460,10 @@ function renderBoard(){
     const d=document.createElement("div");
     d.className="lbRow"+(me&&r.s.id===me.id?" meRow":"");
     d.style.cursor="pointer";
-    d.innerHTML=`<div class="med">${meds[i]||i+1}</div><div class="em">${r.s.emoji}</div>
-      <div class="mid"><div class="nm">${r.s.name}</div><div class="at">${rankFor(r.p)} · vid ${TILE_SHORT[tileFor(r.p,LEG)]} · tryck för detaljer</div></div>
+    const rk=b&&b.roles?Object.keys(b.roles).find(k=>b.roles[k]===r.s.id):null;
+    const roleTag=rk?ROLES.find(x=>x.k===rk):null;
+    d.innerHTML=`<div class="med">${meds[i]||i+1}</div><div class="em">${r.s.emoji}${roleTag?" "+roleTag.em:""}</div>
+      <div class="mid"><div class="nm">${r.s.name}${roleTag?" · "+roleTag.t:""}</div><div class="at">${rankFor(r.p)} · vid ${TILE_SHORT[tileFor(r.p,LEG)]} · tryck för detaljer</div></div>
       <div class="p">${r.p} p</div>`;
     d.onclick=()=>showProfile(r.s);
     lbEl.appendChild(d);
@@ -1467,6 +1514,27 @@ function renderSur(){
   const s=SURPRISES[idx],ref="sur:"+today();
   const claim=allLogs().find(l=>l.kind==="surprise"&&l.ref===ref);
   const claimer=claim?sailors.find(x=>x.id===claim.sailor_id):null;
+  const role=myRole();
+  let roleHtml="";
+  if(role){
+    const task=roleTaskFor(role.k),roleRef="role:"+role.k+":"+today();
+    const roleDone=me&&hasLog(me.id,"bonus",roleRef);
+    roleHtml=`<div class="termgrp" style="margin-top:18px">Din roll idag</div>
+      <div class="surCard">
+        <div class="em">${role.em}</div>
+        <div class="pts">${role.t.toUpperCase()} · +${ROLE_PTS} P</div>
+        <div class="big">${task}</div>
+        ${roleDone?`<div class="claimed">Klart för idag! ✓</div>`
+          :`<button class="goBtn" id="roleGo">Klar! (+${ROLE_PTS} p)</button>`}
+      </div>`;
+  }
+  const b=myBoat();
+  let capHtml="";
+  if(isCaptain()&&b){
+    const crew=mySailors();
+    capHtml=`<div class="termgrp" style="margin-top:18px">🧑‍✈️ Tilldela roller på ${b.name}</div>
+      <div id="roleAssignList"></div>`;
+  }
   document.getElementById("surBox").innerHTML=`<div class="surCard">
     <div class="em">${s.em}</div>
     <div class="pts">DAGENS ÖVERRASKNING · +${s.v} P</div>
@@ -1474,9 +1542,34 @@ function renderSur(){
     ${claim?`<div class="claimed">Tagen av ${claimer?claimer.emoji+" "+claimer.name:"någon i besättningen"} 🎉</div>`
       :`<button class="goBtn" id="surGo">Vi klarade den — jag loggar! (+${s.v} p)</button>`}
     </div>
-    <p class="soundIntro" style="margin-top:14px">Ny överraskning varje dag. Först till kvarn — bara en ombord kan ta poängen. Gör upp ärligt vem som förtjänar den!</p>`;
-  const b=document.getElementById("surGo");
-  if(b)b.onclick=()=>{addLog("surprise",ref,s.v,s.t);showToast("Överraskning tagen! +"+s.v+" p 🎁");render();};
+    <p class="soundIntro" style="margin-top:14px">Ny överraskning varje dag. Först till kvarn — bara en ombord kan ta poängen. Gör upp ärligt vem som förtjänar den!</p>
+    ${roleHtml}${capHtml}`;
+  const sb=document.getElementById("surGo");
+  if(sb)sb.onclick=()=>{addLog("surprise",ref,s.v,s.t);showToast("Överraskning tagen! +"+s.v+" p 🎁");render();};
+  const rb=document.getElementById("roleGo");
+  if(rb)rb.onclick=()=>{const task=roleTaskFor(role.k);addLog("bonus","role:"+role.k+":"+today(),ROLE_PTS,role.t+": "+task);showToast("Rolluppgift klar! +"+ROLE_PTS+" p "+role.em);render();};
+  if(isCaptain()&&b){
+    const ral=document.getElementById("roleAssignList");
+    ral.innerHTML="";
+    ROLES.forEach(r=>{
+      const holder=roleHolder(r.k);
+      const row=document.createElement("div");row.className="cpCard";
+      row.innerHTML=`<div class="t"><span class="pnum">${r.em}</span>${r.t}${holder?" — "+holder.emoji+" "+holder.name:""}</div>
+        <div class="d">${r.sub}</div>
+        <div class="emojiRow" style="flex-wrap:wrap;margin-top:8px" id="raRow-${r.k}"></div>`;
+      ral.appendChild(row);
+      const rowEl=row.querySelector("#raRow-"+r.k);
+      const noneBtn=document.createElement("button");noneBtn.type="button";
+      noneBtn.textContent="— ingen —";noneBtn.className=holder?"":"sel";
+      noneBtn.onclick=()=>assignRole(r.k,null);rowEl.appendChild(noneBtn);
+      mySailors().forEach(s=>{
+        const sb2=document.createElement("button");sb2.type="button";
+        sb2.textContent=s.emoji+" "+s.name;
+        sb2.className=holder&&holder.id===s.id?"sel":"";
+        sb2.onclick=()=>assignRole(r.k,s.id);rowEl.appendChild(sb2);
+      });
+    });
+  }
 }
 // ================= SPELRUM =================
 let arcGame=null;
