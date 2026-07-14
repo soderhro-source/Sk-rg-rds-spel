@@ -49,6 +49,16 @@ Skeppschatten (💬 i appen) funkar direkt. För att **@gemma** ska svara:
 
 Bryggan pollar chatten var 15 s, skickar @gemma-frågor till din lokala Gemma och postar svaret tillbaka. Inga portar öppnas — allt går via Supabase.
 
+### Molnreserv (valfritt) — svarar även om hemdatorn är avstängd
+
+Gemma-bryggan kräver att Roopes hemdator är på. Som reserv finns en Netlify-funktion (`netlify/functions/mistral-fallback.mts`) som körs i molnet var 2:a minut och svarar via Mistral AI om en `@gemma`-fråga inte fått svar inom 3 minuter — helt oberoende av hemdatorn.
+
+1. Skaffa en API-nyckel på [console.mistral.ai](https://console.mistral.ai) (kräver eget Mistral-konto).
+2. I Netlify: **Site configuration → Environment variables → Add a variable** → nyckel `MISTRAL_API_KEY`, värde din nyckel. **Lägg aldrig nyckeln i `config.js`, git eller någon fil som checkas in** — den ska bara finnas här, i Netlifys egna projektinställningar, som bara ni kommer åt.
+3. Gör ett nytt deploy (t.ex. `git commit --allow-empty -m "trigger deploy" && git push`, eller "Trigger deploy" i Netlify-gränssnittet) så funktionen plockar upp variabeln.
+
+Utan satt `MISTRAL_API_KEY` gör funktionen ingenting (loggar bara att nyckeln saknas) — helt ofarligt att lämna okonfigurerat om ni bara vill lita på hemdatorns Gemma.
+
 ## Filer
 
 | Fil | Vad |
