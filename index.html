@@ -482,6 +482,10 @@
     <p class="soundIntro">Fågelläten med inbyggd spelare — ljudfiler i appen spelas direkt (offline om de är medpaketerade). Beskrivningarna fungerar alltid.</p>
     <div id="soundList"></div>
   </div>
+  <div id="playlistView" class="sounds" style="display:none">
+    <p class="soundIntro">Svenska skepparvisor och sjömansvisor — tryck för att söka upp låten på YouTube (kräver nät).</p>
+    <div id="playlistList"></div>
+  </div>
   <div id="triviaView" class="trivia" style="display:none">
     <div class="qmeta"><div>Fråga <b id="qNum">1</b> / <span id="qTot">10</span></div><div>Rätt: <b id="qScore">0</b></div></div>
     <div id="quizBox"></div>
@@ -644,6 +648,16 @@ const SOUNDS=[
   {n:"Skrattmås",fi:"Naurulokki",sci:"Chroicocephalus-ridibundus",call:"Sträva, gnälliga <b>krriarr</b> i livliga kolonier — ger arten dess namn."},
   {n:"Strandskata",fi:"Meriharakka",sci:"Haematopus-ostralegus",call:"Genomträngande, pipande <b>kli-kli-kliip</b> som stegras när den blir störd."},
   {n:"Fiskgjuse",fi:"Sääksi",sci:"Pandion-haliaetus",call:"Ljusa, visslande <b>pyu-pyu-pyu</b> — mjukare och vekare än man väntar av en rovfågel."},
+];
+const SONGS=[
+  {t:"Sjösala vals",artist:"Evert Taube",note:"Sveriges kanske mest kända skärgårdsvisa — sommarnatt, kärlek och Stockholms skärgård i valstakt."},
+  {t:"Calle Schewens vals",artist:"Evert Taube",note:"Vemodig vals om segling, vänskap och Riddarfjärden."},
+  {t:"Fritiof och Carmencita",artist:"Evert Taube",note:"Sjömansromans i klassisk Taube-anda, full av äventyr till sjöss."},
+  {t:"Flickan i Havanna",artist:"Evert Taube",note:"En av Taubes mest sjungna sjömansvisor — längtan och exotiska hamnar."},
+  {t:"Möte i monsunen",artist:"Evert Taube",note:"Berättande sjömansvisa i valstakt, om ett möte långt hemifrån."},
+  {t:"Byssan lull",artist:"Evert Taube",note:"Mjuk vaggvisa med havet som tema — perfekt lugn kvällsstämning ombord."},
+  {t:"En sjöman älskar havets våg",artist:"Trad. sjömansvisa",note:"Klassisk, gungande visa som sjungits av generationer sjömän."},
+  {t:"Sjöman är, och sjöman förblir",artist:"Trad. sjömansvisa",note:"Gammal svensk sjömansvisa om att aldrig kunna lämna havet bakom sig."},
 ];
 const QUIZ=[
   {q:"Ungefär hur många öar och skär har Skärgårdshavet enligt den vidaste räkningen?",a:["Cirka 5 000","Cirka 50 000","Cirka 500 000"],c:1,e:"Räknar man med de minsta kobbarna och skären landar man på omkring 50 000 — en av världens tätaste öskärgårdar."},
@@ -1159,7 +1173,11 @@ function newSailorForm(){
     }
   };
 }
-function logout(){me=null;localStorage.removeItem("ss_session");renderLogin();}
+function logout(){
+  if(TRK.watch){navigator.geolocation.clearWatch(TRK.watch);TRK.watch=null;}
+  TRK.follow=false;trkReleaseWake();
+  me=null;localStorage.removeItem("ss_session");renderLogin();
+}
 async function enterApp(){
   document.getElementById("loginView").style.display="none";
   document.getElementById("appShell").style.display="block";
@@ -1167,7 +1185,7 @@ async function enterApp(){
   const b=myBoat();
   document.getElementById("whoami").innerHTML=`${me.emoji} <b>${me.name}</b> ombord på ${b?b.emoji+" "+b.name:"okänd båt"} &nbsp;<button onclick="logout()">byt seglare</button> · <button onclick="showIntro()">❓ guide</button>`;
   flush();render();
-  loadWind();loadChat();loadNotes();
+  loadWind();loadChat();loadNotes();trkResumeIfWanted();
   if(!localStorage.getItem("ss_intro"))showIntro();
   else setTimeout(maybePopQuiz,2300);
 }
@@ -1175,7 +1193,7 @@ async function enterApp(){
 // ================= TABS & RENDER =================
 let current="board",curCat="vessels",moreOpen=false;
 const NAV_PRIMARY=[["board","🎲","Plan"],["spot","🔭","Spana"],["knots","🪢","Knopar"],["sur","🎁","Dagens"],["arcade","🕹️","Spel"]];
-const NAV_MORE=[["chat","💬","Skeppschatt"],["gallery","📸","Galleri"],["report","📜","Törnrapport"],["navskola","🧭","Navigationsskolan"],["recipes","🍳","Byssan"],["trivia","❓","Frågesport"],["sounds","🔊","Läten"],["terms","⚓","Sjötermer"],["live","📡","Live AIS"],["places","🗺️","Seglandet 2026"]];
+const NAV_MORE=[["chat","💬","Skeppschatt"],["gallery","📸","Galleri"],["report","📜","Törnrapport"],["navskola","🧭","Navigationsskolan"],["recipes","🍳","Byssan"],["trivia","❓","Frågesport"],["sounds","🔊","Läten"],["playlist","🎵","Sjömansvisor"],["terms","⚓","Sjötermer"],["live","📡","Live AIS"],["places","🗺️","Seglandet 2026"]];
 const TABS=()=>NAV_PRIMARY.concat(NAV_MORE).map(([k,ic,l])=>[k,ic+" "+l]);
 const RANKS=[[0,"Jungman"],[30,"Lättmatros"],[60,"Matros"],[130,"Båtsman"],[220,"Styrman"],[320,"Skeppare"],[420,"Kommodor 🏆"]];
 function rankFor(p){let r=RANKS[0][1];RANKS.forEach(([t,n])=>{if(p>=t)r=n;});return r;}
@@ -1246,7 +1264,7 @@ function updateTop(){
   document.getElementById("xpInfo").textContent=t>=14?"Kommodor!":(LEG-into)+" p till nästa hamn";
   updateSync();
 }
-const VIEW_IDS=["boardView","gameView","liveView","soundView","triviaView","termsView","knotsView","surView","arcadeView","placesView","chatView","recipesView","navView","galleryView","reportView"];
+const VIEW_IDS=["boardView","gameView","liveView","soundView","playlistView","triviaView","termsView","knotsView","surView","arcadeView","placesView","chatView","recipesView","navView","galleryView","reportView"];
 function render(){
   buildTabs();updateTop();
   if(current!=="arcade"){stopTet();stopSnake();}
@@ -1256,6 +1274,7 @@ function render(){
   if(current==="board"){show("boardView");renderBoard();return;}
   if(current==="live"){show("liveView");return;}
   if(current==="sounds"){show("soundView");renderSounds();return;}
+  if(current==="playlist"){show("playlistView");renderPlaylist();return;}
   if(current==="trivia"){show("triviaView");if(!quiz.order.length)startQuiz();renderQuestion();return;}
   if(current==="terms"){show("termsView");renderTerms();return;}
   if(current==="knots"){show("knotsView");renderKnots();return;}
@@ -1576,7 +1595,8 @@ let arcGame=null;
 function renderArcade(){
   const menu=document.getElementById("arcMenu");menu.innerHTML="";
   [["tet","📦","Lastrummet","Tetris till sjöss"],["mem","🧠","Skärgårdsminne","Para sv ↔ fi"],
-   ["m3","🐟","Bojkrossen","Match 3 i viken"],["snake","🐍","Ålen","Ät fisk & väx"]].forEach(([k,em,t,sub])=>{
+   ["m3","🐟","Bojkrossen","Match 3 i viken"],["snake","🐍","Ålen","Ät fisk & väx"],
+   ["uno","🃏","Uno-poäng","Räkna poäng & se ställning"]].forEach(([k,em,t,sub])=>{
     const b=document.createElement("button");b.className="arcBtn"+(arcGame===k?" active":"");
     b.innerHTML=`<span class="em">${em}</span>${t}<div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:10.5px;color:#6c7c84;margin-top:2px">${sub}</div>`;
     b.onclick=()=>{arcGame=k;renderArcade();};menu.appendChild(b);
@@ -1587,6 +1607,7 @@ function renderArcade(){
   else if(arcGame==="mem")startMemory(box);
   else if(arcGame==="m3")startM3(box);
   else if(arcGame==="snake")startSnake(box);
+  else if(arcGame==="uno")startUno(box);
   else box.innerHTML='<p class="soundIntro">Välj ett spel ovan. Bäst resultat idag kan bokföras som poäng — en gång per spel och dag.</p>';
 }
 function arcAwardBtn(kind,pts,label){
@@ -1841,6 +1862,82 @@ document.addEventListener("keydown",e=>{
   if(e.key==="ArrowLeft")snDir(-1,0);else if(e.key==="ArrowRight")snDir(1,0);
   else if(e.key==="ArrowUp")snDir(0,-1);else if(e.key==="ArrowDown")snDir(0,1);
 });
+// ---- Uno-poäng (poängräknare/rapportör, ej kopplat till spelets poängsystem) ----
+let UNO={players:[],rounds:[]};
+function stopUno(){}
+function unoLoad(){try{const s=JSON.parse(localStorage.getItem("ss_uno")||"null");if(s&&Array.isArray(s.players))UNO=s;}catch(e){}}
+function unoSave(){localStorage.setItem("ss_uno",JSON.stringify(UNO));}
+function unoTotals(){
+  const tot={};UNO.players.forEach(p=>tot[p]=0);
+  UNO.rounds.forEach(r=>UNO.players.forEach(p=>tot[p]+=(r[p]||0)));
+  return tot;
+}
+function startUno(box){
+  unoLoad();
+  box.innerHTML=`<div class="arcScore">🃏 Uno-poäng</div>
+    <p class="soundIntro" style="margin-top:0">Lägg till spelarna, mata in varje varvs poäng när någon gått ut: kvarvarande kort räknas mot de andra — siffror = sitt värde, Kasta/Vänd/Dra2 = 20 p, Joker/Joker+4 = 50 p. Den som gick ut får 0. Lägst totalpoäng leder.</p>
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <input id="unoName" placeholder="Spelarnamn" maxlength="20" style="flex:1;padding:10px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit;font-size:14px">
+      <button class="cpBtn" id="unoAddBtn">+ Lägg till</button>
+    </div>
+    <div id="unoTable"></div>
+    <div id="unoRoundForm"></div>
+    <div style="display:flex;gap:10px;margin-top:12px">
+      <button class="logBtn" id="unoNewRound" style="flex:1">+ Nytt varv</button>
+      <button class="logBtn" id="unoReset" style="flex:1;background:#c0392b">Nollställ allt</button>
+    </div>`;
+  const addP=()=>{
+    const inp=document.getElementById("unoName");const n=inp.value.trim();
+    if(!n)return;
+    if(UNO.players.some(p=>p.toLowerCase()===n.toLowerCase())){showToast("Spelaren finns redan");return;}
+    UNO.players.push(n);unoSave();inp.value="";renderUnoTable();
+  };
+  document.getElementById("unoAddBtn").onclick=addP;
+  document.getElementById("unoName").onkeydown=e=>{if(e.key==="Enter")addP();};
+  document.getElementById("unoNewRound").onclick=()=>{
+    if(!UNO.players.length){showToast("Lägg till spelare först");return;}
+    renderUnoRoundForm();
+  };
+  document.getElementById("unoReset").onclick=()=>{
+    UNO={players:[],rounds:[]};unoSave();renderUnoTable();
+    const rf=document.getElementById("unoRoundForm");if(rf)rf.innerHTML="";
+    showToast("Uno-ställningen nollställd");
+  };
+  renderUnoTable();
+}
+function renderUnoTable(){
+  const el=document.getElementById("unoTable");if(!el)return;
+  if(!UNO.players.length){el.innerHTML='<p class="soundIntro">Inga spelare tillagda än.</p>';return;}
+  const tot=unoTotals();
+  const rows=[...UNO.players].sort((a,b)=>tot[a]-tot[b]);
+  el.innerHTML=`<table style="width:100%;font-family:'Helvetica Neue',Arial,sans-serif;font-size:13.5px;border-collapse:collapse">
+    <tr style="color:#6c7c84;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em"><th style="padding:4px 0">Spelare</th><th style="text-align:right">Poäng</th><th></th></tr>
+    ${rows.map((p,i)=>`<tr style="border-top:1px solid rgba(11,36,54,.08)"><td style="padding:7px 0;font-weight:${i===0?700:500}">${i===0&&UNO.rounds.length?"👑 ":""}${escHtml(p)}</td>
+      <td style="text-align:right;font-weight:700;color:#14506b">${tot[p]}</td>
+      <td style="text-align:right;width:30px"><button data-rm="${escHtml(p)}" style="border:none;background:none;color:#c0392b;font-size:16px;cursor:pointer;padding:4px">✕</button></td></tr>`).join("")}
+  </table>
+  <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#6c7c84;margin-top:8px">${UNO.rounds.length} varv spelade${UNO.rounds.length?" · lägst totalpoäng leder":""}</div>`;
+  el.querySelectorAll("[data-rm]").forEach(b=>b.onclick=()=>{
+    const p=b.dataset.rm;UNO.players=UNO.players.filter(x=>x!==p);
+    UNO.rounds.forEach(r=>delete r[p]);unoSave();renderUnoTable();
+  });
+}
+function renderUnoRoundForm(){
+  const el=document.getElementById("unoRoundForm");
+  el.innerHTML=`<div class="cpCard"><div class="t">Varv ${UNO.rounds.length+1}</div>
+    ${UNO.players.map(p=>`<div style="display:flex;align-items:center;gap:8px;margin-top:9px">
+      <span style="flex:1;font-size:13.5px">${escHtml(p)}</span>
+      <input type="number" inputmode="numeric" min="0" data-p="${escHtml(p)}" placeholder="0" style="width:76px;padding:8px;border-radius:8px;border:1px solid #d9d2c4;text-align:right;font-family:inherit;font-size:14px">
+    </div>`).join("")}
+    <button class="cpBtn" id="unoSaveRound" style="display:block;margin:14px auto 0">Spara varvet</button></div>`;
+  document.getElementById("unoSaveRound").onclick=()=>{
+    const round={};
+    el.querySelectorAll("[data-p]").forEach(inp=>{round[inp.dataset.p]=Math.max(0,parseInt(inp.value||"0",10)||0);});
+    UNO.rounds.push(round);unoSave();
+    el.innerHTML="";renderUnoTable();
+    showToast("Varv "+UNO.rounds.length+" sparat! 🃏");
+  };
+}
 // ================= ÖVRIGA VYER =================
 function renderSounds(){
   const sl=document.getElementById("soundList");sl.innerHTML="";
@@ -1855,6 +1952,17 @@ function renderSounds(){
     au.onerror=()=>{box.innerHTML=`<a class="play" style="display:inline-block;text-decoration:none" href="https://xeno-canto.org/species/${s.sci}" target="_blank" rel="noopener">▶ Lyssna (extern, kräver nät)</a>`;};
     box.appendChild(au);
     sl.appendChild(d);
+  });
+}
+function renderPlaylist(){
+  const pl=document.getElementById("playlistList");pl.innerHTML="";
+  SONGS.forEach(s=>{
+    const a=document.createElement("a");a.className="scard";
+    a.href="https://www.youtube.com/results?search_query="+encodeURIComponent(s.t+" "+s.artist);
+    a.target="_blank";a.rel="noopener";
+    a.innerHTML=`<div class="top"><div><div class="nm">${s.t}</div><div class="lat">${s.artist}</div></div>
+      <div class="play">▶ Sök</div></div><div class="call">${s.note}</div>`;
+    pl.appendChild(a);
   });
 }
 function renderTerms(){
@@ -1925,11 +2033,22 @@ function initHarborMap(){
     document.getElementById("mbFollow").onclick=trkToggleFollow;
     document.getElementById("mbRec").onclick=trkToggleRec;
     document.getElementById("mbTrack").onclick=trkShowToday;
+    const recBtn=document.getElementById("mbRec");
+    recBtn.classList.toggle("on",TRK.rec);recBtn.textContent=TRK.rec?"⏹ Stoppa":"⏺ Logga färd";
   }catch(e){mapDiv.innerHTML=`<div class="diagram">${routeMapSVG()}</div>`;}
 }
 // ================= FÄRDLOGG (GPS-spår) =================
 const TRK={watch:null,rec:false,follow:false,pts:[],queue:[],marker:null,line:null,lastQ:0};
-let lastFix=null;
+let lastFix=null,wakeLock=null;
+async function trkAcquireWake(){
+  try{if("wakeLock" in navigator)wakeLock=await navigator.wakeLock.request("screen");}catch(e){}
+}
+function trkReleaseWake(){
+  if(wakeLock){wakeLock.release().catch(()=>{});wakeLock=null;}
+}
+document.addEventListener("visibilitychange",()=>{
+  if(TRK.rec&&document.visibilityState==="visible"&&!wakeLock)trkAcquireWake();
+});
 const msToKn=ms=>ms*1.9438;
 function trkBarMsg(msg){const b=document.getElementById("trkBar");if(b)b.innerHTML=msg||"";}
 function mapToggleFs(){
@@ -1986,10 +2105,16 @@ function trkToggleFollow(){
 }
 function trkToggleRec(){
   TRK.rec=!TRK.rec;
+  localStorage.setItem("ss_trk_rec",TRK.rec?"1":"0");
   const b=document.getElementById("mbRec");
-  b.classList.toggle("on",TRK.rec);b.textContent=TRK.rec?"⏹ Stoppa":"⏺ Logga färd";
-  if(TRK.rec){showToast("Färdlogg PÅ — håll fliken öppen, ladda telefonen ⚡");trkWatch(true);}
-  else{trkFlush(true);showToast("Färdlogg sparad! Se den under 🛤️ eller i Törnrapporten.");trkWatch(false);}
+  if(b){b.classList.toggle("on",TRK.rec);b.textContent=TRK.rec?"⏹ Stoppa":"⏺ Logga färd";}
+  if(TRK.rec){showToast("Färdlogg PÅ — fortsätter automatiskt nästa gång du öppnar appen ⚡");trkWatch(true);trkAcquireWake();}
+  else{trkFlush(true);showToast("Färdlogg sparad! Se den under 🛤️ eller i Törnrapporten.");trkWatch(false);trkReleaseWake();}
+}
+function trkResumeIfWanted(){
+  if(localStorage.getItem("ss_trk_rec")==="1"&&navigator.geolocation){
+    TRK.rec=true;trkWatch(true);trkAcquireWake();
+  }
 }
 async function trkShowToday(){
   if(LOCAL_MODE){showToast("Kräver server");return;}
