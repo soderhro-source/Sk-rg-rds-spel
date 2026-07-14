@@ -8,6 +8,8 @@ Spelplan i Monopoly-stil (START Helsingfors → 12 hamnar → MÅL Åbo). Alla p
 
 Utan server körs appen i **lokalt läge** — allt funkar men poängen stannar i varje telefon. Med Supabase delas allt live.
 
+**Flera båtar:** vid "Mönstra på" väljer man en befintlig båt eller skapar en ny (namn + symbol) — den som skapar båten blir automatiskt dess kapten. Varje båt har sin egen rutt, kapten och spelplansposition; poängen för artspaning/frågesport/spelrum är gemensam kul för alla, men "Besättningens resa" och Törnrapporten visar bara din egen båts besättning. En båt utan kapten visar en "Bli kapten"-knapp till nästa som mönstrar på den.
+
 ## Steg 1 — Supabase (~10 min)
 
 1. Gå till https://supabase.com → Sign up (GitHub eller e-post) → **New project**. Namn t.ex. `skargardsspaning`, region EU (Frankfurt/Stockholm), valfritt DB-lösenord (behövs inte senare).

@@ -857,28 +857,60 @@ function today(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth
 
 async function loadSailors(){
   if(LOCAL_MODE){sailors=JSON.parse(localStorage.getItem("ss_sailors")||"[]");return;}
-  try{const{data,error}=await SB.from("sailors").select("id,name,emoji,pin_hash").order("created_at");
+  try{const{data,error}=await SB.from("sailors").select("id,name,emoji,pin_hash,boat_id").order("created_at");
     if(!error&&data)sailors=data;}catch(e){}
 }
+let BOATS=[];
+async function loadBoats(){
+  if(LOCAL_MODE){
+    BOATS=JSON.parse(localStorage.getItem("ss_boats")||"null")||[{id:"local",name:"Sun-Day",emoji:"⛵",captain:null,route:DEFAULT_ROUTE}];
+    return;
+  }
+  try{const{data,error}=await SB.from("boats").select("*").order("created_at");
+    if(!error&&data&&data.length)BOATS=data;}catch(e){}
+}
+function myBoat(){return BOATS.find(b=>b.id===(me&&me.boat_id))||BOATS[0]||null;}
+function mySailors(){const b=myBoat();return b?sailors.filter(s=>s.boat_id===b.id):sailors;}
+function boatOf(sailorId){const s=sailors.find(x=>x.id===sailorId);return s?BOATS.find(b=>b.id===s.boat_id):null;}
 async function loadLogs(){
   if(LOCAL_MODE){serverLogs=JSON.parse(localStorage.getItem("ss_logs")||"[]");return;}
   try{const{data,error}=await SB.from("logs").select("*");
     if(!error&&data)serverLogs=data;}catch(e){}
 }
 async function loadSettings(){
-  if(LOCAL_MODE)return;
-  try{const{data}=await SB.from("settings").select("*");
-    if(data)data.forEach(r=>{
-      if(r.key==="route")setRoute(r.value);
-      if(r.key==="captain"&&r.value)SETTINGS.captain=String(r.value);
-    });}catch(e){}
+  await loadBoats();
+  applyMyBoatRoute();
+}
+function applyMyBoatRoute(){
+  const b=myBoat();
+  setRoute((b&&Array.isArray(b.route)&&b.route.length===14)?b.route:DEFAULT_ROUTE);
+  SETTINGS.captain=b?(b.captain||""):"";
 }
 async function saveRoute(){
+  const b=myBoat();if(!b)return;
+  if(LOCAL_MODE){
+    b.route=[...ROUTE];localStorage.setItem("ss_boats",JSON.stringify(BOATS));
+    showToast("Ny rutt satt (lokalt läge)! 🧭");return;
+  }
   try{
-    const{error}=await SB.from("settings").upsert({key:"route",value:ROUTE});
+    const{error}=await SB.from("boats").update({route:ROUTE}).eq("id",b.id);
     if(error)throw error;
-    showToast("Ny rutt satt — synkas till hela besättningen! 🧭");
+    b.route=[...ROUTE];
+    showToast("Ny rutt satt — synkas till "+b.name+"! 🧭");
   }catch(e){showToast("Kunde inte spara rutten — kolla nätet");}
+}
+async function claimCaptain(){
+  const b=myBoat();if(!b||!me)return;
+  if(LOCAL_MODE){
+    b.captain=me.name;localStorage.setItem("ss_boats",JSON.stringify(BOATS));
+    SETTINGS.captain=me.name;showToast("Du är nu kapten på "+b.name+"! 🧑‍✈️");render();return;
+  }
+  try{
+    const{error}=await SB.from("boats").update({captain:me.name}).eq("id",b.id);
+    if(error)throw error;
+    b.captain=me.name;SETTINGS.captain=me.name;
+    showToast("Du är nu kapten på "+b.name+"! 🧑‍✈️");render();
+  }catch(e){showToast("Kunde inte utse kapten — kolla nätet");}
 }
 function routeEditor(){
   const box=document.getElementById("introBox");
@@ -977,8 +1009,9 @@ function renderLogin(){
   document.getElementById("whoami").innerHTML="";
   const g=document.getElementById("crewGrid");g.innerHTML="";
   sailors.forEach(s=>{
+    const boat=BOATS.find(x=>x.id===s.boat_id);
     const b=document.createElement("button");b.className="sailorBtn";
-    b.innerHTML=`<span class="em">${s.emoji}</span>${s.name}`;
+    b.innerHTML=`<span class="em">${s.emoji}</span>${s.name}${BOATS.length>1&&boat?`<br><small style="opacity:.65;font-weight:400">${boat.emoji} ${boat.name}</small>`:""}`;
     b.onclick=()=>pinPrompt(s);g.appendChild(b);
   });
   const nb=document.createElement("button");nb.className="sailorBtn new";
@@ -997,7 +1030,7 @@ function pinPrompt(s){
   const go=async()=>{
     const h=await sha256(inp.value.trim());
     if(h===s.pin_hash){
-      me={id:s.id,name:s.name,emoji:s.emoji};
+      me={id:s.id,name:s.name,emoji:s.emoji,boat_id:s.boat_id};
       localStorage.setItem("ss_session",JSON.stringify(me));
       enterApp();
     }else document.getElementById("pinErr").textContent="Fel PIN — försök igen.";
@@ -1008,19 +1041,45 @@ function pinPrompt(s){
 function newSailorForm(){
   document.getElementById("pinBox").innerHTML="";
   let emoji=EMOJIS[0];
+  let boatId=BOATS[0]?BOATS[0].id:null;
+  let boatEmoji=EMOJIS[1]||EMOJIS[0];
+  let creatingBoat=!BOATS.length;
   const box=document.getElementById("newSailorBox");
+  const boatBtns=BOATS.map(b=>`<button type="button" class="sailorBtn" data-boat="${b.id}"><span class="em">${b.emoji}</span>${b.name}</button>`).join("");
   box.innerHTML=`<div class="pinBox"><div class="t">Ny seglare</div>
     <div class="field"><label>Namn</label><input id="nsName" maxlength="20" placeholder="t.ex. Patrik"></div>
     <div class="field"><label>Välj din symbol</label><div class="emojiRow" id="nsEm"></div></div>
+    <div class="field"><label>Vilken båt seglar du på?</label><div class="emojiRow" id="nsBoats" style="flex-wrap:wrap">${boatBtns}
+      <button type="button" class="sailorBtn" id="nsNewBoatBtn"><span class="em">➕</span>Ny båt</button></div></div>
+    <div class="field" id="nsNewBoatFields" style="display:none">
+      <label>Nya båtens namn</label><input id="nsBoatName" maxlength="24" placeholder="t.ex. Vänbåten">
+      <label style="margin-top:8px;display:block">Båtens symbol</label><div class="emojiRow" id="nsBoatEm"></div>
+    </div>
     <div class="field"><label>Välj en PIN (4 siffror)</label><input id="nsPin" inputmode="numeric" maxlength="4" placeholder="1234"></div>
     <button class="goBtn" id="nsGo">Mönstra på ⛵</button><div class="errMsg" id="nsErr"></div></div>`;
   const er=document.getElementById("nsEm");
   EMOJIS.forEach(e=>{
-    const b=document.createElement("button");b.textContent=e;
+    const b=document.createElement("button");b.type="button";b.textContent=e;
     if(e===emoji)b.className="sel";
     b.onclick=()=>{emoji=e;er.querySelectorAll("button").forEach(x=>x.className="");b.className="sel";};
     er.appendChild(b);
   });
+  const ber=document.getElementById("nsBoatEm");
+  EMOJIS.forEach(e=>{
+    const b=document.createElement("button");b.type="button";b.textContent=e;
+    if(e===boatEmoji)b.className="sel";
+    b.onclick=()=>{boatEmoji=e;ber.querySelectorAll("button").forEach(x=>x.className="");b.className="sel";};
+    ber.appendChild(b);
+  });
+  const boatButtons=[...document.getElementById("nsBoats").querySelectorAll("[data-boat]")];
+  function markBoatSel(){
+    boatButtons.forEach(b=>b.className=(!creatingBoat&&b.dataset.boat===boatId)?"sailorBtn sel":"sailorBtn");
+    document.getElementById("nsNewBoatBtn").className=creatingBoat?"sailorBtn sel":"sailorBtn";
+    document.getElementById("nsNewBoatFields").style.display=creatingBoat?"block":"none";
+  }
+  boatButtons.forEach(b=>b.onclick=()=>{boatId=b.dataset.boat;creatingBoat=false;markBoatSel();});
+  document.getElementById("nsNewBoatBtn").onclick=()=>{creatingBoat=true;markBoatSel();};
+  markBoatSel();
   document.getElementById("nsGo").onclick=async()=>{
     const name=document.getElementById("nsName").value.trim();
     const pin=document.getElementById("nsPin").value.trim();
@@ -1028,15 +1087,30 @@ function newSailorForm(){
     if(!name){err.textContent="Skriv ett namn.";return;}
     if(!/^\d{4}$/.test(pin)){err.textContent="PIN ska vara 4 siffror.";return;}
     if(sailors.some(s=>s.name.toLowerCase()===name.toLowerCase())){err.textContent="Namnet är taget — välj ett annat.";return;}
+    let useBoatId=boatId,newBoatName="";
+    if(creatingBoat){
+      newBoatName=document.getElementById("nsBoatName").value.trim();
+      if(!newBoatName){err.textContent="Skriv ett namn på båten.";return;}
+      if(BOATS.some(b=>b.name.toLowerCase()===newBoatName.toLowerCase())){err.textContent="Den båten finns redan — välj den i listan ovan.";return;}
+    }else if(!useBoatId){err.textContent="Välj eller skapa en båt.";return;}
     const pin_hash=await sha256(pin);
     if(LOCAL_MODE){
-      const s={id:uuid(),name,emoji,pin_hash};sailors.push(s);saveLocalSailors();
-      me={id:s.id,name,emoji};localStorage.setItem("ss_session",JSON.stringify(me));enterApp();
+      if(creatingBoat){
+        const nb={id:"local-"+uuid(),name:newBoatName,emoji:boatEmoji,captain:name,route:[...DEFAULT_ROUTE]};
+        BOATS.push(nb);useBoatId=nb.id;localStorage.setItem("ss_boats",JSON.stringify(BOATS));
+      }
+      const s={id:uuid(),name,emoji,pin_hash,boat_id:useBoatId};sailors.push(s);saveLocalSailors();
+      me={id:s.id,name,emoji,boat_id:useBoatId};localStorage.setItem("ss_session",JSON.stringify(me));enterApp();
     }else{
-      const{data,error}=await SB.from("sailors").insert({name,emoji,pin_hash}).select().single();
+      if(creatingBoat){
+        const{data:nb,error:be}=await SB.from("boats").insert({name:newBoatName,emoji:boatEmoji,captain:name,route:DEFAULT_ROUTE}).select().single();
+        if(be){err.textContent="Kunde inte skapa båten — kolla nätet och försök igen.";return;}
+        BOATS.push(nb);useBoatId=nb.id;
+      }
+      const{data,error}=await SB.from("sailors").insert({name,emoji,pin_hash,boat_id:useBoatId}).select().single();
       if(error){err.textContent="Kunde inte skapa — kolla nätet och försök igen.";return;}
       sailors.push(data);
-      me={id:data.id,name,emoji};localStorage.setItem("ss_session",JSON.stringify(me));enterApp();
+      me={id:data.id,name,emoji,boat_id:useBoatId};localStorage.setItem("ss_session",JSON.stringify(me));enterApp();
     }
   };
 }
@@ -1044,8 +1118,10 @@ function logout(){me=null;localStorage.removeItem("ss_session");renderLogin();}
 async function enterApp(){
   document.getElementById("loginView").style.display="none";
   document.getElementById("appShell").style.display="block";
-  document.getElementById("whoami").innerHTML=`${me.emoji} <b>${me.name}</b> ombord på s/y Sun-Day &nbsp;<button onclick="logout()">byt seglare</button> · <button onclick="showIntro()">❓ guide</button>`;
-  await Promise.all([loadLogs(),loadSettings()]);flush();render();
+  await Promise.all([loadLogs(),loadSettings()]);
+  const b=myBoat();
+  document.getElementById("whoami").innerHTML=`${me.emoji} <b>${me.name}</b> ombord på ${b?b.emoji+" "+b.name:"okänd båt"} &nbsp;<button onclick="logout()">byt seglare</button> · <button onclick="showIntro()">❓ guide</button>`;
+  flush();render();
   loadWind();loadChat();loadNotes();
   if(!localStorage.getItem("ss_intro"))showIntro();
   else setTimeout(maybePopQuiz,2300);
@@ -1181,17 +1257,21 @@ function renderSpotGrid(){
 }
 document.getElementById("shareBtn").onclick=async()=>{
   const meds=["🥇","🥈","🥉"];
-  const lb=[...sailors].map(s=>({s,p:ptsFor(s.id)})).sort((a,b)=>b.p-a.p);
-  const n=Math.max(1,sailors.length);
-  const lines=["⚓ Skärgårdsspaning — ställning"];
+  const crew=mySailors();
+  const b=myBoat();
+  const lb=crew.map(s=>({s,p:ptsFor(s.id)})).sort((a,b)=>b.p-a.p);
+  const n=Math.max(1,crew.length);
+  const boatPts=crew.reduce((s,x)=>s+ptsFor(x.id),0);
+  const lines=["⚓ Skärgårdsspaning — ställning"+(b?` (${b.emoji} ${b.name})`:"")];
   lb.forEach((r,i)=>lines.push(`${meds[i]||"·"} ${r.s.emoji} ${r.s.name}: ${r.p} p — vid ${TILE_SHORT[tileFor(r.p,LEG)]}`));
-  lines.push(`🌊 Besättningen: ${crewPts()} p — vid ${TILE_SHORT[tileFor(crewPts(),LEG*n)]}`);
+  lines.push(`🌊 ${b?b.name:"Besättningen"}: ${boatPts} p — vid ${TILE_SHORT[tileFor(boatPts,LEG*n)]}`);
+  if(BOATS.length>1)lines.push(`🚤 Hela flottiljen: ${crewPts()} p totalt`);
   const text=lines.join("\n");
   try{if(navigator.share){await navigator.share({text});}else{await navigator.clipboard.writeText(text);showToast("Ställningen kopierad!");}}
   catch(e){try{await navigator.clipboard.writeText(text);showToast("Ställningen kopierad!");}catch(_){showToast("Kunde inte dela");}}
 };
 document.getElementById("refreshBtn").onclick=async()=>{
-  await flush();await loadLogs();await loadSailors();render();showToast("Uppdaterad!");
+  await flush();await loadLogs();await Promise.all([loadSailors(),loadBoats()]);render();showToast("Uppdaterad!");
 };
 function showToast(m){const toastEl=document.getElementById("toast");toastEl.textContent=m;toastEl.classList.add("show");
   clearTimeout(toastEl._t);toastEl._t=setTimeout(()=>toastEl.classList.remove("show"),2400);}
@@ -1234,8 +1314,9 @@ function tilePos(i){
   return[row%2?xs[3-col]:xs[col],388-row*78];
 }
 function boardSVG(){
-  const n=Math.max(1,sailors.length);
-  const cTile=tileFor(crewPts(),LEG*n);
+  const crew=mySailors();
+  const n=Math.max(1,crew.length);
+  const cTile=tileFor(crew.reduce((s,x)=>s+ptsFor(x.id),0),LEG*n);
   const myTile=me?tileFor(ptsFor(me.id),LEG):0;
   const C=[];for(let i=0;i<15;i++){const[x,y]=tilePos(i);C.push([x+36,y+30]);}
   // slingrande saga-väg: bred ljus led + streckad mittlinje
@@ -1269,7 +1350,7 @@ function boardSVG(){
   // seglarnas pjäser runt sina noder
   const offs=[[-24,-16],[-28,8],[24,14],[-6,-28],[10,26],[28,-8]];
   const byTile={};
-  sailors.forEach(s=>{const t=tileFor(ptsFor(s.id),LEG);(byTile[t]=byTile[t]||[]).push(s);});
+  crew.forEach(s=>{const t=tileFor(ptsFor(s.id),LEG);(byTile[t]=byTile[t]||[]).push(s);});
   Object.entries(byTile).forEach(([t,list])=>{
     const[cx,cy]=C[+t];
     list.slice(0,6).forEach((s,k)=>{
@@ -1304,18 +1385,30 @@ function boardSVG(){
   </svg>`;
 }
 function renderBoard(){
-  const n=Math.max(1,sailors.length);
-  const cpts=crewPts(),goal=LEG*n*14;
+  const crew=mySailors(),b=myBoat();
+  const n=Math.max(1,crew.length);
+  const cpts=crew.reduce((s,x)=>s+ptsFor(x.id),0),goal=LEG*n*14;
   const cTile=tileFor(cpts,LEG*n);
-  document.getElementById("crewBar").innerHTML=`<div class="lab">Besättningens resa</div>
+  const otherBoats=BOATS.filter(x=>!b||x.id!==b.id).map(x=>{
+    const ocrew=sailors.filter(s=>s.boat_id===x.id);
+    const on=Math.max(1,ocrew.length);
+    const opts=ocrew.reduce((s,y)=>s+ptsFor(y.id),0);
+    const ort=(x.route&&x.route.length===14)?["HELSINGFORS",...x.route]:TILE_SHORT;
+    const otile=tileFor(opts,LEG*on);
+    return`<div class="row" style="font-size:12.5px;opacity:.85"><span>${x.emoji} ${x.name}</span><span class="pts">${opts} p — vid ${ort[otile]}</span></div>`;
+  }).join("");
+  document.getElementById("crewBar").innerHTML=`<div class="lab">${b?b.name+"s resa":"Besättningens resa"}</div>
     <div class="row"><b>${cTile===14?"Framme i "+TILE_SHORT[14]+"! 🎉":TILE_SHORT[cTile]}</b><span class="pts">${cpts} / ${goal} p</span></div>
-    <div class="crewbarTrack"><div class="crewbarFill" style="width:${Math.min(100,cpts/goal*100)}%"></div></div>`;
+    <div class="crewbarTrack"><div class="crewbarFill" style="width:${Math.min(100,cpts/goal*100)}%"></div></div>
+    ${otherBoats?`<div class="termgrp" style="margin:10px 0 4px;font-size:10px">Andra båtar i flottiljen</div>${otherBoats}`:""}`;
   document.getElementById("boardMap").innerHTML=boardSVG()
-    +`<div class="cap">Alla poäng flyttar din pjäs — ${LEG} p per etapp. Besättningens skepp ⛵ seglar på summan av allas poäng.</div>`
-    +(isCaptain()?`<button class="cpBtn" id="routeEd" style="display:block;margin:8px auto 4px">🧑‍✈️ Ändra ruttordning</button>`:"");
-  if(isCaptain()){const b=document.getElementById("routeEd");if(b)b.onclick=routeEditor;}
+    +`<div class="cap">Alla poäng flyttar din pjäs — ${LEG} p per etapp. ${b?b.name:"Besättningens"} skepp ⛵ seglar på summan av er besättnings poäng.</div>`
+    +(isCaptain()?`<button class="cpBtn" id="routeEd" style="display:block;margin:8px auto 4px">🧑‍✈️ Ändra ruttordning</button>`
+      :(b&&!b.captain?`<button class="cpBtn" id="claimCapt" style="display:block;margin:8px auto 4px">🧑‍✈️ Bli kapten på ${b.name}</button>`:""));
+  if(isCaptain()){const rb=document.getElementById("routeEd");if(rb)rb.onclick=routeEditor;}
+  else{const cb=document.getElementById("claimCapt");if(cb)cb.onclick=claimCaptain;}
   const meds=["🥇","🥈","🥉"];
-  const lb=[...sailors].map(s=>({s,p:ptsFor(s.id)})).sort((a,b)=>b.p-a.p);
+  const lb=crew.map(s=>({s,p:ptsFor(s.id)})).sort((a,b)=>b.p-a.p);
   const lbEl=document.getElementById("lbList");lbEl.innerHTML="";
   if(!lb.length)lbEl.innerHTML='<p class="soundIntro">Inga seglare ännu — mönstra på besättningen!</p>';
   lb.forEach((r,i)=>{
@@ -1760,8 +1853,8 @@ function trkPos(p){
   const last=TRK.pts[TRK.pts.length-1];
   if(sog==null&&last){const km=haversine(last.lat,last.lng,lat,lng);const h=(t-last.t)/3600000;if(h>0)sog=km/1.852/h;}
   if(window._osm){
-    if(!TRK.marker)TRK.marker=L.circleMarker([lat,lng],{radius:9,color:"#fff",weight:2.5,fillColor:"#d8612e",fillOpacity:1})
-      .addTo(window._osm).bindPopup("⛵ Sun-Day — här är ni");
+    if(!TRK.marker){const bb=myBoat();TRK.marker=L.circleMarker([lat,lng],{radius:9,color:"#fff",weight:2.5,fillColor:"#d8612e",fillOpacity:1})
+      .addTo(window._osm).bindPopup(`${bb?bb.emoji:"⛵"} ${bb?bb.name:"Din båt"} — här är ni`);}
     else TRK.marker.setLatLng([lat,lng]);
     if(TRK.follow)window._osm.setView([lat,lng],Math.max(window._osm.getZoom(),12));
   }
@@ -1808,7 +1901,9 @@ function trkToggleRec(){
 async function trkShowToday(){
   if(LOCAL_MODE){showToast("Kräver server");return;}
   try{
-    const{data}=await SB.from("track_points").select("lat,lng,sog,ts").gte("ts",today()+"T00:00:00").order("ts",{ascending:true}).limit(20000);
+    const ids=mySailors().map(s=>s.id);
+    if(!ids.length){showToast("Inga spårpunkter idag ännu — starta ⏺ Logga färd");return;}
+    const{data}=await SB.from("track_points").select("lat,lng,sog,ts").in("sailor_id",ids).gte("ts",today()+"T00:00:00").order("ts",{ascending:true}).limit(20000);
     if(!data||!data.length){showToast("Inga spårpunkter idag ännu — starta ⏺ Logga färd");return;}
     if(window._dayLine)window._dayLine.remove();
     window._dayLine=L.polyline(data.map(p=>[p.lat,p.lng]),{color:"#14506b",weight:4,opacity:.8}).addTo(window._osm);
@@ -1846,7 +1941,9 @@ async function renderReport(){
   r.innerHTML='<p class="soundIntro">Räknar samman törnen…</p>';
   let track=[];
   if(!LOCAL_MODE){
-    try{const{data}=await SB.from("track_points").select("lat,lng,sog,ts").order("ts",{ascending:true}).limit(20000);track=data||[];}catch(e){}
+    try{const ids=mySailors().map(s=>s.id);
+      if(ids.length){const{data}=await SB.from("track_points").select("lat,lng,sog,ts").in("sailor_id",ids).order("ts",{ascending:true}).limit(20000);track=data||[];}
+    }catch(e){}
     await loadNotes();await loadChat();
   }
   r.innerHTML="";
@@ -2364,7 +2461,7 @@ function maybePopQuiz(){
 (async function init(){
   updateSync();
   const t0=Date.now();
-  await loadSailors();
+  await Promise.all([loadSailors(),loadBoats()]);
   if(me&&!sailors.find(s=>s.id===me.id)){me=null;localStorage.removeItem("ss_session");}
   if(me)enterApp();else renderLogin();
   const wait=Math.max(0,1700-(Date.now()-t0));
