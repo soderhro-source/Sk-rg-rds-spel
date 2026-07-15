@@ -491,6 +491,8 @@
 
   <div id="gameView" style="display:none">
     <div class="catChips" id="catChips"></div>
+    <button class="cpBtn" id="spotAddToggle" style="display:block;margin:4px auto 10px">➕ Lägg till art</button>
+    <div id="spotAddBox" style="display:none"></div>
     <div class="scorebar">
       <div><div class="label">Mina på denna flik</div><div class="tally"><span id="count">0</span> / <span id="total">0</span></div></div>
       <div style="text-align:right"><div class="label">Poäng</div><div class="tally" id="points">0</div></div>
@@ -546,6 +548,9 @@
   </div>
   <div id="kaptenView" class="sounds" style="display:none">
     <div id="kaptenBox"></div>
+  </div>
+  <div id="ideasView" class="sounds" style="display:none">
+    <div id="ideasBox"></div>
   </div>
   <div id="navView" class="sounds" style="display:none">
     <p class="soundIntro">Navigationsskolan — hitta er position utan GPS. Sex lektioner med övningar ombord: gör övningen på riktigt, bocka av med en kompis som vittne (+2 p per lektion). Fungerar offline.</p>
@@ -1354,6 +1359,44 @@ async function saveBoatDetails(boatEmoji){
     setRoute(route,startHarbor);refreshWhoAmI();showToast("Båtuppgifter sparade! ⚓");render();
   }catch(e){err.textContent="Kunde inte spara — kolla nätet och försök igen.";}
 }
+let ideas=[];
+async function loadIdeas(){
+  if(LOCAL_MODE){ideas=JSON.parse(localStorage.getItem("ss_ideas")||"[]");return;}
+  try{const{data,error}=await SB.from("ideas").select("*").order("created_at",{ascending:false});
+    if(!error&&data)ideas=data;}catch(e){}
+}
+async function addIdea(body){
+  const row={author:me?me.name:null,body};
+  if(LOCAL_MODE){
+    row.id="local-"+uuid();row.created_at=new Date().toISOString();
+    ideas.unshift(row);localStorage.setItem("ss_ideas",JSON.stringify(ideas));return true;
+  }
+  try{
+    const{data,error}=await SB.from("ideas").insert(row).select().single();
+    if(error)throw error;
+    ideas.unshift(data);return true;
+  }catch(e){return false;}
+}
+function renderIdeas(){
+  const box=document.getElementById("ideasBox");if(!box)return;
+  const list=ideas.map(i=>`<div class="cpCard"><div class="t">${escHtml(i.body)}</div>
+    <div class="d">${i.author?escHtml(i.author):"Anonym"} · ${new Date(i.created_at).toLocaleDateString("sv-SE")}</div></div>`).join("")
+    ||`<p class="soundIntro">Inga idéer inskickade än — var först!</p>`;
+  box.innerHTML=`<p class="soundIntro">Har ni en idé till ett nytt spel, en funktion, eller något annat ni saknar i appen? Skriv den här — synlig för hela besättningen.</p>
+    <div class="field"><textarea id="ideaText" maxlength="300" rows="3" placeholder='t.ex. "Ett kortspel för regniga dagar" eller "Vädervarning som popup"' style="width:100%;font-family:inherit;font-size:15px;padding:10px;border:2px solid #d9d2c4;border-radius:10px;resize:vertical;box-sizing:border-box"></textarea></div>
+    <button class="goBtn" id="ideaSend">Skicka idé 💡</button>
+    <div class="errMsg" id="ideaErr"></div>
+    <div class="termgrp" style="margin-top:18px">Inskickade idéer</div>
+    ${list}`;
+  document.getElementById("ideaSend").onclick=async()=>{
+    const text=document.getElementById("ideaText").value.trim();
+    const err=document.getElementById("ideaErr");
+    if(!text){err.textContent="Skriv något först.";return;}
+    const ok=await addIdea(text);
+    if(!ok){err.textContent="Kunde inte skicka — kolla nätet och försök igen.";return;}
+    showToast("Idé skickad — tack! 💡");renderIdeas();
+  };
+}
 const TRADER_LANDMARKS={
   beach:{x:16,y:64,em:"🏖️",label:"Stranden"},
   brygga:{x:36,y:80,em:"⚓",label:"Bryggan"},
@@ -1878,7 +1921,7 @@ async function enterApp(){
 // ================= TABS & RENDER =================
 let current="board",curCat="vessels",moreOpen=false;
 const NAV_PRIMARY=[["board","🎲","Plan"],["spot","🔭","Spana"],["knots","🪢","Knopar"],["sur","🎁","Dagens"],["arcade","🕹️","Spel"]];
-const NAV_MORE=[["chat","💬","Skeppschatt"],["gallery","📸","Galleri"],["report","📜","Törnrapport"],["navskola","🧭","Navigationsskolan"],["recipes","🍳","Byssan"],["trivia","❓","Frågesport"],["sounds","🔊","Läten"],["playlist","🎵","Sjömansvisor"],["terms","⚓","Sjötermer"],["live","📡","Live AIS"],["places","🗺️","Seglandet 2026"],["kapten","⚙️","Kaptensrutan"]];
+const NAV_MORE=[["chat","💬","Skeppschatt"],["gallery","📸","Galleri"],["report","📜","Törnrapport"],["navskola","🧭","Navigationsskolan"],["recipes","🍳","Byssan"],["trivia","❓","Frågesport"],["sounds","🔊","Läten"],["playlist","🎵","Sjömansvisor"],["terms","⚓","Sjötermer"],["live","📡","Live AIS"],["places","🗺️","Seglandet 2026"],["kapten","⚙️","Kaptensrutan"],["ideas","💡","Idélåda"]];
 const TABS=()=>NAV_PRIMARY.concat(NAV_MORE).map(([k,ic,l])=>[k,ic+" "+l]);
 const RANKS=[[0,"Jungman"],[30,"Lättmatros"],[60,"Matros"],[130,"Båtsman"],[220,"Styrman"],[320,"Skeppare"],[420,"Kommodor 🏆"]];
 function rankFor(p){let r=RANKS[0][1];RANKS.forEach(([t,n])=>{if(p>=t)r=n;});return r;}
@@ -1952,7 +1995,7 @@ function updateTop(){
   document.getElementById("xpInfo").textContent=t>=14?"Kommodor!":(LEG-into)+" p till nästa hamn";
   updateSync();
 }
-const VIEW_IDS=["boardView","gameView","liveView","soundView","playlistView","triviaView","termsView","knotsView","surView","arcadeView","placesView","chatView","recipesView","navView","galleryView","reportView","kaptenView"];
+const VIEW_IDS=["boardView","gameView","liveView","soundView","playlistView","triviaView","termsView","knotsView","surView","arcadeView","placesView","chatView","recipesView","navView","galleryView","reportView","kaptenView","ideasView"];
 function render(){
   buildTabs();updateTop();
   if(current!=="arcade"){stopTet();stopSnake();}
@@ -1975,7 +2018,51 @@ function render(){
   if(current==="gallery"){show("galleryView");renderGallery();loadNotes().then(renderGallery);return;}
   if(current==="report"){show("reportView");renderReport();return;}
   if(current==="kapten"){show("kaptenView");renderKapten();return;}
+  if(current==="ideas"){show("ideasView");renderIdeas();loadIdeas().then(renderIdeas);return;}
   show("gameView");renderSpotGrid();
+}
+let customSpots=[];
+async function loadCustomSpots(){
+  if(LOCAL_MODE){customSpots=JSON.parse(localStorage.getItem("ss_customspots")||"[]");return;}
+  try{const{data,error}=await SB.from("custom_spots").select("*").order("created_at");
+    if(!error&&data)customSpots=data;}catch(e){}
+}
+function customSpotsFor(catKey){
+  return customSpots.filter(s=>s.grp===catKey).map(s=>({n:s.name,fi:"",tip:"Tillagd av "+(s.author||"besättningen"),v:1,custom:true}));
+}
+function itemsFor(catKey){return(GAMES[catKey]?GAMES[catKey].items:[]).concat(customSpotsFor(catKey));}
+async function addCustomSpot(name,grp){
+  if(!name||!GAMES[grp])return false;
+  const row={name,grp,author:me?me.name:null};
+  if(LOCAL_MODE){
+    row.id="local-"+uuid();row.created_at=new Date().toISOString();
+    customSpots.push(row);localStorage.setItem("ss_customspots",JSON.stringify(customSpots));return true;
+  }
+  try{
+    const{data,error}=await SB.from("custom_spots").insert(row).select().single();
+    if(error)throw error;
+    customSpots.push(data);return true;
+  }catch(e){return false;}
+}
+let spotAddOpen=false;
+function renderSpotAddBox(){
+  const box=document.getElementById("spotAddBox");
+  if(!spotAddOpen){box.style.display="none";box.innerHTML="";return;}
+  box.style.display="block";
+  const catOpts=Object.entries(GAMES).map(([k,g])=>`<option value="${k}"${k===curCat?" selected":""}>${g.label}</option>`).join("");
+  box.innerHTML=`<div class="field"><label>Namn på arten/objektet</label><input id="spotNewName" maxlength="40" placeholder="t.ex. Havstrut"></div>
+    <div class="field"><label>Kategori</label><select id="spotNewGrp">${catOpts}</select></div>
+    <button class="goBtn" id="spotNewGo">Lägg till</button>
+    <div class="errMsg" id="spotNewErr"></div>`;
+  document.getElementById("spotNewGo").onclick=async()=>{
+    const name=document.getElementById("spotNewName").value.trim();
+    const grp=document.getElementById("spotNewGrp").value;
+    const err=document.getElementById("spotNewErr");
+    if(!name){err.textContent="Skriv ett namn.";return;}
+    const ok=await addCustomSpot(name,grp);
+    if(!ok){err.textContent="Kunde inte lägga till — kolla nätet och försök igen.";return;}
+    spotAddOpen=false;curCat=grp;showToast(`${name} tillagd i ${GAMES[grp].label}! 🔭`);renderSpotGrid();
+  };
 }
 function renderSpotGrid(){
   const chipsEl=document.getElementById("catChips");chipsEl.innerHTML="";
@@ -1983,8 +2070,10 @@ function renderSpotGrid(){
     const b=document.createElement("div");b.className="chip"+(k===curCat?" active":"");
     b.textContent=g.label;b.onclick=()=>{curCat=k;renderSpotGrid();};chipsEl.appendChild(b);
   });
-  const g=GAMES[curCat],gridEl=document.getElementById("grid");gridEl.innerHTML="";
-  g.items.forEach((it,i)=>{
+  document.getElementById("spotAddToggle").onclick=()=>{spotAddOpen=!spotAddOpen;renderSpotAddBox();};
+  renderSpotAddBox();
+  const items=itemsFor(curCat),gridEl=document.getElementById("grid");gridEl.innerHTML="";
+  items.forEach((it,i)=>{
     const ref=curCat+":"+i;
     const doneByMe=me&&hasLog(me.id,"spot",ref);
     const others=whoLogged("spot",ref).filter(s=>!me||s.id!==me.id).map(s=>s.emoji).join("");
@@ -2003,8 +2092,8 @@ function renderSpotGrid(){
     };
     gridEl.appendChild(c);
   });
-  const mine=g.items.filter((_,i)=>me&&hasLog(me.id,"spot",curCat+":"+i));
-  document.getElementById("total").textContent=g.items.length;
+  const mine=items.filter((_,i)=>me&&hasLog(me.id,"spot",curCat+":"+i));
+  document.getElementById("total").textContent=items.length;
   document.getElementById("count").textContent=mine.length;
   document.getElementById("points").textContent=mine.reduce((s,it)=>s+it.v,0);
 }
@@ -2024,7 +2113,7 @@ document.getElementById("shareBtn").onclick=async()=>{
   catch(e){try{await navigator.clipboard.writeText(text);showToast("Ställningen kopierad!");}catch(_){showToast("Kunde inte dela");}}
 };
 document.getElementById("refreshBtn").onclick=async()=>{
-  await flush();await loadLogs();await Promise.all([loadSailors(),loadBoats()]);render();showToast("Uppdaterad!");
+  await flush();await loadLogs();await Promise.all([loadSailors(),loadBoats(),loadCustomSpots()]);render();showToast("Uppdaterad!");
 };
 function showToast(m){const toastEl=document.getElementById("toast");toastEl.textContent=m;toastEl.classList.add("show");
   clearTimeout(toastEl._t);toastEl._t=setTimeout(()=>toastEl.classList.remove("show"),2400);}
@@ -3538,7 +3627,7 @@ function maybePopQuiz(){
 (async function init(){
   updateSync();
   const t0=Date.now();
-  await Promise.all([loadSailors(),loadBoats()]);
+  await Promise.all([loadSailors(),loadBoats(),loadCustomSpots()]);
   if(me&&!sailors.find(s=>s.id===me.id)){me=null;localStorage.removeItem("ss_session");}
   if(me)enterApp();else renderLogin();
   const wait=Math.max(0,1700-(Date.now()-t0));
