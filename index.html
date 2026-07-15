@@ -534,10 +534,6 @@
   <div id="kaptenView" class="sounds" style="display:none">
     <div id="kaptenBox"></div>
   </div>
-  <div id="traderView" class="sounds" style="display:none">
-    <div class="catChips" id="traderChips"></div>
-    <div id="traderBox"></div>
-  </div>
   <div id="navView" class="sounds" style="display:none">
     <p class="soundIntro">Navigationsskolan — hitta er position utan GPS. Sex lektioner med övningar ombord: gör övningen på riktigt, bocka av med en kompis som vittne (+2 p per lektion). Fungerar offline.</p>
     <div id="navList"></div>
@@ -1373,13 +1369,13 @@ function startFishSession(sails){
   fishSession.tickTimer=setInterval(()=>{
     if(!fishSession)return;
     if(Date.now()>=fishSession.endsAt){endFishSession();return;}
-    if(current==="trader"&&traderTab==="fiske")renderTrader();
+    if(current==="arcade"&&arcGame==="trader"&&traderTab==="fiske")renderTrader();
   },120);
 }
 function endFishSession(){
   const summary=fishSession?{casts:fishSession.casts,caught:fishSession.caught}:null;
   stopFishSession();
-  if(current==="trader"&&traderTab==="fiske")renderTrader();
+  if(current==="arcade"&&arcGame==="trader"&&traderTab==="fiske")renderTrader();
   if(summary)showToast(`Fisketuren är slut — ${summary.caught} fångster på ${summary.casts} kast! 🎣`);
 }
 function castLine(){
@@ -1467,7 +1463,7 @@ function renderTraderSamla(box,header){
     gatherBusy=true;renderTrader();
     await new Promise(r=>setTimeout(r,900+Math.random()*700));
     gatherBusy=false;
-    if(current!=="trader"||traderTab!=="samla")return;
+    if(current!=="arcade"||arcGame!=="trader"||traderTab!=="samla")return;
     if(Math.random()<0.8){
       const ws2=myWorkshop();
       const item=rollSpecies(GATHER_ITEMS,99);
@@ -1758,7 +1754,7 @@ async function enterApp(){
 // ================= TABS & RENDER =================
 let current="board",curCat="vessels",moreOpen=false;
 const NAV_PRIMARY=[["board","🎲","Plan"],["spot","🔭","Spana"],["knots","🪢","Knopar"],["sur","🎁","Dagens"],["arcade","🕹️","Spel"]];
-const NAV_MORE=[["chat","💬","Skeppschatt"],["gallery","📸","Galleri"],["report","📜","Törnrapport"],["navskola","🧭","Navigationsskolan"],["recipes","🍳","Byssan"],["trivia","❓","Frågesport"],["sounds","🔊","Läten"],["playlist","🎵","Sjömansvisor"],["terms","⚓","Sjötermer"],["live","📡","Live AIS"],["places","🗺️","Seglandet 2026"],["kapten","⚙️","Kaptensrutan"],["trader","🎣","Fiske & Handel"]];
+const NAV_MORE=[["chat","💬","Skeppschatt"],["gallery","📸","Galleri"],["report","📜","Törnrapport"],["navskola","🧭","Navigationsskolan"],["recipes","🍳","Byssan"],["trivia","❓","Frågesport"],["sounds","🔊","Läten"],["playlist","🎵","Sjömansvisor"],["terms","⚓","Sjötermer"],["live","📡","Live AIS"],["places","🗺️","Seglandet 2026"],["kapten","⚙️","Kaptensrutan"]];
 const TABS=()=>NAV_PRIMARY.concat(NAV_MORE).map(([k,ic,l])=>[k,ic+" "+l]);
 const RANKS=[[0,"Jungman"],[30,"Lättmatros"],[60,"Matros"],[130,"Båtsman"],[220,"Styrman"],[320,"Skeppare"],[420,"Kommodor 🏆"]];
 function rankFor(p){let r=RANKS[0][1];RANKS.forEach(([t,n])=>{if(p>=t)r=n;});return r;}
@@ -1832,7 +1828,7 @@ function updateTop(){
   document.getElementById("xpInfo").textContent=t>=14?"Kommodor!":(LEG-into)+" p till nästa hamn";
   updateSync();
 }
-const VIEW_IDS=["boardView","gameView","liveView","soundView","playlistView","triviaView","termsView","knotsView","surView","arcadeView","placesView","chatView","recipesView","navView","galleryView","reportView","kaptenView","traderView"];
+const VIEW_IDS=["boardView","gameView","liveView","soundView","playlistView","triviaView","termsView","knotsView","surView","arcadeView","placesView","chatView","recipesView","navView","galleryView","reportView","kaptenView"];
 function render(){
   buildTabs();updateTop();
   if(current!=="arcade"){stopTet();stopSnake();}
@@ -1855,7 +1851,6 @@ function render(){
   if(current==="gallery"){show("galleryView");renderGallery();loadNotes().then(renderGallery);return;}
   if(current==="report"){show("reportView");renderReport();return;}
   if(current==="kapten"){show("kaptenView");renderKapten();return;}
-  if(current==="trader"){show("traderView");renderTrader();return;}
   show("gameView");renderSpotGrid();
 }
 function renderSpotGrid(){
@@ -2168,7 +2163,8 @@ function renderArcade(){
   const menu=document.getElementById("arcMenu");menu.innerHTML="";
   [["tet","📦","Lastrummet","Tetris till sjöss"],["mem","🧠","Skärgårdsminne","Para sv ↔ fi"],
    ["m3","🐟","Bojkrossen","Match 3 i viken"],["snake","🐍","Ålen","Ät fisk & väx"],
-   ["uno","🃏","Uno-poäng","Räkna poäng & se ställning"]].forEach(([k,em,t,sub])=>{
+   ["uno","🃏","Uno-poäng","Räkna poäng & se ställning"],
+   ["trader","🎣","Fiske & Handel","Fiska, samla & handla"]].forEach(([k,em,t,sub])=>{
     const b=document.createElement("button");b.className="arcBtn"+(arcGame===k?" active":"");
     b.innerHTML=`<span class="em">${em}</span>${t}<div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:10.5px;color:#6c7c84;margin-top:2px">${sub}</div>`;
     b.onclick=()=>{arcGame=k;renderArcade();};menu.appendChild(b);
@@ -2180,7 +2176,12 @@ function renderArcade(){
   else if(arcGame==="m3")startM3(box);
   else if(arcGame==="snake")startSnake(box);
   else if(arcGame==="uno")startUno(box);
+  else if(arcGame==="trader")startTrader(box);
   else box.innerHTML='<p class="soundIntro">Välj ett spel ovan. Bäst resultat idag kan bokföras som poäng — en gång per spel och dag.</p>';
+}
+function startTrader(box){
+  box.innerHTML=`<div class="catChips" id="traderChips"></div><div id="traderBox"></div>`;
+  renderTrader();
 }
 function arcAwardBtn(kind,pts,label){
   if(!me||pts<=0)return"";
