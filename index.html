@@ -366,6 +366,17 @@
     font-family:"Helvetica Neue",Arial,sans-serif;font-size:14.5px;font-weight:700;color:var(--ink);}
   .moreRow.active{background:rgba(216,97,46,.14);}
   .moreRow .ic{font-size:21px;width:26px;text-align:center;}
+  .moreGroupLabel{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10.5px;font-weight:700;
+    letter-spacing:.14em;text-transform:uppercase;color:#8a94a3;padding:10px 14px 4px;}
+  .moreGroupLabel:first-child{padding-top:4px;}
+  .delBtn,.mvBtn{border:none;background:none;cursor:pointer;display:inline-flex;align-items:center;
+    justify-content:center;min-width:34px;min-height:34px;padding:4px 8px;border-radius:9px;
+    font-size:15px;vertical-align:middle;}
+  .mvBtn{color:var(--sea);font-size:16px;}
+  .delBtn{color:#c0392b;}
+  .delBtn:active,.mvBtn:active{background:rgba(11,36,54,.09);}
+  .delBtn.armed{background:#c0392b;color:#fff;font-family:"Helvetica Neue",Arial,sans-serif;
+    font-size:11.5px;font-weight:800;padding:6px 12px;white-space:nowrap;min-width:0;}
   /* Glansiga knappar */
   .goBtn,.liveBtn,button.act.share,.cpBtn,.qnext,.play{
     background:linear-gradient(180deg,#ff8a4d,#d8612e 58%,#c14e1d)!important;color:#fff;
@@ -1965,6 +1976,15 @@ async function enterApp(){
 let current="board",curCat="vessels",moreOpen=false;
 const NAV_PRIMARY=[["board","🎲","Plan"],["spot","🔭","Spana"],["knots","🪢","Knopar"],["sur","🎁","Dagens"],["arcade","🕹️","Spel"]];
 const NAV_MORE=[["chat","💬","Skeppschatt"],["gallery","📸","Galleri"],["report","📜","Törnrapport"],["fleet","🏆","Flottiljen"],["trips","🧳","Resor"],["navskola","🧭","Navigationsskolan"],["recipes","🍳","Byssan"],["trivia","❓","Frågesport"],["sounds","🔊","Läten"],["playlist","🎵","Sjömansvisor"],["terms","⚓","Sjötermer"],["live","📡","Live AIS"],["places","🗺️","Seglandet 2026"],["kapten","⚙️","Kaptensrutan"],["ideas","💡","Idélåda"]];
+// Purely a display grouping for the "Mer" sheet — NAV_MORE above stays the single source of
+// truth for keys/icons/labels, this just orders them under headers so a 15-item flat list
+// doesn't have to be scanned top-to-bottom to find anything.
+const NAV_MORE_GROUPS=[
+  ["Besättningen",["chat","gallery","ideas","fleet","report"]],
+  ["Planering & navigation",["trips","places","kapten","live"]],
+  ["Lära & leka",["navskola","terms","trivia","recipes"]],
+  ["Läten & musik",["sounds","playlist"]],
+];
 const TABS=()=>NAV_PRIMARY.concat(NAV_MORE).map(([k,ic,l])=>[k,ic+" "+l]);
 const RANKS=[[0,"Jungman"],[30,"Lättmatros"],[60,"Matros"],[130,"Båtsman"],[220,"Styrman"],[320,"Skeppare"],[420,"Kommodor 🏆"]];
 function rankFor(p){let r=RANKS[0][1];RANKS.forEach(([t,n])=>{if(p>=t)r=n;});return r;}
@@ -2007,10 +2027,16 @@ function buildTabs(){
   const sheet=document.getElementById("moreSheet");
   if(moreOpen){
     sheet.style.display="block";sheet.className="moreSheet";sheet.innerHTML="";
-    NAV_MORE.forEach(([k,ic,label])=>{
-      const r=document.createElement("div");r.className="moreRow"+(k===current?" active":"");
-      r.innerHTML=`<span class="ic">${ic}</span>${label}`;
-      r.onclick=()=>navTo(k);sheet.appendChild(r);
+    NAV_MORE_GROUPS.forEach(([groupLabel,keys])=>{
+      const h=document.createElement("div");h.className="moreGroupLabel";h.textContent=groupLabel;
+      sheet.appendChild(h);
+      keys.forEach(k=>{
+        const item=NAV_MORE.find(([kk])=>kk===k);if(!item)return;
+        const[,ic,label]=item;
+        const r=document.createElement("div");r.className="moreRow"+(k===current?" active":"");
+        r.innerHTML=`<span class="ic">${ic}</span>${label}`;
+        r.onclick=()=>navTo(k);sheet.appendChild(r);
+      });
     });
   }else{sheet.style.display="none";sheet.innerHTML="";}
 }
@@ -2162,6 +2188,42 @@ document.getElementById("refreshBtn").onclick=async()=>{
 };
 function showToast(m){const toastEl=document.getElementById("toast");toastEl.textContent=m;toastEl.classList.add("show");
   clearTimeout(toastEl._t);toastEl._t=setTimeout(()=>toastEl.classList.remove("show"),2400);}
+// Tap-to-arm, tap-again-to-confirm pattern for destructive buttons (delete trip/stop/logbook entry, …) —
+// avoids native confirm() popups (out of place in this app's themed UI) while still preventing stray-tap data loss.
+// Arming is a purely local mutation on the button itself (no re-render, no network) so it's instant and
+// never flashes a loading state; only the final confirmed delete calls onConfirm, which re-renders as needed.
+// pendingDeletes maps key -> arm token (not a plain Set): keys can be based on list position (e.g. a
+// trip stop's index), which gets REUSED once an item is deleted and a new one added in its place — a
+// stale auto-expire timer from the old item would otherwise silently clear the new item's armed state
+// (same key) without touching its now-different button element. The token lets each timer verify it's
+// still the most recent arm for that key before acting; a superseded timer is a no-op.
+let pendingDeletes=new Map();
+let deleteArmSeq=0;
+function isArmed(key){return pendingDeletes.has(key);}
+function delBtnHtml(key,extraAttr){
+  const armed=isArmed(key);
+  return `<button ${extraAttr} class="delBtn${armed?" armed":""}">${armed?"Säker?":"✕"}</button>`;
+}
+function wireDelBtn(btn,key,onConfirm){
+  if(!btn)return;
+  btn.onclick=async e=>{
+    e.stopPropagation();
+    if(!isArmed(key)){
+      const token=++deleteArmSeq;
+      pendingDeletes.set(key,token);
+      btn.classList.add("armed");btn.textContent="Säker?";
+      setTimeout(()=>{
+        if(pendingDeletes.get(key)===token){
+          pendingDeletes.delete(key);
+          btn.classList.remove("armed");btn.textContent="✕";
+        }
+      },3000);
+      return;
+    }
+    pendingDeletes.delete(key);
+    await onConfirm();
+  };
+}
 function haversine(la1,lo1,la2,lo2){const R=6371,d=x=>x*Math.PI/180;
   const a=Math.sin(d(la2-la1)/2)**2+Math.cos(d(la1))*Math.cos(d(la2))*Math.sin(d(lo2-lo1)/2)**2;
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));}
@@ -3078,9 +3140,9 @@ function renderTripCard(t){
       <div class="repRow" style="border:none;padding:0">
         <span>${i+1}. ${escHtml(s.place)}${s.date?" · "+s.date:""}</span>
         ${isCaptain()?`<span style="white-space:nowrap">
-          ${i>0?`<button data-stopmv="${t.id}:${i}:-1" style="border:none;background:none;cursor:pointer;font-size:13px">↑</button>`:""}
-          ${i<stops.length-1?`<button data-stopmv="${t.id}:${i}:1" style="border:none;background:none;cursor:pointer;font-size:13px">↓</button>`:""}
-          <button data-stopdel="${t.id}:${i}" style="border:none;background:none;color:#c0392b;cursor:pointer;font-size:13px">✕</button>
+          ${i>0?`<button data-stopmv="${t.id}:${i}:-1" class="mvBtn">↑</button>`:""}
+          ${i<stops.length-1?`<button data-stopmv="${t.id}:${i}:1" class="mvBtn">↓</button>`:""}
+          ${delBtnHtml("stop:"+t.id+":"+i,`data-stopdel="${t.id}:${i}"`)}
         </span>`:""}
       </div>
       <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#6c7c84;margin-top:2px">${legLine}</div>
@@ -3088,7 +3150,7 @@ function renderTripCard(t){
     </div>`;
   }).join(""):'<div class="d">Inga hamnar tillagda ännu.</div>';
   d.innerHTML=`<div class="t"><span class="pnum">${t.status==="completed"?"✓":"🧭"}</span>${escHtml(t.name)}${t.status==="completed"?" — avslutad":""}
-      ${isCaptain()?`<button data-tripdel="${t.id}" style="float:right;border:none;background:none;color:#c0392b;font-size:15px;cursor:pointer">✕</button>`:""}</div>
+      ${isCaptain()?delBtnHtml("trip:"+t.id,`data-tripdel="${t.id}" style="float:right"`):""}</div>
     <div class="d">${stopsHtml}</div>
     ${stops.length?`<div style="display:flex;align-items:center;gap:6px;margin-top:8px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#6c7c84">
         Antagen fart: <input type="number" min="1" step="0.5" value="${speed}" data-tripspeed="${t.id}" style="width:56px;padding:5px;border-radius:6px;border:1px solid #d9d2c4;text-align:right"> kn</div>`:""}
@@ -3101,9 +3163,10 @@ function renderTripCard(t){
   const speedInput=d.querySelector(`[data-tripspeed="${t.id}"]`);
   if(speedInput)speedInput.oninput=e=>{tripSpeeds[t.id]=parseFloat(e.target.value)||5;renderTrips();};
   if(isCaptain()){
-    d.querySelector(`[data-tripdel="${t.id}"]`).onclick=async()=>{await deleteTrip(t.id);renderTrips();};
+    wireDelBtn(d.querySelector(`[data-tripdel="${t.id}"]`),"trip:"+t.id,async()=>{await deleteTrip(t.id);renderTrips();});
     d.querySelectorAll("[data-stopdel]").forEach(btn=>{
-      btn.onclick=async()=>{const[tid,idx]=btn.dataset.stopdel.split(":");await removeTripStop(tid,+idx);renderTrips();};
+      const[tid,idx]=btn.dataset.stopdel.split(":");
+      wireDelBtn(btn,"stop:"+tid+":"+idx,async()=>{await removeTripStop(tid,+idx);renderTrips();});
     });
     d.querySelectorAll("[data-stopmv]").forEach(btn=>{
       btn.onclick=async()=>{const[tid,idx,dir]=btn.dataset.stopmv.split(":");await moveTripStop(tid,+idx,+dir);renderTrips();};
@@ -3515,14 +3578,16 @@ function renderCaptainLogCard(r,track){
       const arr=e.arrival_time?new Date(e.arrival_time).toLocaleString("sv-SE",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}):"–";
       return `<div class="cpCard">
         <div class="t"><span class="pnum">⛵</span>${escHtml(e.departure_place||"?")} → ${escHtml(e.arrival_place||"?")}
-          ${isCaptain()?`<button data-clogdel="${e.id}" style="float:right;border:none;background:none;color:#c0392b;font-size:15px;cursor:pointer">✕</button>`:""}</div>
+          ${isCaptain()?delBtnHtml("clog:"+e.id,`data-clogdel="${e.id}" style="float:right"`):""}</div>
         <div class="d">${dep} → ${arr}${e.miles?" · "+Number(e.miles).toFixed(1)+" M":""}${e.weather?" · "+escHtml(e.weather):""}</div>
         ${e.notes?`<div class="d" style="margin-top:4px;font-style:italic">${escHtml(e.notes)}</div>`:""}
         <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:10.5px;color:#9aa28f;margin-top:6px">Infört av ${author?author.emoji+" "+escHtml(author.name):"okänd"}</div>
       </div>`;
     }).join("");
-    listEl.querySelectorAll("[data-clogdel]").forEach(btn=>btn.onclick=async()=>{
-      await deleteCaptainLogEntry(btn.dataset.clogdel);card.remove();renderCaptainLogCard(r,track);
+    listEl.querySelectorAll("[data-clogdel]").forEach(btn=>{
+      wireDelBtn(btn,"clog:"+btn.dataset.clogdel,async()=>{
+        await deleteCaptainLogEntry(btn.dataset.clogdel);renderTrips();
+      });
     });
   }
   if(!isCaptain())return;
