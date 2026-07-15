@@ -2905,6 +2905,7 @@ async function deleteCaptainLogEntry(id){
 }
 // ================= RESOR (planera nästa resa) =================
 let trips=[];
+let tripSpeeds={};
 async function loadTrips(){
   const b=myBoat();
   if(LOCAL_MODE){
@@ -3038,24 +3039,42 @@ function renderTripPlanner(box){
 function renderTripCard(t){
   const d=document.createElement("div");d.className="cpCard";d.style.marginBottom="9px";
   const stops=t.stops||[];
-  const stopsHtml=stops.length?stops.map((s,i)=>`
-    <div class="repRow">
-      <span>${i+1}. ${escHtml(s.place)}${s.date?" · "+s.date:""}</span>
-      ${isCaptain()?`<span style="white-space:nowrap">
-        ${i>0?`<button data-stopmv="${t.id}:${i}:-1" style="border:none;background:none;cursor:pointer;font-size:13px">↑</button>`:""}
-        ${i<stops.length-1?`<button data-stopmv="${t.id}:${i}:1" style="border:none;background:none;cursor:pointer;font-size:13px">↓</button>`:""}
-        <button data-stopdel="${t.id}:${i}" style="border:none;background:none;color:#c0392b;cursor:pointer;font-size:13px">✕</button>
-      </span>`:""}
-    </div>`).join(""):'<div class="d">Inga hamnar tillagda ännu.</div>';
+  const speed=tripSpeeds[t.id]||5;
+  const b=myBoat();
+  const stopsHtml=stops.length?stops.map((s,i)=>{
+    const prevName=i===0?(b&&b.start_harbor):stops[i-1].place;
+    const dist=prevName?harborDistNm(prevName,s.place):null;
+    const legLine=dist!=null
+      ?`⛵ ${dist.toFixed(1)} M från ${escHtml(prevName)} · ca ${(dist/speed).toFixed(1)} tim vid ${speed} kn`
+      :`⛵ Okänt avstånd${prevName?" (kontrollera hamnnamnet)":""}`;
+    const windId=`tripWind-${t.id}-${i}`;
+    return `
+    <div style="padding:5px 0;border-bottom:1px dashed rgba(11,36,54,.12)">
+      <div class="repRow" style="border:none;padding:0">
+        <span>${i+1}. ${escHtml(s.place)}${s.date?" · "+s.date:""}</span>
+        ${isCaptain()?`<span style="white-space:nowrap">
+          ${i>0?`<button data-stopmv="${t.id}:${i}:-1" style="border:none;background:none;cursor:pointer;font-size:13px">↑</button>`:""}
+          ${i<stops.length-1?`<button data-stopmv="${t.id}:${i}:1" style="border:none;background:none;cursor:pointer;font-size:13px">↓</button>`:""}
+          <button data-stopdel="${t.id}:${i}" style="border:none;background:none;color:#c0392b;cursor:pointer;font-size:13px">✕</button>
+        </span>`:""}
+      </div>
+      <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#6c7c84;margin-top:2px">${legLine}</div>
+      <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#6c7c84" id="${windId}">${s.date?"💨 Hämtar vindprognos…":"💨 Lägg till datum för vindprognos"}</div>
+    </div>`;
+  }).join(""):'<div class="d">Inga hamnar tillagda ännu.</div>';
   d.innerHTML=`<div class="t"><span class="pnum">${t.status==="completed"?"✓":"🧭"}</span>${escHtml(t.name)}${t.status==="completed"?" — avslutad":""}
       ${isCaptain()?`<button data-tripdel="${t.id}" style="float:right;border:none;background:none;color:#c0392b;font-size:15px;cursor:pointer">✕</button>`:""}</div>
     <div class="d">${stopsHtml}</div>
+    ${stops.length?`<div style="display:flex;align-items:center;gap:6px;margin-top:8px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#6c7c84">
+        Antagen fart: <input type="number" min="1" step="0.5" value="${speed}" data-tripspeed="${t.id}" style="width:56px;padding:5px;border-radius:6px;border:1px solid #d9d2c4;text-align:right"> kn</div>`:""}
     ${isCaptain()?`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
         <input list="harborSuggest" placeholder="Hamn" data-tsplace="${t.id}" style="flex:2;min-width:100px;padding:8px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit">
         <input type="date" data-tsdate="${t.id}" style="flex:1;min-width:120px;padding:8px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit">
         <button class="cpBtn" data-tsadd="${t.id}">+ Lägg till hamn</button>
       </div>
       <button class="cpBtn" data-tripdone="${t.id}" style="margin-top:8px">${t.status==="completed"?"↺ Återöppna resan":"✓ Markera avslutad"}</button>`:""}`;
+  const speedInput=d.querySelector(`[data-tripspeed="${t.id}"]`);
+  if(speedInput)speedInput.oninput=e=>{tripSpeeds[t.id]=parseFloat(e.target.value)||5;renderTrips();};
   if(isCaptain()){
     d.querySelector(`[data-tripdel="${t.id}"]`).onclick=async()=>{await deleteTrip(t.id);renderTrips();};
     d.querySelectorAll("[data-stopdel]").forEach(btn=>{
@@ -3074,6 +3093,20 @@ function renderTripCard(t){
       await setTripStatus(t.id,t.status==="completed"?"planned":"completed");renderTrips();
     };
   }
+  stops.forEach((s,i)=>{
+    if(!s.date)return;
+    const c=harborCoords(s.place);
+    if(!c){
+      const el=d.querySelector(`#tripWind-${t.id}-${i}`);
+      if(el)el.textContent="💨 Okänd hamn — ingen vindprognos";
+      return;
+    }
+    windForecastForDate(c[0],c[1],s.date).then(w=>{
+      const el=document.getElementById(`tripWind-${t.id}-${i}`);if(!el)return;
+      el.textContent=w?`💨 Väntad vind ca kl 12: ${Math.round(w.s)} m/s ${windCompass(w.d)} · byar ${Math.round(w.g)}`
+        :"💨 Ingen vindprognos ännu (för långt fram eller redan passerat)";
+    });
+  });
   return d;
 }
 function initHarborMap(){
@@ -3312,6 +3345,25 @@ async function windForecastAt(lat,lon){
     const j=await r.json();
     if(!j.hourly||!j.hourly.time)return null;
     return j.hourly.time.map((t,i)=>({t,s:j.hourly.wind_speed_10m[i],d:j.hourly.wind_direction_10m[i],g:j.hourly.wind_gusts_10m[i]}));
+  }catch(e){return null;}
+}
+function harborDistNm(nameA,nameB){
+  const ca=harborCoords(nameA),cb=harborCoords(nameB);
+  if(!ca||!cb)return null;
+  return haversine(ca[0],ca[1],cb[0],cb[1])/1.852;
+}
+async function windForecastForDate(lat,lon,dateStr){
+  try{
+    const r=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(3)}&longitude=${lon.toFixed(3)}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=ms&forecast_days=16`);
+    const j=await r.json();
+    if(!j.hourly||!j.hourly.time)return null;
+    const targetT=new Date((dateStr||today())+"T12:00").getTime();
+    let best=null,bestDiff=Infinity;
+    j.hourly.time.forEach((t,i)=>{
+      const diff=Math.abs(new Date(t).getTime()-targetT);
+      if(diff<bestDiff){bestDiff=diff;best={t,s:j.hourly.wind_speed_10m[i],d:j.hourly.wind_direction_10m[i],g:j.hourly.wind_gusts_10m[i]};}
+    });
+    return(best&&bestDiff<=36*3600000)?best:null;
   }catch(e){return null;}
 }
 // ================= TÖRNRAPPORT =================
