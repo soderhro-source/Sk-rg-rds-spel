@@ -527,6 +527,9 @@
     <p class="soundIntro">Törnrapporten — hela resan i siffror: hur ni seglade och vad var och en hann med. Uppdateras live, komplett när ni är i mål.</p>
     <div id="reportList"></div>
   </div>
+  <div id="kaptenView" class="sounds" style="display:none">
+    <div id="kaptenBox"></div>
+  </div>
   <div id="navView" class="sounds" style="display:none">
     <p class="soundIntro">Navigationsskolan — hitta er position utan GPS. Sex lektioner med övningar ombord: gör övningen på riktigt, bocka av med en kompis som vittne (+2 p per lektion). Fungerar offline.</p>
     <div id="navList"></div>
@@ -583,28 +586,29 @@ function allPopQuiz(){return POPQUIZ.concat(boatSpecQuestions(""));}
 function allQuiz(){return QUIZ.concat(boatSpecQuestions("OM BÅTEN: "));}
 const BOAT_SPEC_FIELDS=[["Model","Modell",BOAT_MODEL_POOL],["Loa","Längd",BOAT_LOA_POOL],["Beam","Bredd",BOAT_BEAM_POOL],
   ["Draft","Djupgående",BOAT_DRAFT_POOL],["Mast","Masthöjd",BOAT_MAST_POOL],["Weight","Vikt",BOAT_WEIGHT_POOL],["Rig","Riggtyp",BOAT_RIG_POOL]];
-function specFieldHtml(id,label,pool){
-  const opts=pool.map(v=>`<option value="${escHtml(v)}">${escHtml(v)}</option>`).join("");
+function specFieldHtml(prefix,id,label,pool,current){
+  const opts=pool.map(v=>`<option value="${escHtml(v)}"${v===current?" selected":""}>${escHtml(v)}</option>`).join("");
+  const isOther=!!current&&!pool.includes(current);
   return `<label style="margin-top:8px;display:block">${label}</label>
-    <select id="ns${id}"><option value="">— välj —</option>${opts}<option value="__other__">Annat (skriv själv)</option></select>
-    <input id="ns${id}Other" style="display:none;margin-top:4px" placeholder="Skriv ${label.toLowerCase()}">`;
+    <select id="${prefix}${id}"><option value="">— välj —</option>${opts}<option value="__other__"${isOther?" selected":""}>Annat (skriv själv)</option></select>
+    <input id="${prefix}${id}Other" style="display:${isOther?"block":"none"};margin-top:4px" placeholder="Skriv ${label.toLowerCase()}" value="${isOther?escHtml(current):""}">`;
 }
-function wireSpecField(id){
-  const sel=document.getElementById("ns"+id),other=document.getElementById("ns"+id+"Other");
+function wireSpecField(prefix,id){
+  const sel=document.getElementById(prefix+id),other=document.getElementById(prefix+id+"Other");
   sel.onchange=()=>{other.style.display=sel.value==="__other__"?"block":"none";};
 }
-function specFieldValue(id){
-  const sel=document.getElementById("ns"+id),other=document.getElementById("ns"+id+"Other");
+function specFieldValue(prefix,id){
+  const sel=document.getElementById(prefix+id),other=document.getElementById(prefix+id+"Other");
   return sel.value==="__other__"?other.value.trim():sel.value;
 }
-function harborSelectHtml(id,mode){
+function harborSelectHtml(id,mode,current){
   const names=allHarborNames();
   if(mode==="start"){
-    const rest=names.map(n=>`<option value="${escHtml(n)}">${escHtml(n)}</option>`).join("");
-    return `<select id="${id}"><option value="HELSINGFORS">Helsingfors (Katajanokka)</option>${rest}</select>`;
+    const rest=names.map(n=>`<option value="${escHtml(n)}"${n===current?" selected":""}>${escHtml(n)}</option>`).join("");
+    return `<select id="${id}"><option value="HELSINGFORS"${(!current||current==="HELSINGFORS")?" selected":""}>Helsingfors (Katajanokka)</option>${rest}</select>`;
   }
-  const rest=names.filter(n=>n!=="Nådendal (Naantali)").map(n=>`<option value="${escHtml(n)}">${escHtml(n)}</option>`).join("");
-  return `<select id="${id}"><option value="NÅDENDAL">Nådendal (Naantali) — Målgång!</option>${rest}</select>`;
+  const rest=names.filter(n=>n!=="Nådendal (Naantali)").map(n=>`<option value="${escHtml(n)}"${n===current?" selected":""}>${escHtml(n)}</option>`).join("");
+  return `<select id="${id}"><option value="NÅDENDAL"${(!current||current==="NÅDENDAL")?" selected":""}>Nådendal (Naantali) — Målgång!</option>${rest}</select>`;
 }
 const GAMES = {
   vessels:{label:"Fartyg",items:[
@@ -1019,18 +1023,26 @@ async function saveRoute(){
     showToast("Ny rutt satt — synkas till "+b.name+"! 🧭");
   }catch(e){showToast("Kunde inte spara rutten — kolla nätet");}
 }
-async function claimCaptain(){
-  const b=myBoat();if(!b||!me)return;
+async function setCaptain(name,toastMsg){
+  const b=myBoat();if(!b)return;
   if(LOCAL_MODE){
-    b.captain=me.name;localStorage.setItem("ss_boats",JSON.stringify(BOATS));
-    SETTINGS.captain=me.name;showToast("Du är nu kapten på "+b.name+"! 🧑‍✈️");render();return;
+    b.captain=name;localStorage.setItem("ss_boats",JSON.stringify(BOATS));
+    SETTINGS.captain=name;showToast(toastMsg);render();return;
   }
   try{
-    const{error}=await SB.from("boats").update({captain:me.name}).eq("id",b.id);
+    const{error}=await SB.from("boats").update({captain:name}).eq("id",b.id);
     if(error)throw error;
-    b.captain=me.name;SETTINGS.captain=me.name;
-    showToast("Du är nu kapten på "+b.name+"! 🧑‍✈️");render();
+    b.captain=name;SETTINGS.captain=name;
+    showToast(toastMsg);render();
   }catch(e){showToast("Kunde inte utse kapten — kolla nätet");}
+}
+async function claimCaptain(){
+  const b=myBoat();if(!b||!me)return;
+  await setCaptain(me.name,"Du är nu kapten på "+b.name+"! 🧑‍✈️");
+}
+async function transferCaptaincy(sailor){
+  const b=myBoat();if(!b||!sailor)return;
+  await setCaptain(sailor.name,sailor.name+" är nu kapten på "+b.name+"! 🧑‍✈️");
 }
 function routeEditor(){
   if(!canPlan())return;
@@ -1110,6 +1122,105 @@ function renderPlanNext(idx){
       routeEditor();
     });
   };
+}
+function renderKapten(){
+  const box=document.getElementById("kaptenBox");
+  const b=myBoat();
+  if(!b){box.innerHTML='<p class="soundIntro">Ingen båt hittad.</p>';return;}
+  const captain=isCaptain(),planner=canPlan();
+  let html=`<p class="soundIntro">Kaptensrutan — ${captain?`ändra ${escHtml(b.name)}s uppgifter, roller och rutt. Ändringar synkas direkt till hela besättningen.`:`översikt över ${escHtml(b.name)}. Bara kaptenen kan ändra uppgifter, roller och rutt.`}</p>`;
+  if(captain){
+    html+=`<div class="termgrp">Båtens namn &amp; symbol</div>
+      <div class="field"><input id="kapName" maxlength="24" value="${escHtml(b.name)}"></div>
+      <div class="emojiRow" id="kapEm"></div>
+      <div class="termgrp" style="margin-top:14px">Törnen — start &amp; mål</div>
+      <div class="field"><label>Starthamn</label>${harborSelectHtml("kapStartHarbor","start",b.start_harbor)}</div>
+      <div class="field"><label>Målhamn</label>${harborSelectHtml("kapEndHarbor","end",(b.route&&b.route[13])||"NÅDENDAL")}</div>
+      <div class="wizHint">Mellanstoppen ändrar du nedan i Planeringsläge — här ändras bara sista stoppet (målet).</div>
+      <div class="termgrp" style="margin-top:14px">Om båten</div>
+      <div class="field">
+        ${BOAT_SPEC_FIELDS.map(([id,label,pool])=>specFieldHtml("kap",id,label,pool,b[id.toLowerCase()])).join("")}
+      </div>
+      <button class="goBtn" id="kapSave" style="margin-top:12px">Spara båtuppgifter ⚓</button>
+      <div class="errMsg" id="kapErr"></div>
+      <div class="termgrp" style="margin-top:20px">🧑‍✈️ Tilldela roller på ${escHtml(b.name)}</div>
+      <div id="kapRoleList"></div>`;
+  }else{
+    const bs=myBoatSpecs();
+    const specLine=[bs.model,bs.loa&&"LOA "+bs.loa,bs.beam&&"bredd "+bs.beam,bs.draft&&"djupgående "+bs.draft,bs.mast&&"mast "+bs.mast,bs.weight&&"vikt "+bs.weight,bs.rig].filter(Boolean).join(" · ");
+    const roleRows=ROLES.map(r=>{const h=roleHolder(r.k);
+      return `<div class="row"><span>${r.em} ${r.t}</span><span class="pts">${h?h.emoji+" "+h.name:"—"}</span></div>`;}).join("");
+    html+=`<div class="termgrp">Båt</div>
+      <div class="cpCard"><div class="t">${b.emoji} ${escHtml(b.name)}</div>
+        <div class="d">${specLine||"Båtens mått är inte inlagda ännu."}</div>
+        <div class="d">Start: ${escHtml(b.start_harbor||"HELSINGFORS")} · Mål: ${escHtml((b.route&&b.route[13])||"NÅDENDAL")}</div></div>
+      <div class="termgrp" style="margin-top:14px">Kapten</div>
+      <div class="cpCard"><div class="t">${b.captain?escHtml(b.captain):"Ingen utsedd ännu"}</div>
+        ${!b.captain?`<button class="cpBtn" id="kapClaimCapt" style="margin-top:8px">🧑‍✈️ Bli kapten på ${escHtml(b.name)}</button>`:""}</div>
+      <div class="termgrp" style="margin-top:14px">Roller</div>
+      <div class="cpCard">${roleRows}</div>`;
+  }
+  if(planner){
+    html+=`<div class="termgrp" style="margin-top:20px">Rutt</div>
+      <button class="cpBtn" id="kapRouteEd" style="display:block;margin:4px auto">🧭 Öppna Planeringsläge</button>`;
+  }
+  if(captain){
+    html+=`<div class="termgrp" style="margin-top:20px">Överlämna kaptensskapet</div>
+      <div id="kapTransferList"></div>`;
+  }
+  box.innerHTML=html;
+  if(!captain){
+    const cb=document.getElementById("kapClaimCapt");if(cb)cb.onclick=claimCaptain;
+  }
+  if(planner)document.getElementById("kapRouteEd").onclick=routeEditor;
+  if(!captain)return;
+  const er=document.getElementById("kapEm");
+  let boatEmoji=b.emoji;
+  EMOJIS.forEach(e=>{
+    const eb=document.createElement("button");eb.type="button";eb.textContent=e;
+    if(e===boatEmoji)eb.className="sel";
+    eb.onclick=()=>{boatEmoji=e;er.querySelectorAll("button").forEach(x=>x.className="");eb.className="sel";};
+    er.appendChild(eb);
+  });
+  BOAT_SPEC_FIELDS.forEach(([id])=>wireSpecField("kap",id));
+  document.getElementById("kapSave").onclick=()=>saveBoatDetails(boatEmoji);
+  renderRoleAssignPanel(document.getElementById("kapRoleList"));
+  const tl=document.getElementById("kapTransferList");
+  mySailors().forEach(s=>{
+    const isCap=!!(b.captain&&b.captain.trim().toLowerCase()===s.name.trim().toLowerCase());
+    const row=document.createElement("div");row.className="cpCard";
+    row.innerHTML=`<div class="t"><span class="pnum">${s.emoji}</span>${s.name}${isCap?" — nuvarande kapten":""}</div>`;
+    if(!isCap){
+      const btn=document.createElement("button");btn.className="cpBtn";btn.style.marginTop="6px";
+      btn.textContent="Gör till kapten";
+      btn.onclick=()=>transferCaptaincy(s);
+      row.appendChild(btn);
+    }
+    tl.appendChild(row);
+  });
+}
+async function saveBoatDetails(boatEmoji){
+  const b=myBoat();if(!b)return;
+  const err=document.getElementById("kapErr");
+  const newName=document.getElementById("kapName").value.trim();
+  if(!newName){err.textContent="Skriv ett namn på båten.";return;}
+  if(BOATS.some(x=>x.id!==b.id&&x.name.toLowerCase()===newName.toLowerCase())){err.textContent="En annan båt heter redan det — välj ett annat namn.";return;}
+  const startHarbor=document.getElementById("kapStartHarbor").value;
+  const endHarbor=document.getElementById("kapEndHarbor").value;
+  const baseRoute=(b.route&&b.route.length===14)?b.route:DEFAULT_ROUTE;
+  const route=[...baseRoute.slice(0,13),endHarbor];
+  const fields={name:newName,emoji:boatEmoji,start_harbor:startHarbor,end_harbor:endHarbor,route};
+  BOAT_SPEC_FIELDS.forEach(([id])=>{fields[id.toLowerCase()]=specFieldValue("kap",id)||null;});
+  if(LOCAL_MODE){
+    Object.assign(b,fields);localStorage.setItem("ss_boats",JSON.stringify(BOATS));
+    setRoute(route,startHarbor);refreshWhoAmI();showToast("Båtuppgifter sparade! ⚓");render();return;
+  }
+  try{
+    const{error}=await SB.from("boats").update(fields).eq("id",b.id);
+    if(error)throw error;
+    Object.assign(b,fields);
+    setRoute(route,startHarbor);refreshWhoAmI();showToast("Båtuppgifter sparade! ⚓");render();
+  }catch(e){err.textContent="Kunde inte spara — kolla nätet och försök igen.";}
 }
 function allLogs(){
   const del=new Set(queue.filter(q=>q.op==="delete").map(q=>q.client_id));
@@ -1236,7 +1347,7 @@ function newSailorForm(){
       <label style="margin-top:8px;display:block">Målhamn</label>${harborSelectHtml("nsEndHarbor","end")}
       <div class="wizHint">Mellanstoppen sätts till standardrutten — byt dem senare i Planeringsläge 🧭 om ni vill.</div>
       <div class="wizGrp">Om båten <span style="text-transform:none;font-weight:400">(valfritt — används i Sjötermer &amp; Frågesport)</span></div>
-      ${BOAT_SPEC_FIELDS.map(([id,label,pool])=>specFieldHtml(id,label,pool)).join("")}
+      ${BOAT_SPEC_FIELDS.map(([id,label,pool])=>specFieldHtml("ns",id,label,pool)).join("")}
     </div>
     <div class="field"><label>Välj en PIN (4 siffror)</label><input id="nsPin" inputmode="numeric" maxlength="4" placeholder="1234"></div>
     <button class="goBtn" id="nsGo">Mönstra på ⛵</button><div class="errMsg" id="nsErr"></div></div>`;
@@ -1263,7 +1374,7 @@ function newSailorForm(){
   boatButtons.forEach(b=>b.onclick=()=>{boatId=b.dataset.boat;creatingBoat=false;markBoatSel();});
   document.getElementById("nsNewBoatBtn").onclick=()=>{creatingBoat=true;markBoatSel();};
   markBoatSel();
-  BOAT_SPEC_FIELDS.forEach(([id])=>wireSpecField(id));
+  BOAT_SPEC_FIELDS.forEach(([id])=>wireSpecField("ns",id));
   document.getElementById("nsGo").onclick=async()=>{
     const name=document.getElementById("nsName").value.trim();
     const pin=document.getElementById("nsPin").value.trim();
@@ -1285,7 +1396,7 @@ function newSailorForm(){
       newBoatFields={start_harbor:startHarbor,end_harbor:endHarbor,route};
       BOAT_SPEC_FIELDS.forEach(([id])=>{
         const key=id.toLowerCase();
-        newBoatFields[key]=specFieldValue(id)||null;
+        newBoatFields[key]=specFieldValue("ns",id)||null;
       });
     }
     const pin_hash=await sha256(pin);
@@ -1314,12 +1425,15 @@ function logout(){
   TRK.follow=false;trkReleaseWake();
   me=null;localStorage.removeItem("ss_session");renderLogin();
 }
+function refreshWhoAmI(){
+  const b=myBoat();
+  document.getElementById("whoami").innerHTML=`${me.emoji} <b>${me.name}</b> ombord på ${b?b.emoji+" "+b.name:"okänd båt"} &nbsp;<button onclick="logout()">byt seglare</button> · <button onclick="showIntro()">❓ guide</button>`;
+}
 async function enterApp(){
   document.getElementById("loginView").style.display="none";
   document.getElementById("appShell").style.display="block";
   await Promise.all([loadLogs(),loadSettings()]);
-  const b=myBoat();
-  document.getElementById("whoami").innerHTML=`${me.emoji} <b>${me.name}</b> ombord på ${b?b.emoji+" "+b.name:"okänd båt"} &nbsp;<button onclick="logout()">byt seglare</button> · <button onclick="showIntro()">❓ guide</button>`;
+  refreshWhoAmI();
   flush();render();
   loadWind();loadChat();loadNotes();trkResumeIfWanted();
   if(!localStorage.getItem("ss_intro"))showIntro();
@@ -1329,7 +1443,7 @@ async function enterApp(){
 // ================= TABS & RENDER =================
 let current="board",curCat="vessels",moreOpen=false;
 const NAV_PRIMARY=[["board","🎲","Plan"],["spot","🔭","Spana"],["knots","🪢","Knopar"],["sur","🎁","Dagens"],["arcade","🕹️","Spel"]];
-const NAV_MORE=[["chat","💬","Skeppschatt"],["gallery","📸","Galleri"],["report","📜","Törnrapport"],["navskola","🧭","Navigationsskolan"],["recipes","🍳","Byssan"],["trivia","❓","Frågesport"],["sounds","🔊","Läten"],["playlist","🎵","Sjömansvisor"],["terms","⚓","Sjötermer"],["live","📡","Live AIS"],["places","🗺️","Seglandet 2026"]];
+const NAV_MORE=[["chat","💬","Skeppschatt"],["gallery","📸","Galleri"],["report","📜","Törnrapport"],["navskola","🧭","Navigationsskolan"],["recipes","🍳","Byssan"],["trivia","❓","Frågesport"],["sounds","🔊","Läten"],["playlist","🎵","Sjömansvisor"],["terms","⚓","Sjötermer"],["live","📡","Live AIS"],["places","🗺️","Seglandet 2026"],["kapten","⚙️","Kaptensrutan"]];
 const TABS=()=>NAV_PRIMARY.concat(NAV_MORE).map(([k,ic,l])=>[k,ic+" "+l]);
 const RANKS=[[0,"Jungman"],[30,"Lättmatros"],[60,"Matros"],[130,"Båtsman"],[220,"Styrman"],[320,"Skeppare"],[420,"Kommodor 🏆"]];
 function rankFor(p){let r=RANKS[0][1];RANKS.forEach(([t,n])=>{if(p>=t)r=n;});return r;}
@@ -1403,7 +1517,7 @@ function updateTop(){
   document.getElementById("xpInfo").textContent=t>=14?"Kommodor!":(LEG-into)+" p till nästa hamn";
   updateSync();
 }
-const VIEW_IDS=["boardView","gameView","liveView","soundView","playlistView","triviaView","termsView","knotsView","surView","arcadeView","placesView","chatView","recipesView","navView","galleryView","reportView"];
+const VIEW_IDS=["boardView","gameView","liveView","soundView","playlistView","triviaView","termsView","knotsView","surView","arcadeView","placesView","chatView","recipesView","navView","galleryView","reportView","kaptenView"];
 function render(){
   buildTabs();updateTop();
   if(current!=="arcade"){stopTet();stopSnake();}
@@ -1425,6 +1539,7 @@ function render(){
   if(current==="navskola"){show("navView");renderNavSchool();return;}
   if(current==="gallery"){show("galleryView");renderGallery();loadNotes().then(renderGallery);return;}
   if(current==="report"){show("reportView");renderReport();return;}
+  if(current==="kapten"){show("kaptenView");renderKapten();return;}
   show("gameView");renderSpotGrid();
 }
 function renderSpotGrid(){
@@ -1606,10 +1721,8 @@ function renderBoard(){
     ${otherBoats?`<div class="termgrp" style="margin:10px 0 4px;font-size:10px">Andra båtar i flottiljen</div>${otherBoats}`:""}`;
   document.getElementById("boardMap").innerHTML=boardSVG()
     +`<div class="cap">Alla poäng flyttar din pjäs — ${LEG} p per etapp. ${b?b.name:"Besättningens"} skepp ⛵ seglar på summan av er besättnings poäng.</div>`
-    +(canPlan()?`<button class="cpBtn" id="routeEd" style="display:block;margin:8px auto 4px">🧭 Planeringsläge</button>`
-      :(b&&!b.captain?`<button class="cpBtn" id="claimCapt" style="display:block;margin:8px auto 4px">🧑‍✈️ Bli kapten på ${b.name}</button>`:""));
-  if(canPlan()){const rb=document.getElementById("routeEd");if(rb)rb.onclick=routeEditor;}
-  else{const cb=document.getElementById("claimCapt");if(cb)cb.onclick=claimCaptain;}
+    +(b&&!b.captain?`<button class="cpBtn" id="claimCapt" style="display:block;margin:8px auto 4px">🧑‍✈️ Bli kapten på ${b.name}</button>`:"");
+  const cb=document.getElementById("claimCapt");if(cb)cb.onclick=claimCaptain;
   const meds=["🥇","🥈","🥉"];
   const lb=crew.map(s=>({s,p:ptsFor(s.id)})).sort((a,b)=>b.p-a.p);
   const lbEl=document.getElementById("lbList");lbEl.innerHTML="";
@@ -1696,13 +1809,6 @@ function renderSur(){
       ${dishDone?`<div class="claimed">Klart för idag! ✓</div>`
         :`<button class="goBtn" id="dishGo">Diskat! (+${DISH_PTS} p)</button>`}
     </div>`;
-  const b=myBoat();
-  let capHtml="";
-  if(isCaptain()&&b){
-    const crew=mySailors();
-    capHtml=`<div class="termgrp" style="margin-top:18px">🧑‍✈️ Tilldela roller på ${b.name}</div>
-      <div id="roleAssignList"></div>`;
-  }
   document.getElementById("surBox").innerHTML=`<div class="surCard">
     <div class="em">${s.em}</div>
     <div class="pts">DAGENS ÖVERRASKNING · +${s.v} P</div>
@@ -1711,35 +1817,34 @@ function renderSur(){
       :`<button class="goBtn" id="surGo">Vi klarade den — jag loggar! (+${s.v} p)</button>`}
     </div>
     <p class="soundIntro" style="margin-top:14px">Ny överraskning varje dag. Först till kvarn — bara en ombord kan ta poängen. Gör upp ärligt vem som förtjänar den!</p>
-    ${dishHtml}${roleHtml}${capHtml}`;
+    ${dishHtml}${roleHtml}`;
   const sb=document.getElementById("surGo");
   if(sb)sb.onclick=()=>{addLog("surprise",ref,s.v,s.t);showToast("Överraskning tagen! +"+s.v+" p 🎁");render();};
   const db=document.getElementById("dishGo");
   if(db)db.onclick=()=>{addLog("bonus",dishRef,DISH_PTS,"Diskat");showToast("Diskat! +"+DISH_PTS+" p 🍽️");render();};
   const rb=document.getElementById("roleGo");
   if(rb)rb.onclick=()=>{const task=roleTaskFor(role.k);addLog("bonus","role:"+role.k+":"+today(),ROLE_PTS,role.t+": "+task);showToast("Rolluppgift klar! +"+ROLE_PTS+" p "+role.em);render();};
-  if(isCaptain()&&b){
-    const ral=document.getElementById("roleAssignList");
-    ral.innerHTML="";
-    ROLES.forEach(r=>{
-      const holder=roleHolder(r.k);
-      const row=document.createElement("div");row.className="cpCard";
-      row.innerHTML=`<div class="t"><span class="pnum">${r.em}</span>${r.t}${holder?" — "+holder.emoji+" "+holder.name:""}</div>
-        <div class="d">${r.sub}</div>
-        <div class="emojiRow" style="flex-wrap:wrap;margin-top:8px" id="raRow-${r.k}"></div>`;
-      ral.appendChild(row);
-      const rowEl=row.querySelector("#raRow-"+r.k);
-      const noneBtn=document.createElement("button");noneBtn.type="button";
-      noneBtn.textContent="— ingen —";noneBtn.className=holder?"":"sel";
-      noneBtn.onclick=()=>assignRole(r.k,null);rowEl.appendChild(noneBtn);
-      mySailors().forEach(s=>{
-        const sb2=document.createElement("button");sb2.type="button";
-        sb2.textContent=s.emoji+" "+s.name;
-        sb2.className=holder&&holder.id===s.id?"sel":"";
-        sb2.onclick=()=>assignRole(r.k,s.id);rowEl.appendChild(sb2);
-      });
+}
+function renderRoleAssignPanel(container){
+  container.innerHTML="";
+  ROLES.forEach(r=>{
+    const holder=roleHolder(r.k);
+    const row=document.createElement("div");row.className="cpCard";
+    row.innerHTML=`<div class="t"><span class="pnum">${r.em}</span>${r.t}${holder?" — "+holder.emoji+" "+holder.name:""}</div>
+      <div class="d">${r.sub}</div>
+      <div class="emojiRow" style="flex-wrap:wrap;margin-top:8px" id="raRow-${r.k}"></div>`;
+    container.appendChild(row);
+    const rowEl=row.querySelector("#raRow-"+r.k);
+    const noneBtn=document.createElement("button");noneBtn.type="button";
+    noneBtn.textContent="— ingen —";noneBtn.className=holder?"":"sel";
+    noneBtn.onclick=()=>assignRole(r.k,null);rowEl.appendChild(noneBtn);
+    mySailors().forEach(s=>{
+      const sb2=document.createElement("button");sb2.type="button";
+      sb2.textContent=s.emoji+" "+s.name;
+      sb2.className=holder&&holder.id===s.id?"sel":"";
+      sb2.onclick=()=>assignRole(r.k,s.id);rowEl.appendChild(sb2);
     });
-  }
+  });
 }
 // ================= SPELRUM =================
 let arcGame=null;
