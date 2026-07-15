@@ -746,6 +746,18 @@ const GAMES = {
     {n:"Tistelfjäril",fi:"Ohdakeperhonen",tip:"Långflygare som vandrar hit ända från Nordafrika varje sommar.",v:2},
     {n:"Apollofjäril",fi:"Isoapollo",tip:"Fridlyst och akut hotad — finns bara i sydvästra skärgården.",v:5,rare:true},
   ]},
+  insects:{label:"Insekter",items:[
+    {n:"Kejsartrollslända",fi:"Keisarikorento",tip:"Nordens största trollslända, jagar över öppet vatten.",v:3,rare:true},
+    {n:"Fyrfläckad trollslända",fi:"Ruskohukankorento",tip:"Bruna vingfläckar mitt på varje vinge — mycket vanlig vid vass.",v:1},
+    {n:"Sjöflickslända",fi:"Okatytönkorento",tip:"Turkosblå och spinkig, vilar med vingarna hopfällda.",v:2},
+    {n:"Humla",fi:"Kimalainen",tip:"Lurvig och godmodig pollinatör kring sommarblommor.",v:1},
+    {n:"Honungsbi",fi:"Mehiläinen",tip:"Mindre och smalare än humlan, arbetar i bikupor.",v:1},
+    {n:"Nyckelpiga",fi:"Leppäkerttu",tip:"Röd med svarta prickar — besättningens favorit.",v:1},
+    {n:"Stackmyra",fi:"Kekomuurahainen",tip:"Bygger höga bon av barr i tallskogen.",v:2},
+    {n:"Geting",fi:"Ampiainen",tip:"Gulsvart randig, mer aggressiv sensommar vid matbordet.",v:1},
+    {n:"Gräshoppa",fi:"Heinäsirkka",tip:"Hoppar högt i torrt gräs, spelar med bakbenen.",v:2},
+    {n:"Mygga",fi:"Hyttynen",tip:"Skärgårdens minst populära gäst — men onekligen vanlig.",v:1},
+  ]},
   sealife:{label:"Sjöliv & Väder",items:[
     {n:"Gråsäl",fi:"Halli",tip:"Solar på yttre kobbar.",v:5,rare:true},
     {n:"Tumlare",fi:"Pyöriäinen",tip:"Mycket sällsynt — livsmål!",v:5,rare:true},
@@ -942,6 +954,7 @@ const SURPRISES=[
 const ROLE_PTS=3;
 const DISH_PTS=2;
 const COOK_PTS=3;
+const COFFEE_PTS=2;
 const ROLES=[
   {k:"rorsman",em:"🧭",t:"Rorsman",sub:"Håller kursen"},
   {k:"skeppskock",em:"🍳",t:"Skeppskock",sub:"Ansvarar för maten"},
@@ -2411,6 +2424,16 @@ function renderSur(){
       ${cookDone?`<div class="claimed">Klart för idag! ✓</div>`
         :`<button class="goBtn" id="cookGo">Lagat mat! (+${COOK_PTS} p)</button>`}
     </div>`;
+  const coffeeRef="coffee:"+today();
+  const coffeeDone=me&&hasLog(me.id,"bonus",coffeeRef);
+  const coffeeHtml=`<div class="termgrp" style="margin-top:18px">Kabyssen</div>
+    <div class="surCard">
+      <div class="em">☕</div>
+      <div class="pts">KAFFE KOKAT IDAG · +${COFFEE_PTS} P</div>
+      <div class="big">Koka en kanna kaffe åt besättningen — vem som helst ombord kan ta den, en gång per dag.</div>
+      ${coffeeDone?`<div class="claimed">Klart för idag! ✓</div>`
+        :`<button class="goBtn" id="coffeeGo">Kaffe kokat! (+${COFFEE_PTS} p)</button>`}
+    </div>`;
   const dishRef="dishes:"+today();
   const dishDone=me&&hasLog(me.id,"bonus",dishRef);
   const dishHtml=`<div class="termgrp" style="margin-top:18px">Husgeråd</div>
@@ -2429,11 +2452,13 @@ function renderSur(){
       :`<button class="goBtn" id="surGo">Vi klarade den — jag loggar! (+${s.v} p)</button>`}
     </div>
     <p class="soundIntro" style="margin-top:14px">Ny överraskning varje dag. Först till kvarn — bara en ombord kan ta poängen. Gör upp ärligt vem som förtjänar den!</p>
-    ${cookHtml}${dishHtml}${roleHtml}`;
+    ${cookHtml}${coffeeHtml}${dishHtml}${roleHtml}`;
   const sb=document.getElementById("surGo");
   if(sb)sb.onclick=()=>{addLog("surprise",ref,s.v,s.t);showToast("Överraskning tagen! +"+s.v+" p 🎁");render();};
   const cb=document.getElementById("cookGo");
   if(cb)cb.onclick=()=>{addLog("bonus",cookRef,COOK_PTS,"Lagat mat");showToast("Lagat mat! +"+COOK_PTS+" p 🍳");render();};
+  const cfb=document.getElementById("coffeeGo");
+  if(cfb)cfb.onclick=()=>{addLog("bonus",coffeeRef,COFFEE_PTS,"Kaffe kokat");showToast("Kaffe kokat! +"+COFFEE_PTS+" p ☕");render();};
   const db=document.getElementById("dishGo");
   if(db)db.onclick=()=>{addLog("bonus",dishRef,DISH_PTS,"Diskat");showToast("Diskat! +"+DISH_PTS+" p 🍽️");render();};
   const rb=document.getElementById("roleGo");
@@ -3409,6 +3434,18 @@ async function renderReport(){
       ${cookRanked.length>1?cookRanked.slice(tied.length).map(x=>`<div class="repRow" style="opacity:.7"><span>${x.s.emoji} ${escHtml(x.s.name)}</span><b>${x.n}</b></div>`).join(""):""}`;
     r.appendChild(cookC);
   }
+  const coffeeCount=sid=>logsFor(sid).filter(l=>l.kind==="bonus"&&l.ref.startsWith("coffee:")).length;
+  const coffeeRanked=[...mySailors()].map(s=>({s,n:coffeeCount(s.id)})).filter(x=>x.n>0).sort((a,b)=>b.n-a.n);
+  if(coffeeRanked.length){
+    const top=coffeeRanked[0];
+    const tied=coffeeRanked.filter(x=>x.n===top.n);
+    const champs=tied.map(x=>x.s.emoji+" "+escHtml(x.s.name)).join(" & ");
+    const coffeeC=document.createElement("div");coffeeC.className="repCard";
+    coffeeC.innerHTML=`<h3>☕👑 Kaffemästaren</h3>
+      <div class="repRow"><span>${champs}</span><b>${top.n} gång${top.n===1?"":"er"}</b></div>
+      ${coffeeRanked.length>1?coffeeRanked.slice(tied.length).map(x=>`<div class="repRow" style="opacity:.7"><span>${x.s.emoji} ${escHtml(x.s.name)}</span><b>${x.n}</b></div>`).join(""):""}`;
+    r.appendChild(coffeeC);
+  }
   const dishCount=sid=>logsFor(sid).filter(l=>l.kind==="bonus"&&l.ref.startsWith("dishes:")).length;
   const dishRanked=[...mySailors()].map(s=>({s,n:dishCount(s.id)})).filter(x=>x.n>0).sort((a,b)=>b.n-a.n);
   if(dishRanked.length){
@@ -3437,6 +3474,7 @@ async function renderReport(){
       <div class="repRow"><span>🕹️ Spelrumsdagar</span><b>${c("minigame")}</b></div>
       <div class="repRow"><span>🎁 Överraskningar vunna</span><b>${c("surprise")}</b></div>
       <div class="repRow"><span>🍳 Lagat mat</span><b>${cookCount(row.s.id)}</b></div>
+      <div class="repRow"><span>☕ Kaffe kokat</span><b>${coffeeCount(row.s.id)}</b></div>
       <div class="repRow"><span>🍽️ Diskat</span><b>${dishCount(row.s.id)}</b></div>
       <div class="repRow"><span>📓 Loggbok / 📸 foton</span><b>${myNotes.length} / ${myNotes.filter(x=>x.photo_url).length}</b></div>
       <div class="repRow"><span>💬 Chattmeddelanden</span><b>${myChat}</b></div>
