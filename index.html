@@ -219,6 +219,10 @@
   .surCard .pts{font-family:"Helvetica Neue",Arial,sans-serif;font-size:13px;font-weight:700;color:var(--buoy);}
   .surCard .claimed{font-family:"Helvetica Neue",Arial,sans-serif;font-size:14px;font-weight:700;
     color:var(--green);margin-top:12px;}
+  /* ---- Fiske & Handel ---- */
+  .fishBar{position:relative;height:34px;background:#dbe9ef;border-radius:10px;margin:12px 0;overflow:hidden;}
+  .fishZone{position:absolute;top:0;bottom:0;background:rgba(63,125,90,.35);border-left:2px solid #3f7d5a;border-right:2px solid #3f7d5a;}
+  .fishMarker{position:absolute;top:2px;bottom:2px;width:4px;background:#d8612e;border-radius:2px;transform:translateX(-50%);}
   /* ---- Arcade ---- */
   .arcMenu{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
   .arcBtn{background:var(--sand);color:var(--ink);border:none;border-radius:14px;padding:16px 10px;
@@ -529,6 +533,10 @@
   </div>
   <div id="kaptenView" class="sounds" style="display:none">
     <div id="kaptenBox"></div>
+  </div>
+  <div id="traderView" class="sounds" style="display:none">
+    <div class="catChips" id="traderChips"></div>
+    <div id="traderBox"></div>
   </div>
   <div id="navView" class="sounds" style="display:none">
     <p class="soundIntro">Navigationsskolan — hitta er position utan GPS. Sex lektioner med övningar ombord: gör övningen på riktigt, bocka av med en kompis som vittne (+2 p per lektion). Fungerar offline.</p>
@@ -924,6 +932,117 @@ async function assignRole(roleKey,sailorId){
     b.roles=roles;showToast("Roll uppdaterad! ⚓");render();
   }catch(e){showToast("Kunde inte spara — kolla nätet");}
 }
+// ================= SKÄRGÅRDSHANDLAREN (fiske & handel) =================
+const FISH_SPECIES=[
+  {k:"strömming",n:"Strömming",em:"🐟",base:3,minRod:0,w:30},
+  {k:"abborre",n:"Abborre",em:"🐠",base:5,minRod:0,w:24},
+  {k:"gädda",n:"Gädda",em:"🐡",base:8,minRod:1,w:14},
+  {k:"torsk",n:"Torsk",em:"🐟",base:12,minRod:2,w:8},
+  {k:"lax",n:"Lax",em:"🍣",base:22,minRod:2,w:4,rare:true},
+];
+const GATHER_ITEMS=[
+  {k:"blåmusslor",n:"Blåmusslor",em:"🦪",base:2,w:40,minRod:0},
+  {k:"bär",n:"Bär",em:"🫐",base:2,w:32,minRod:0},
+  {k:"kräftor",n:"Kräftor",em:"🦞",base:6,w:14,minRod:0},
+];
+const ROD_NAMES=["Enkelt spö","Bättre spö","Kolfiberspö","Proffsspöet"];
+const ROD_COSTS=[0,40,120,300];
+const FUEL_PRICE=8,FUEL_PACK=5;
+const FRIDGE_COST=150,SAILS_COST=200,NET_COST=100;
+const NET_RATE=1,NET_CAP_HOURS=24;
+const FISH_SESSION_MS=60000,FISH_SAILS_BONUS_MS=25000,FISH_STRIKE_PERIOD_MS=1400;
+const FISH_PTS=3;
+function defaultWorkshop(){return{kronor:0,fuel:0,rodLevel:0,fridge:false,sails:false,net:false,netAt:null,catch:[]};}
+function myWorkshop(){const b=myBoat();return Object.assign(defaultWorkshop(),(b&&b.workshop)||{},{catch:(b&&b.workshop&&b.workshop.catch)||[]});}
+async function saveWorkshop(ws){
+  const b=myBoat();if(!b)return;
+  b.workshop=ws;
+  if(LOCAL_MODE){localStorage.setItem("ss_boats",JSON.stringify(BOATS));return;}
+  try{const{error}=await SB.from("boats").update({workshop:ws}).eq("id",b.id);if(error)throw error;}
+  catch(e){showToast("Kunde inte spara — kolla nätet");}
+}
+function dailyPriceMult(key){
+  const idx=[...today()+key].reduce((a,c)=>a+c.charCodeAt(0),0);
+  return Math.round((0.7+(idx%9)*0.1)*100)/100;
+}
+function sellPrice(k){
+  const pool=FISH_SPECIES.find(s=>s.k===k)||GATHER_ITEMS.find(s=>s.k===k);
+  return pool?Math.round(pool.base*dailyPriceMult(k)):0;
+}
+function addCatch(ws,k){
+  const d=today();
+  const e=ws.catch.find(c=>c.k===k&&c.day===d);
+  if(e)e.qty++;else ws.catch.push({k,qty:1,day:d});
+}
+function applySpoilage(ws){
+  if(ws.fridge)return false;
+  const d=today();
+  const before=ws.catch.length;
+  ws.catch=ws.catch.filter(c=>c.day===d);
+  return ws.catch.length<before;
+}
+function catchTotalValue(ws){return ws.catch.reduce((s,c)=>s+sellPrice(c.k)*c.qty,0);}
+function catchTotalQty(ws){return ws.catch.reduce((s,c)=>s+c.qty,0);}
+function rollSpecies(pool,rodLevel){
+  const avail=pool.filter(s=>s.minRod<=rodLevel);
+  const total=avail.reduce((s,x)=>s+x.w,0);
+  let r=Math.random()*total;
+  for(const s of avail){r-=s.w;if(r<=0)return s;}
+  return avail[avail.length-1];
+}
+function castPosition(startTs,nowTs,periodMs){
+  const t=((nowTs-startTs)%periodMs+periodMs)%periodMs/periodMs;
+  return (t<0.5?t*2:2-t*2)*100;
+}
+function strikeZoneWidth(rodLevel){return Math.min(75,30+rodLevel*15);}
+function resolveCast(pos,zoneWidth){
+  const zoneStart=(100-zoneWidth)/2,zoneEnd=zoneStart+zoneWidth;
+  if(pos<zoneStart||pos>zoneEnd)return{hit:false};
+  const center=50,dist=Math.abs(pos-center),perfect=dist<zoneWidth*0.2;
+  return{hit:true,perfect};
+}
+function netAccrued(ws){
+  if(!ws.net||!ws.netAt)return 0;
+  const hrs=Math.min(NET_CAP_HOURS,(Date.now()-new Date(ws.netAt).getTime())/3600000);
+  return Math.max(0,Math.floor(hrs*NET_RATE));
+}
+async function buyFuel(){
+  const ws=myWorkshop(),cost=FUEL_PRICE*FUEL_PACK;
+  if(ws.kronor<cost)return false;
+  ws.kronor-=cost;ws.fuel+=FUEL_PACK;await saveWorkshop(ws);return true;
+}
+async function buyRodUpgrade(){
+  const ws=myWorkshop(),next=ws.rodLevel+1;
+  if(next>=ROD_COSTS.length)return false;
+  const cost=ROD_COSTS[next];
+  if(ws.kronor<cost)return false;
+  ws.kronor-=cost;ws.rodLevel=next;await saveWorkshop(ws);return true;
+}
+async function buyFridge(){
+  const ws=myWorkshop();
+  if(ws.fridge||ws.kronor<FRIDGE_COST)return false;
+  ws.kronor-=FRIDGE_COST;ws.fridge=true;await saveWorkshop(ws);return true;
+}
+async function buySails(){
+  const ws=myWorkshop();
+  if(ws.sails||ws.kronor<SAILS_COST)return false;
+  ws.kronor-=SAILS_COST;ws.sails=true;await saveWorkshop(ws);return true;
+}
+async function buyNet(){
+  const ws=myWorkshop();
+  if(ws.net||ws.kronor<NET_COST)return false;
+  ws.kronor-=NET_COST;ws.net=true;ws.netAt=new Date().toISOString();await saveWorkshop(ws);return true;
+}
+async function collectNet(){
+  const ws=myWorkshop(),acc=netAccrued(ws);
+  if(acc<=0)return 0;
+  ws.kronor+=acc;ws.netAt=new Date().toISOString();await saveWorkshop(ws);return acc;
+}
+async function sellCatch(){
+  const ws=myWorkshop(),total=catchTotalValue(ws);
+  if(!total)return 0;
+  ws.kronor+=total;ws.catch=[];await saveWorkshop(ws);return total;
+}
 const EMOJIS=["⛵","🦅","🐟","🦭","🌊","⚓","🧭","🏴‍☠️","🦞","🐚"];
 const POPQUIZ=[
   {q:"Nordmärkets topptecken?",a:["Två koner, spetsarna uppåt","Två koner, spetsarna nedåt","Två svarta klot"],c:0,e:"Nord: båda spetsarna uppåt, svart över gult. Passera NORR om märket."},
@@ -1222,6 +1341,201 @@ async function saveBoatDetails(boatEmoji){
     setRoute(route,startHarbor);refreshWhoAmI();showToast("Båtuppgifter sparade! ⚓");render();
   }catch(e){err.textContent="Kunde inte spara — kolla nätet och försök igen.";}
 }
+let traderTab="fiske";
+function renderTrader(){
+  const chipsEl=document.getElementById("traderChips");chipsEl.innerHTML="";
+  [["fiske","🎣 Fiske"],["samla","🦪 Samla"],["marknad","🏪 Marknad"],["verkstad","⚓ Verkstad"]].forEach(([k,label])=>{
+    const c=document.createElement("div");c.className="chip"+(k===traderTab?" active":"");
+    c.textContent=label;c.onclick=()=>{traderTab=k;renderTrader();};
+    chipsEl.appendChild(c);
+  });
+  const ws=myWorkshop();
+  const box=document.getElementById("traderBox");
+  const header=`<div class="cpCard" style="display:flex;justify-content:space-between;align-items:center;font-weight:700">
+    <div>💰 ${ws.kronor} kr</div><div>⛽ ${ws.fuel}</div></div>`;
+  if(traderTab==="fiske")renderTraderFiske(box,header,ws);
+  else if(traderTab==="samla")renderTraderSamla(box,header,ws);
+  else if(traderTab==="marknad")renderTraderMarknad(box,header,ws);
+  else renderTraderVerkstad(box,header,ws);
+}
+let fishSession=null;
+function stopFishSession(){
+  if(fishSession){
+    if(fishSession.biteTimer)clearTimeout(fishSession.biteTimer);
+    if(fishSession.tickTimer)clearInterval(fishSession.tickTimer);
+  }
+  fishSession=null;
+}
+function startFishSession(sails){
+  stopFishSession();
+  fishSession={endsAt:Date.now()+FISH_SESSION_MS+(sails?FISH_SAILS_BONUS_MS:0),phase:"idle",
+    casts:0,caught:0,biteTimer:null,tickTimer:null,strikeStartTs:0};
+  fishSession.tickTimer=setInterval(()=>{
+    if(!fishSession)return;
+    if(Date.now()>=fishSession.endsAt){endFishSession();return;}
+    if(current==="trader"&&traderTab==="fiske")renderTrader();
+  },120);
+}
+function endFishSession(){
+  const summary=fishSession?{casts:fishSession.casts,caught:fishSession.caught}:null;
+  stopFishSession();
+  if(current==="trader"&&traderTab==="fiske")renderTrader();
+  if(summary)showToast(`Fisketuren är slut — ${summary.caught} fångster på ${summary.casts} kast! 🎣`);
+}
+function castLine(){
+  if(!fishSession||fishSession.phase!=="idle")return;
+  fishSession.phase="waiting";renderTrader();
+  fishSession.biteTimer=setTimeout(()=>{
+    if(!fishSession)return;
+    fishSession.phase="strike";fishSession.strikeStartTs=Date.now();
+    renderTrader();
+  },700+Math.random()*1100);
+}
+async function reelIn(){
+  if(!fishSession||fishSession.phase!=="strike")return;
+  const ws=myWorkshop();
+  const pos=castPosition(fishSession.strikeStartTs,Date.now(),FISH_STRIKE_PERIOD_MS);
+  const res=resolveCast(pos,strikeZoneWidth(ws.rodLevel));
+  fishSession.casts++;fishSession.phase="idle";
+  if(res.hit){
+    const species=rollSpecies(FISH_SPECIES,ws.rodLevel);
+    addCatch(ws,species.k);fishSession.caught++;
+    await saveWorkshop(ws);
+    if(species.rare&&me&&!hasLog(me.id,"bonus","fish:"+today())){
+      addLog("bonus","fish:"+today(),FISH_PTS,"Storfångst: "+species.n);
+      confetti(30);showToast(`Storfångst! ${species.em} ${species.n} — +${FISH_PTS} p! 🎉`);
+    }else{
+      showToast(`${res.perfect?"Perfekt kast! ":""}${species.em} ${species.n} fångad!`);
+    }
+  }else{
+    showToast("Napp men den kom loss… 🎣💨");
+  }
+  renderTrader();
+}
+function renderTraderFiske(box,header,ws){
+  if(!fishSession){
+    box.innerHTML=header+`<p class="soundIntro">Fiska efter strömming, abborre, gädda, torsk — och den sällsynta laxen. Varje fisketur kostar 1 bensin och pågår en stund.</p>
+      <div class="surCard">
+        <div class="em">🎣</div>
+        <div class="pts">SPÖ: ${ROD_NAMES[ws.rodLevel].toUpperCase()}</div>
+        <div class="big">${ws.fuel>0?"Redo att kasta ut?":"Ingen bensin kvar — köp mer i Verkstaden, eller sälj lite fångst från Samla."}</div>
+        ${ws.fuel>0?`<button class="goBtn" id="fishStart">Starta fisketur (−1 ⛽)</button>`:`<button class="cpBtn" id="fishToWorkshop">⚓ Till Verkstaden</button>`}
+      </div>`;
+    const sb=document.getElementById("fishStart");
+    if(sb)sb.onclick=async()=>{
+      const ws2=myWorkshop();if(ws2.fuel<=0)return;
+      ws2.fuel--;await saveWorkshop(ws2);
+      startFishSession(ws2.sails);renderTrader();
+    };
+    const wb=document.getElementById("fishToWorkshop");
+    if(wb)wb.onclick=()=>{traderTab="verkstad";renderTrader();};
+    return;
+  }
+  const remainS=Math.max(0,Math.ceil((fishSession.endsAt-Date.now())/1000));
+  let phaseHtml;
+  if(fishSession.phase==="waiting"){
+    phaseHtml=`<div class="big">Väntar på napp…</div>`;
+  }else if(fishSession.phase==="strike"){
+    const zw=strikeZoneWidth(ws.rodLevel),pos=castPosition(fishSession.strikeStartTs,Date.now(),FISH_STRIKE_PERIOD_MS);
+    phaseHtml=`<div class="big">Nu! Tryck när markören är i den gröna zonen.</div>
+      <div class="fishBar"><div class="fishZone" style="left:${(100-zw)/2}%;width:${zw}%"></div><div class="fishMarker" id="fishMarker" style="left:${pos}%"></div></div>
+      <button class="goBtn" id="fishReel">Dra upp! 🎣</button>`;
+  }else{
+    phaseHtml=`<div class="big">Redo — kasta ut igen!</div><button class="goBtn" id="fishCast">Kasta ut</button>`;
+  }
+  box.innerHTML=header+`<div class="surCard">
+    <div class="em">🎣</div>
+    <div class="pts">FISKETUR PÅGÅR · ${remainS}s kvar</div>
+    ${phaseHtml}
+    <div class="d" style="margin-top:10px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px">Denna tur: ${fishSession.casts} kast, ${fishSession.caught} fångster</div>
+  </div>`;
+  const cb=document.getElementById("fishCast");if(cb)cb.onclick=castLine;
+  const rb=document.getElementById("fishReel");if(rb)rb.onclick=reelIn;
+}
+let gatherBusy=false;
+function renderTraderSamla(box,header){
+  box.innerHTML=header+`<p class="soundIntro">Leta längs stranden efter blåmusslor, bär och kräftor — gratis, ingen bensin behövs.</p>
+    <div class="surCard">
+      <div class="em">🦪</div>
+      <div class="pts">STRANDLETANDE</div>
+      <div class="big">${gatherBusy?"Letar…":"Redo att leta vid stranden?"}</div>
+      <button class="goBtn" id="samlaGo" ${gatherBusy?"disabled":""}>${gatherBusy?"Letar…":"Leta vid stranden"}</button>
+    </div>`;
+  const gb=document.getElementById("samlaGo");
+  if(gb)gb.onclick=async()=>{
+    if(gatherBusy)return;
+    gatherBusy=true;renderTrader();
+    await new Promise(r=>setTimeout(r,900+Math.random()*700));
+    gatherBusy=false;
+    if(current!=="trader"||traderTab!=="samla")return;
+    if(Math.random()<0.8){
+      const ws2=myWorkshop();
+      const item=rollSpecies(GATHER_ITEMS,99);
+      addCatch(ws2,item.k);await saveWorkshop(ws2);
+      showToast(`${item.em} ${item.n} hittad!`);
+    }else{
+      showToast("Inget att hitta just nu — försök igen.");
+    }
+    renderTrader();
+  };
+}
+function renderTraderMarknad(box,header,ws){
+  const spoiled=applySpoilage(ws);
+  if(spoiled){saveWorkshop(ws);showToast("Fångst utan kylskåp blev dålig och kastades. 🗑️");}
+  const rows=ws.catch.map(c=>{
+    const pool=FISH_SPECIES.find(s=>s.k===c.k)||GATHER_ITEMS.find(s=>s.k===c.k);
+    const price=sellPrice(c.k);
+    return `<div class="row"><span>${pool?pool.em:"❔"} ${pool?pool.n:c.k} ×${c.qty}</span><span class="pts">${price*c.qty} kr</span></div>`;
+  }).join("")||`<p class="soundIntro">Ingen fångst att sälja än — gå och fiska eller samla!</p>`;
+  const total=catchTotalValue(ws);
+  box.innerHTML=header+`<p class="soundIntro">Dagens priser växlar varje dag${ws.fridge?"":" — osåld fångst blir dålig till nästa dag om ni inte har ett kylskåp"}.</p>
+    <div class="termgrp">Din fångst</div>
+    <div class="cpCard">${rows}</div>
+    ${total>0?`<button class="goBtn" id="sellAllBtn">Sälj allt (+${total} kr)</button>`:""}`;
+  const sb=document.getElementById("sellAllBtn");
+  if(sb)sb.onclick=async()=>{
+    const got=await sellCatch();
+    showToast(`Sålt fångsten för ${got} kr! 💰`);renderTrader();
+  };
+}
+function renderTraderVerkstad(box,header,ws){
+  const netAcc=netAccrued(ws);
+  box.innerHTML=header+`<p class="soundIntro">Köp bensin och båtförbättringar för pengarna ni tjänar på fiske och strandfynd.</p>
+    <div class="termgrp">⛽ Bensin</div>
+    <div class="cpCard"><div class="t">Just nu: ${ws.fuel} enheter</div>
+      <div class="d">1 enhet = en fisketur. ${FUEL_PACK} enheter kostar ${FUEL_PACK*FUEL_PRICE} kr.</div>
+      <button class="cpBtn" id="buyFuelBtn">Köp ${FUEL_PACK} bensin (${FUEL_PACK*FUEL_PRICE} kr)</button></div>
+    <div class="termgrp" style="margin-top:14px">🎣 Fiskespö</div>
+    <div class="cpCard"><div class="t">${ROD_NAMES[ws.rodLevel]}${ws.rodLevel>=ROD_NAMES.length-1?" (max)":""}</div>
+      <div class="d">Bredare zon = lättare kast, och låser upp finare fisk.</div>
+      ${ws.rodLevel<ROD_COSTS.length-1?`<button class="cpBtn" id="buyRodBtn">Uppgradera till ${ROD_NAMES[ws.rodLevel+1]} (${ROD_COSTS[ws.rodLevel+1]} kr)</button>`:""}</div>
+    <div class="termgrp" style="margin-top:14px">❄️ Kylskåp</div>
+    <div class="cpCard"><div class="t">${ws.fridge?"Installerat ✓":"Inte installerat"}</div>
+      <div class="d">Osåld fångst blir dålig över natten utan kylskåp.</div>
+      ${!ws.fridge?`<button class="cpBtn" id="buyFridgeBtn">Köp kylskåp (${FRIDGE_COST} kr)</button>`:""}</div>
+    <div class="termgrp" style="margin-top:14px">⛵ Bättre segel</div>
+    <div class="cpCard"><div class="t">${ws.sails?"Installerat ✓":"Inte installerat"}</div>
+      <div class="d">Längre fisketurer per bensin-enhet (+${Math.round(FISH_SAILS_BONUS_MS/1000)}s).</div>
+      ${!ws.sails?`<button class="cpBtn" id="buySailsBtn">Köp bättre segel (${SAILS_COST} kr)</button>`:""}</div>
+    <div class="termgrp" style="margin-top:14px">🕸️ Nät</div>
+    <div class="cpCard"><div class="t">${ws.net?"Utlagt — ger sakta pengar över tid":"Inte köpt"}</div>
+      ${ws.net?`<div class="d">Upplupet: ${netAcc} kr (max ${NET_CAP_HOURS*NET_RATE} kr).</div>
+        <button class="cpBtn" id="collectNetBtn" ${netAcc<=0?"disabled":""}>Töm nätet${netAcc>0?" (+"+netAcc+" kr)":""}</button>`
+        :`<div class="d">Ger ${NET_RATE} kr/timme automatiskt, även när ni inte spelar (upp till ${NET_CAP_HOURS}h).</div>
+        <button class="cpBtn" id="buyNetBtn">Köp nät (${NET_COST} kr)</button>`}</div>`;
+  const wire=(id,fn)=>{const el=document.getElementById(id);if(el)el.onclick=async()=>{
+    const ok=await fn();
+    if(ok===false)showToast("Inte tillräckligt med pengar. 💸");
+    renderTrader();
+  };};
+  wire("buyFuelBtn",buyFuel);
+  wire("buyRodBtn",buyRodUpgrade);
+  wire("buyFridgeBtn",buyFridge);
+  wire("buySailsBtn",buySails);
+  wire("buyNetBtn",buyNet);
+  const cnb=document.getElementById("collectNetBtn");
+  if(cnb)cnb.onclick=async()=>{const got=await collectNet();if(got>0)showToast(`Tömde nätet: +${got} kr! 🕸️`);renderTrader();};
+}
 function allLogs(){
   const del=new Set(queue.filter(q=>q.op==="delete").map(q=>q.client_id));
   const ins=queue.filter(q=>q.op==="insert").map(q=>q.row);
@@ -1423,6 +1737,7 @@ function newSailorForm(){
 function logout(){
   if(TRK.watch){navigator.geolocation.clearWatch(TRK.watch);TRK.watch=null;}
   TRK.follow=false;trkReleaseWake();
+  stopFishSession();
   me=null;localStorage.removeItem("ss_session");renderLogin();
 }
 function refreshWhoAmI(){
@@ -1443,7 +1758,7 @@ async function enterApp(){
 // ================= TABS & RENDER =================
 let current="board",curCat="vessels",moreOpen=false;
 const NAV_PRIMARY=[["board","🎲","Plan"],["spot","🔭","Spana"],["knots","🪢","Knopar"],["sur","🎁","Dagens"],["arcade","🕹️","Spel"]];
-const NAV_MORE=[["chat","💬","Skeppschatt"],["gallery","📸","Galleri"],["report","📜","Törnrapport"],["navskola","🧭","Navigationsskolan"],["recipes","🍳","Byssan"],["trivia","❓","Frågesport"],["sounds","🔊","Läten"],["playlist","🎵","Sjömansvisor"],["terms","⚓","Sjötermer"],["live","📡","Live AIS"],["places","🗺️","Seglandet 2026"],["kapten","⚙️","Kaptensrutan"]];
+const NAV_MORE=[["chat","💬","Skeppschatt"],["gallery","📸","Galleri"],["report","📜","Törnrapport"],["navskola","🧭","Navigationsskolan"],["recipes","🍳","Byssan"],["trivia","❓","Frågesport"],["sounds","🔊","Läten"],["playlist","🎵","Sjömansvisor"],["terms","⚓","Sjötermer"],["live","📡","Live AIS"],["places","🗺️","Seglandet 2026"],["kapten","⚙️","Kaptensrutan"],["trader","🎣","Fiske & Handel"]];
 const TABS=()=>NAV_PRIMARY.concat(NAV_MORE).map(([k,ic,l])=>[k,ic+" "+l]);
 const RANKS=[[0,"Jungman"],[30,"Lättmatros"],[60,"Matros"],[130,"Båtsman"],[220,"Styrman"],[320,"Skeppare"],[420,"Kommodor 🏆"]];
 function rankFor(p){let r=RANKS[0][1];RANKS.forEach(([t,n])=>{if(p>=t)r=n;});return r;}
@@ -1517,7 +1832,7 @@ function updateTop(){
   document.getElementById("xpInfo").textContent=t>=14?"Kommodor!":(LEG-into)+" p till nästa hamn";
   updateSync();
 }
-const VIEW_IDS=["boardView","gameView","liveView","soundView","playlistView","triviaView","termsView","knotsView","surView","arcadeView","placesView","chatView","recipesView","navView","galleryView","reportView","kaptenView"];
+const VIEW_IDS=["boardView","gameView","liveView","soundView","playlistView","triviaView","termsView","knotsView","surView","arcadeView","placesView","chatView","recipesView","navView","galleryView","reportView","kaptenView","traderView"];
 function render(){
   buildTabs();updateTop();
   if(current!=="arcade"){stopTet();stopSnake();}
@@ -1540,6 +1855,7 @@ function render(){
   if(current==="gallery"){show("galleryView");renderGallery();loadNotes().then(renderGallery);return;}
   if(current==="report"){show("reportView");renderReport();return;}
   if(current==="kapten"){show("kaptenView");renderKapten();return;}
+  if(current==="trader"){show("traderView");renderTrader();return;}
   show("gameView");renderSpotGrid();
 }
 function renderSpotGrid(){

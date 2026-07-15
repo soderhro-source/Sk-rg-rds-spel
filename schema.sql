@@ -9,6 +9,7 @@ create table if not exists boats (
   captain text,
   route jsonb not null default '[]'::jsonb,
   roles jsonb not null default '{}'::jsonb,
+  workshop jsonb not null default '{}'::jsonb,
   start_harbor text,
   end_harbor text,
   model text,
