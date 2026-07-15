@@ -169,7 +169,10 @@
   .field{margin-bottom:12px;}
   .field label{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10.5px;letter-spacing:.12em;
     text-transform:uppercase;color:#6c7c84;display:block;margin-bottom:5px;font-weight:700;}
-  .field input{width:100%;font-size:16px;padding:10px;border:2px solid #d9d2c4;border-radius:10px;font-family:inherit;}
+  .field input,.field select{width:100%;font-size:16px;padding:10px;border:2px solid #d9d2c4;border-radius:10px;font-family:inherit;background:#fff;}
+  .field .wizGrp{font-family:"Helvetica Neue",Arial,sans-serif;font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    color:#6c7c84;font-weight:700;margin:14px 0 6px;border-top:1px solid #d9d2c4;padding-top:10px;}
+  .field .wizHint{font-size:11.5px;opacity:.7;margin-top:4px;}
   .emojiRow{display:flex;gap:6px;flex-wrap:wrap;}
   .emojiRow button{font-size:22px;background:#fff;border:2px solid #d9d2c4;border-radius:10px;padding:6px 9px;cursor:pointer;transition:transform .1s;}
   .emojiRow button:active{transform:scale(.88);}
@@ -552,7 +555,57 @@
 <script src="config.js"></script>
 <script>
 // ================= DATA =================
-const BOAT={model:"Degerö 33",name:"Sun-Day",loa:"9,81 m (33 fot)",mast:"15 m",draft:"1,5 m",beam:"3,52 m",weight:"5 200 kg"};
+const BOAT_MODEL_POOL=["Degerö 33","Nauticat 33","Swan 36","Hallberg-Rassy 342","Najad 331","Bavaria 34 Cruiser","Elan 333","X-352"];
+const BOAT_LOA_POOL=["8,50 m (28 fot)","9,81 m (33 fot)","10,50 m (35 fot)","11,20 m (37 fot)"];
+const BOAT_BEAM_POOL=["2,98 m","3,20 m","3,52 m","3,80 m","4,10 m"];
+const BOAT_DRAFT_POOL=["1,0 m","1,2 m","1,5 m","1,8 m","2,0 m"];
+const BOAT_MAST_POOL=["12 m","14 m","15 m","16 m","18 m"];
+const BOAT_WEIGHT_POOL=["3 200 kg","4 000 kg","5 200 kg","6 500 kg","7 500 kg"];
+const BOAT_RIG_POOL=["Slup (en mast)","Ketch (två master)","Yawl","Kutter (en mast, två förs.)"];
+function myBoatSpecs(){
+  const b=myBoat();
+  return{name:b?b.name:"er båt",model:b&&b.model||null,loa:b&&b.loa||null,beam:b&&b.beam||null,
+    draft:b&&b.draft||null,mast:b&&b.mast||null,weight:b&&b.weight||null,rig:b&&b.rig||null};
+}
+function pickDistractors(pool,correct,n){return shuffle(pool.filter(x=>x!==correct)).slice(0,n);}
+function mcQuestion(q,correct,distractors,e){const opts=shuffle([correct,...distractors]);return{q,a:opts,c:opts.indexOf(correct),e};}
+function boatSpecQuestions(prefix){
+  const bs=myBoatSpecs(),name=bs.name,qs=[];
+  if(bs.model)qs.push(mcQuestion(`${prefix}Vilken modell är ${name}?`,bs.model,pickDistractors(BOAT_MODEL_POOL,bs.model,2),`${bs.model} — ${name}s modell.`));
+  if(bs.draft)qs.push(mcQuestion(`${prefix}Hur djupt sticker ${name}?`,bs.draft,pickDistractors(BOAT_DRAFT_POOL,bs.draft,2),`Djupgående ${bs.draft}. Lägg alltid på marginal vid grynnor och naturhamnar.`));
+  if(bs.mast)qs.push(mcQuestion(`${prefix}Hur hög är ${name}s mast?`,bs.mast,pickDistractors(BOAT_MAST_POOL,bs.mast,2),`Mast ${bs.mast} — kolla alltid segelfri höjd på broar och kraftledningar.`));
+  if(bs.beam)qs.push(mcQuestion(`${prefix}Hur bred är ${name}?`,bs.beam,pickDistractors(BOAT_BEAM_POOL,bs.beam,2),`Bredd ${bs.beam} — bra att veta vid trång boxplats i gästhamn.`));
+  if(bs.weight)qs.push(mcQuestion(`${prefix}Vad väger ${name}?`,bs.weight,pickDistractors(BOAT_WEIGHT_POOL,bs.weight,2),`Deplacement ${bs.weight} — påverkar hur lång tid det tar att stanna.`));
+  if(bs.rig)qs.push(mcQuestion(`${prefix}Vilken riggtyp är ${name}?`,bs.rig,pickDistractors(BOAT_RIG_POOL,bs.rig,2),`${bs.rig}.`));
+  return qs;
+}
+function allPopQuiz(){return POPQUIZ.concat(boatSpecQuestions(""));}
+function allQuiz(){return QUIZ.concat(boatSpecQuestions("OM BÅTEN: "));}
+const BOAT_SPEC_FIELDS=[["Model","Modell",BOAT_MODEL_POOL],["Loa","Längd",BOAT_LOA_POOL],["Beam","Bredd",BOAT_BEAM_POOL],
+  ["Draft","Djupgående",BOAT_DRAFT_POOL],["Mast","Masthöjd",BOAT_MAST_POOL],["Weight","Vikt",BOAT_WEIGHT_POOL],["Rig","Riggtyp",BOAT_RIG_POOL]];
+function specFieldHtml(id,label,pool){
+  const opts=pool.map(v=>`<option value="${escHtml(v)}">${escHtml(v)}</option>`).join("");
+  return `<label style="margin-top:8px;display:block">${label}</label>
+    <select id="ns${id}"><option value="">— välj —</option>${opts}<option value="__other__">Annat (skriv själv)</option></select>
+    <input id="ns${id}Other" style="display:none;margin-top:4px" placeholder="Skriv ${label.toLowerCase()}">`;
+}
+function wireSpecField(id){
+  const sel=document.getElementById("ns"+id),other=document.getElementById("ns"+id+"Other");
+  sel.onchange=()=>{other.style.display=sel.value==="__other__"?"block":"none";};
+}
+function specFieldValue(id){
+  const sel=document.getElementById("ns"+id),other=document.getElementById("ns"+id+"Other");
+  return sel.value==="__other__"?other.value.trim():sel.value;
+}
+function harborSelectHtml(id,mode){
+  const names=allHarborNames();
+  if(mode==="start"){
+    const rest=names.map(n=>`<option value="${escHtml(n)}">${escHtml(n)}</option>`).join("");
+    return `<select id="${id}"><option value="HELSINGFORS">Helsingfors (Katajanokka)</option>${rest}</select>`;
+  }
+  const rest=names.filter(n=>n!=="Nådendal (Naantali)").map(n=>`<option value="${escHtml(n)}">${escHtml(n)}</option>`).join("");
+  return `<select id="${id}"><option value="NÅDENDAL">Nådendal (Naantali) — Målgång!</option>${rest}</select>`;
+}
 const GAMES = {
   vessels:{label:"Fartyg",items:[
     {n:"Bilfärja",fi:"Autolautta",tip:"Viking/Silja korsar rutten dagligen.",v:1},
@@ -682,9 +735,6 @@ const QUIZ=[
   {q:"Vilken stad är den traditionella start-/slutpunkten för Skärgårdens ringväg?",a:["Helsingfors","Åbo","Mariehamn"],c:1,e:"Åbo räknas som ringvägens utgångspunkt genom Pargas, Nagu, Korpo m.fl."},
   {q:"Storskarven sprider ofta ut vingarna sittande. Varför?",a:["För att skrämmas","För att torka fjädrarna","För att kyla sig"],c:1,e:"Skarvens fjädrar är inte helt vattentäta, så den torkar dem efter dyk."},
   {q:"Vilket är ett klassiskt finländskt sommarljud bland kobbarna om våren?",a:["Ejderhanens 'a-ooh-e'","Påfågelns skrik","Göktytans hammrande"],c:0,e:"Ejderhanens mjuka, nästan förvånade kuttrande hörs vida kring häckkobbarna."},
-  {q:"OM BÅTEN: Vilken modell är Sun-Day?",a:["Degerö 33","Nauticat 33","Swan 36"],c:0,e:"Degerö 33 — finländsk långfärdsbåt, 9,81 m lång, 3,52 m bred, 5 200 kg."},
-  {q:"OM BÅTEN: Hur djupt sticker Sun-Day — viktigt vid grynnor och naturhamnar?",a:["1,0 m","1,5 m","2,2 m"],c:1,e:"Djupgående 1,5 m. Lägg på marginal — sjökortens djup är inga löften."},
-  {q:"OM BÅTEN: Hur hög är Sun-Days mast — tänk broar och luftledningar?",a:["12 m","15 m","18 m"],c:1,e:"15 m mast. Kolla alltid segelfri höjd på broar och kraftledningar i farleden."},
   {q:"SVÅR: Vid cirka 90° mot vinden seglar man på vilken bog?",a:["Bidevind","Halvvind","Läns"],c:1,e:"Halvvind (beam reach) — vinden rakt in från sidan, ofta den snabbaste och bekvämaste bogen."},
   {q:"SVÅR: Att vända fören genom vindögat kallas?",a:["Gipp","Stagvändning","Kullsegling"],c:1,e:"Stagvändning (tack) — fören går genom vinden. Gipp (gippning) är när aktern går genom vinden."},
   {q:"SVÅR: 'Bidevind' (close-hauled) innebär ungefär vilken vinkel mot vinden?",a:["Cirka 45°","Cirka 90°","Cirka 135°"],c:0,e:"Omkring 45° — så nära vinden som seglet kan ge lyftkraft. Närmare än så hamnar man i no-go-zonen."},
@@ -772,6 +822,10 @@ const EXTRA_HARBORS=[
   {n:"Åbo gästhamn (Aura å)",t:"Stadshamn",fee:"ca 35 €/natt",svc:"⚡💧🚿 · ☕ NOOA Café · 🛒 mitt i stan · restaurangstråk längs ån",note:"Segla rakt in i Åbos hjärta längs Aura å — närmast urban skärgård man kan komma.",lat:60.4400,lng:22.2467},
   {n:"Vepsä",t:"Utflyktsö",fee:"ca 15 €/natt",svc:"🏖️ badstrand · ☕ kiosk/café · 🧖 hyrbastu · 🛶 kanoter",note:"Åbo stads friluftsö mitt på Airisto — gammalt smugglarnäste, numera familjefavorit.",lat:60.3750,lng:22.0708},
 ];
+function allHarborNames(){
+  const names=[...PLACES,...ALT_HARBORS,...EXTRA_HARBORS].map(p=>p.n);
+  return[...new Set(names)].sort((a,b)=>a.localeCompare(b,"sv"));
+}
 const HARBOR_CH={
   "Barösund":{t:"Första natten",d:"Måndagsnattens hamn för Martin & Patrik. Säkra förtöjningen för natten, logga positionen i skeppschatten och fira första etappen med solnedgångsfika."},
   "Hangö":{t:"Mönstring!",d:"Bilgänget (Roope, Tiina, Pernilla) kliver ombord hos Patrik & Martin — hela besättningen samlad. Fira med gemensam skål eller fika!"},
@@ -789,10 +843,10 @@ const HARBOR_CH={
   "NÅDENDAL":{t:"Målgång!",d:"I mål i Nådendal! Gamla stan vid vattnet, Muminvärlden och en skål för hela törnen. 🍾"},
 };
 let CHALLENGES=ROUTE.map(n=>HARBOR_CH[n]);
-function setRoute(r){
+function setRoute(r,startHarbor){
   if(!Array.isArray(r)||r.length!==14)return;
   ROUTE=[...r];
-  TILE_SHORT=["HELSINGFORS",...ROUTE];
+  TILE_SHORT=[startHarbor||"HELSINGFORS",...ROUTE];
   CHALLENGES=ROUTE.map(n=>HARBOR_CH[n]||{t:"Hamnstopp",d:"Utforska "+n+" tillsammans — kaptenens specialstopp."});
 }
 let SETTINGS={captain:"Martin"};
@@ -876,11 +930,6 @@ const POPQUIZ=[
   {q:"Svart boj med röda band och två svarta klot i toppen betyder?",a:["Punktfara — håll avstånd runt om","Mittled — passera valfri sida","Fiskeförbud"],c:0,e:"Punktfaremärke (isolated danger) — fara precis vid märket, passera med god marginal."},
   {q:"Röd-vit vertikalrandig boj med klot i toppen?",a:["Mittledsmärke — fritt vatten runt om","Kardinalmärke","Förtöjningsboj"],c:0,e:"Säkert vatten-märke (mittled) — kan passeras på båda sidor, ofta i angöringen."},
   {q:"En gul boj utan topptecken markerar oftast?",a:["Specialområde (kabel, mätning, badzon)","Djupaste rännan","Gästhamn"],c:0,e:"Gula specialmärken varnar för kablar, mätinstrument, badområden m.m. — inte navigationsled."},
-  {q:"Hur djupt sticker Sun-Day?",a:["1,2 m","1,5 m","2,0 m"],c:1,e:"1,5 m djupgående. Lägg alltid på marginal vid grynnor och i naturhamnar."},
-  {q:"Sun-Days mast är 15 m — vad måste ni kolla i farleder?",a:["Segelfri höjd på broar och ledningar","Vattentemperaturen","Strömriktningen"],c:0,e:"Segelfri höjd! Broar och luftledningar anges i sjökortet — 15 m mast kräver koll."},
-  {q:"Hur bred är Sun-Day?",a:["2,98 m","3,52 m","4,10 m"],c:1,e:"3,52 m bredd — bra att veta när ni bokar trång boxplats i gästhamn."},
-  {q:"Vad väger Sun-Day?",a:["3 200 kg","5 200 kg","7 500 kg"],c:1,e:"5 200 kg deplacement — därför tar det tid att stanna. Tänk på det vid tilläggning."},
-  {q:"Vilken riggtyp är Sun-Day?",a:["Ketch (två master)","Slup (en mast)","Yawl"],c:1,e:"Slup — en mast med storsegel och försegel. Degerö 33 är en finländsk långfärdsklassiker."},
   {q:"Ett långt ljudsignal från fartyg i dimma betyder?",a:["Maskindrivet fartyg som gör fart","Man överbord","Jag ankrar"],c:0,e:"Ett långt (4–6 s) varannan minut = maskindrivet fartyg på väg. Lyssna i tjocka!"},
   {q:"Två korta ljudstötar från ett fartyg betyder?",a:["Jag girar styrbord","Jag girar babord","Jag backar"],c:1,e:"En kort = styrbord, två korta = babord, tre korta = jag backar."},
   {q:"Grönt ljus ser du på ett mötande fartyg om natten — vilken sida ser du?",a:["Dess styrbordssida","Dess babordssida","Aktern"],c:0,e:"Grön lanterna = styrbord. Ser du grönt+rött samtidigt är fartyget på väg RAKT mot er."},
@@ -954,7 +1003,7 @@ async function loadSettings(){
 }
 function applyMyBoatRoute(){
   const b=myBoat();
-  setRoute((b&&Array.isArray(b.route)&&b.route.length===14)?b.route:DEFAULT_ROUTE);
+  setRoute((b&&Array.isArray(b.route)&&b.route.length===14)?b.route:DEFAULT_ROUTE,b&&b.start_harbor);
   SETTINGS.captain=b?(b.captain||""):"";
 }
 async function saveRoute(){
@@ -1182,6 +1231,12 @@ function newSailorForm(){
     <div class="field" id="nsNewBoatFields" style="display:none">
       <label>Nya båtens namn</label><input id="nsBoatName" maxlength="24" placeholder="t.ex. Vänbåten">
       <label style="margin-top:8px;display:block">Båtens symbol</label><div class="emojiRow" id="nsBoatEm"></div>
+      <div class="wizGrp">Törnen — start &amp; mål</div>
+      <label>Starthamn</label>${harborSelectHtml("nsStartHarbor","start")}
+      <label style="margin-top:8px;display:block">Målhamn</label>${harborSelectHtml("nsEndHarbor","end")}
+      <div class="wizHint">Mellanstoppen sätts till standardrutten — byt dem senare i Planeringsläge 🧭 om ni vill.</div>
+      <div class="wizGrp">Om båten <span style="text-transform:none;font-weight:400">(valfritt — används i Sjötermer &amp; Frågesport)</span></div>
+      ${BOAT_SPEC_FIELDS.map(([id,label,pool])=>specFieldHtml(id,label,pool)).join("")}
     </div>
     <div class="field"><label>Välj en PIN (4 siffror)</label><input id="nsPin" inputmode="numeric" maxlength="4" placeholder="1234"></div>
     <button class="goBtn" id="nsGo">Mönstra på ⛵</button><div class="errMsg" id="nsErr"></div></div>`;
@@ -1208,6 +1263,7 @@ function newSailorForm(){
   boatButtons.forEach(b=>b.onclick=()=>{boatId=b.dataset.boat;creatingBoat=false;markBoatSel();});
   document.getElementById("nsNewBoatBtn").onclick=()=>{creatingBoat=true;markBoatSel();};
   markBoatSel();
+  BOAT_SPEC_FIELDS.forEach(([id])=>wireSpecField(id));
   document.getElementById("nsGo").onclick=async()=>{
     const name=document.getElementById("nsName").value.trim();
     const pin=document.getElementById("nsPin").value.trim();
@@ -1221,17 +1277,28 @@ function newSailorForm(){
       if(!newBoatName){err.textContent="Skriv ett namn på båten.";return;}
       if(BOATS.some(b=>b.name.toLowerCase()===newBoatName.toLowerCase())){err.textContent="Den båten finns redan — välj den i listan ovan.";return;}
     }else if(!useBoatId){err.textContent="Välj eller skapa en båt.";return;}
+    let newBoatFields=null;
+    if(creatingBoat){
+      const startHarbor=document.getElementById("nsStartHarbor").value;
+      const endHarbor=document.getElementById("nsEndHarbor").value;
+      const route=[...DEFAULT_ROUTE.slice(0,13),endHarbor];
+      newBoatFields={start_harbor:startHarbor,end_harbor:endHarbor,route};
+      BOAT_SPEC_FIELDS.forEach(([id])=>{
+        const key=id.toLowerCase();
+        newBoatFields[key]=specFieldValue(id)||null;
+      });
+    }
     const pin_hash=await sha256(pin);
     if(LOCAL_MODE){
       if(creatingBoat){
-        const nb={id:"local-"+uuid(),name:newBoatName,emoji:boatEmoji,captain:name,route:[...DEFAULT_ROUTE]};
+        const nb={id:"local-"+uuid(),name:newBoatName,emoji:boatEmoji,captain:name,...newBoatFields};
         BOATS.push(nb);useBoatId=nb.id;localStorage.setItem("ss_boats",JSON.stringify(BOATS));
       }
       const s={id:uuid(),name,emoji,pin_hash,boat_id:useBoatId};sailors.push(s);saveLocalSailors();
       me={id:s.id,name,emoji,boat_id:useBoatId};localStorage.setItem("ss_session",JSON.stringify(me));enterApp();
     }else{
       if(creatingBoat){
-        const{data:nb,error:be}=await SB.from("boats").insert({name:newBoatName,emoji:boatEmoji,captain:name,route:DEFAULT_ROUTE}).select().single();
+        const{data:nb,error:be}=await SB.from("boats").insert({name:newBoatName,emoji:boatEmoji,captain:name,...newBoatFields}).select().single();
         if(be){err.textContent="Kunde inte skapa båten — kolla nätet och försök igen.";return;}
         BOATS.push(nb);useBoatId=nb.id;
       }
@@ -1529,7 +1596,7 @@ function renderBoard(){
     const ocrew=sailors.filter(s=>s.boat_id===x.id);
     const on=Math.max(1,ocrew.length);
     const opts=ocrew.reduce((s,y)=>s+ptsFor(y.id),0);
-    const ort=(x.route&&x.route.length===14)?["HELSINGFORS",...x.route]:TILE_SHORT;
+    const ort=(x.route&&x.route.length===14)?[x.start_harbor||"HELSINGFORS",...x.route]:TILE_SHORT;
     const otile=tileFor(opts,LEG*on);
     return`<div class="row" style="font-size:12.5px;opacity:.85"><span>${x.emoji} ${x.name}</span><span class="pts">${opts} p — vid ${ort[otile]}</span></div>`;
   }).join("");
@@ -1561,7 +1628,7 @@ function renderBoard(){
   });
   const cpEl=document.getElementById("cpList");cpEl.innerHTML="";
   const myP=me?ptsFor(me.id):0,myTile=tileFor(myP,LEG);
-  const START_CH={t:"Avfärdskontroll",d:"Packa Sun-Day och gå igenom systemen innan ni kastar loss: rigg och segel, motor (olja/kylvatten), bränsle, färskvatten, gasol, lanternor, VHF, säkerhetsutrustning (västar, nödraketer, brandsläckare, länspump). Martin & Patrik kvitterar — men alla som hjälper till att packa får ta poängen!"};
+  const START_CH={t:"Avfärdskontroll",d:"Packa "+myBoatSpecs().name+" och gå igenom systemen innan ni kastar loss: rigg och segel, motor (olja/kylvatten), bränsle, färskvatten, gasol, lanternor, VHF, säkerhetsutrustning (västar, nödraketer, brandsläckare, länspump). Skepparen kvitterar — men alla som hjälper till att packa får ta poängen!"};
   refreshFix(()=>{if(current==="board")renderBoard();});
   const allCh=[[0,START_CH]].concat(CHALLENGES.map((ch,i)=>[i+1,ch]));
   allCh.forEach(([ti,ch])=>{
@@ -2052,8 +2119,10 @@ function renderPlaylist(){
 function renderTerms(){
   const tl=document.getElementById("termsList");tl.innerHTML="";
   const boatDia=document.createElement("div");boatDia.className="diagram";
-  boatDia.innerHTML=sloopSVG()+`<div class="cap">Vår båt <i>${BOAT.name}</i> — ${BOAT.model}, slup med en mast.<br>
-    LOA ${BOAT.loa} · bredd ${BOAT.beam} · djupgående ${BOAT.draft} · mast ${BOAT.mast} · deplacement ${BOAT.weight}</div>`;
+  const bs=myBoatSpecs();
+  const specLine=[bs.loa&&"LOA "+bs.loa,bs.beam&&"bredd "+bs.beam,bs.draft&&"djupgående "+bs.draft,bs.mast&&"mast "+bs.mast,bs.weight&&"deplacement "+bs.weight].filter(Boolean).join(" · ");
+  boatDia.innerHTML=sloopSVG()+`<div class="cap">Vår båt <i>${escHtml(bs.name)}</i>${bs.model?" — "+escHtml(bs.model)+(bs.rig?", "+escHtml(bs.rig.toLowerCase()):""):""}.<br>
+    ${specLine||"Båtens mått är inte inlagda ännu."}</div>`;
   tl.appendChild(boatDia);
   TERMS.forEach(t=>{
     if(t.grp){
@@ -2596,9 +2665,9 @@ function showProfile(who){
 }
 document.getElementById("hudMe").onclick=()=>showProfile(me);
 // ================= FRÅGESPORT =================
-const quiz={order:[],idx:0,score:0,answered:false};
+const quiz={order:[],deck:[],idx:0,score:0,answered:false};
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
-function startQuiz(){quiz.order=shuffle(QUIZ.map((_,i)=>i));quiz.idx=0;quiz.score=0;quiz.answered=false;}
+function startQuiz(){quiz.deck=allQuiz();quiz.order=shuffle(quiz.deck.map((_,i)=>i));quiz.idx=0;quiz.score=0;quiz.answered=false;}
 function renderQuestion(){
   const box=document.getElementById("quizBox");
   document.getElementById("qTot").textContent=quiz.order.length;
@@ -2618,7 +2687,7 @@ function renderQuestion(){
     return;
   }
   document.getElementById("qNum").textContent=quiz.idx+1;
-  const item=QUIZ[quiz.order[quiz.idx]];quiz.answered=false;
+  const item=quiz.deck[quiz.order[quiz.idx]];quiz.answered=false;
   let opts=item.a.map((t,i)=>`<button class="opt" data-i="${i}">${t}</button>`).join("");
   box.innerHTML=`<div class="qcard"><div class="qtext">${item.q}</div>${opts}
     <div class="qexpl" id="qExpl">${item.e}</div>
@@ -2665,7 +2734,8 @@ function routeMapSVG(){
   </svg>`;
 }
 function sloopSVG(){
-  return `<svg viewBox="0 0 320 310" role="img" aria-label="Sloop sail plan, Sun-Day">
+  const bName=myBoatSpecs().name;
+  return `<svg viewBox="0 0 320 310" role="img" aria-label="Sloop sail plan, ${escHtml(bName)}">
     <line x1="14" y1="226" x2="306" y2="226" stroke="#9fb6c2" stroke-width="1.5" stroke-dasharray="4 4"/>
     <path d="M44,226 C72,250 232,252 278,230 C282,228 284,227 282,226 Z" fill="#e8eef0" stroke="#14506b" stroke-width="2.5"/>
     <path d="M150,250 L147,292 L171,292 L174,249 Z" fill="#14506b"/>
@@ -2676,7 +2746,7 @@ function sloopSVG(){
     <line x1="158" y1="198" x2="92" y2="202" stroke="#0b2436" stroke-width="3.5"/>
     <path d="M158,56 L158,196 L96,200 Z" fill="#f4efe4" stroke="#14506b" stroke-width="1.6"/>
     <path d="M158,60 L246,214 L158,196 Z" fill="#fff" stroke="#14506b" stroke-width="1.6"/>
-    <text x="158" y="244" text-anchor="middle" font-family="Iowan Old Style,Palatino,Georgia,serif" font-size="13" font-style="italic" font-weight="700" fill="#0b2436">Sun-Day</text>
+    <text x="158" y="244" text-anchor="middle" font-family="Iowan Old Style,Palatino,Georgia,serif" font-size="13" font-style="italic" font-weight="700" fill="#0b2436">${escHtml(bName)}</text>
     ${lbl(158,38,"Mast","middle")}
     ${lbl(108,116,"Storsegel","middle")}
     ${lbl(212,150,"Genua/fock","middle")}
@@ -2894,8 +2964,9 @@ function maybePopQuiz(){
   if(!me)return;
   const ref="pop:"+today();
   if(hasLog(me.id,"quiz",ref))return;
-  const idx=[...today()+"pop"].reduce((a,c)=>a+c.charCodeAt(0),0)%POPQUIZ.length;
-  const q=POPQUIZ[idx];
+  const deck=allPopQuiz();
+  const idx=[...today()+"pop"].reduce((a,c)=>a+c.charCodeAt(0),0)%deck.length;
+  const q=deck[idx];
   const box=document.getElementById("introBox");box._done=false;
   box.innerHTML=`<div class="introWrap"><div class="introCard">
     <div class="em">🚨</div><h2>Pop-quiz!</h2>

@@ -9,6 +9,15 @@ create table if not exists boats (
   captain text,
   route jsonb not null default '[]'::jsonb,
   roles jsonb not null default '{}'::jsonb,
+  start_harbor text,
+  end_harbor text,
+  model text,
+  loa text,
+  beam text,
+  draft text,
+  mast text,
+  weight text,
+  rig text,
   created_at timestamptz default now()
 );
 
@@ -136,7 +145,9 @@ alter publication supabase_realtime add table settings;
 alter publication supabase_realtime add table boats;
 
 -- Standardbåt — döp om eller lägg till fler via appens "Mönstra på"-formulär
-insert into boats (name, emoji, captain, route)
+-- (nya båtar som skapas via appens wizard fyller start_harbor/end_harbor/model/loa/beam/draft/mast/weight/rig automatiskt)
+insert into boats (name, emoji, captain, route, start_harbor, end_harbor, model, loa, beam, draft, mast, weight, rig)
 values ('Sun-Day', '⛵', 'Martin',
-  '["Barösund","Hangö","Airisto","Själö","Brännskär","Korpoström","Aspö","Nötö","Björkö","Helsingholm","Högsåra","Örö","Dalsbruk","NÅDENDAL"]'::jsonb)
+  '["Barösund","Hangö","Airisto","Själö","Brännskär","Korpoström","Aspö","Nötö","Björkö","Helsingholm","Högsåra","Örö","Dalsbruk","NÅDENDAL"]'::jsonb,
+  'HELSINGFORS', 'NÅDENDAL', 'Degerö 33', '9,81 m (33 fot)', '3,52 m', '1,5 m', '15 m', '5 200 kg', 'Slup (en mast)')
 on conflict (name) do nothing;
