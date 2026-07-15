@@ -128,7 +128,7 @@ Route (15 board tiles, editable by captain): STORÖREN → Barösund (Mon night,
 ## ⚠️ Open items / known issues
 
 1. **UNVERIFIED FULL-FILE SYNTAX.** The Cowork sandbox's file mirror of `index.html` was frozen during the last work session, so the final ~10 edits (tracker, report, GPS unlock, facit buttons, map layers, Barösund) were verified only by isolated unit tests (all green) and inspection — NOT by a full `node --check` on the assembled file. **First action in a new session: extract the `<script>` block and run `node --check`, then fix any error.** Roope must also smoke-test locally (double-click index.html) before deploying.
-2. **Live site is stale.** sunday-spaning.netlify.app still runs v1.0 (first deploy). Everything since (v2 skin, chat, captain, tracker…) ships with the next folder drag.
+2. ~~**Live site is stale.**~~ **Outdated as of 2026-07-15** — sunday-spaning.netlify.app now auto-deploys from `claude/game-improvements-review-rhb28k` to production on every push (confirmed via the Netlify API: the live deploy's `commit_ref` matches the latest commit within seconds of pushing). No manual folder-drag needed anymore.
 3. **Bird sounds not bundled.** Cards look for `sounds/<scientific-name>.mp3` (e.g. `haliaeetus-albicilla.mp3`), fall back to Xeno-canto links. Xeno-canto blocks bots (Anubis) — files must be downloaded manually by Roope.
 4. **Väylävirasto WMS layer names unverified** (see Map above).
 5. **Jarvis vault sync pending.** Two `vault_remember` calls timed out (Gemma server offline 11.7). Full history is in Claude's auto-memory (`robert-sailing-game` memory) and mirrored here.
