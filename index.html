@@ -550,6 +550,10 @@
     <p class="soundIntro">Flottiljen — läget för alla båtar och alla seglare i hela resan, inte bara er egen besättning.</p>
     <div id="fleetBox"></div>
   </div>
+  <div id="tripsView" class="sounds" style="display:none">
+    <p class="soundIntro">Resor för er båt — loggboken över hamnar ni redan seglat, och en planerare för nästa resa.</p>
+    <div id="tripsBox"></div>
+  </div>
   <div id="kaptenView" class="sounds" style="display:none">
     <div id="kaptenBox"></div>
   </div>
@@ -1914,7 +1918,7 @@ async function enterApp(){
 // ================= TABS & RENDER =================
 let current="board",curCat="vessels",moreOpen=false;
 const NAV_PRIMARY=[["board","🎲","Plan"],["spot","🔭","Spana"],["knots","🪢","Knopar"],["sur","🎁","Dagens"],["arcade","🕹️","Spel"]];
-const NAV_MORE=[["chat","💬","Skeppschatt"],["gallery","📸","Galleri"],["report","📜","Törnrapport"],["fleet","🏆","Flottiljen"],["navskola","🧭","Navigationsskolan"],["recipes","🍳","Byssan"],["trivia","❓","Frågesport"],["sounds","🔊","Läten"],["playlist","🎵","Sjömansvisor"],["terms","⚓","Sjötermer"],["live","📡","Live AIS"],["places","🗺️","Seglandet 2026"],["kapten","⚙️","Kaptensrutan"],["ideas","💡","Idélåda"]];
+const NAV_MORE=[["chat","💬","Skeppschatt"],["gallery","📸","Galleri"],["report","📜","Törnrapport"],["fleet","🏆","Flottiljen"],["trips","🧳","Resor"],["navskola","🧭","Navigationsskolan"],["recipes","🍳","Byssan"],["trivia","❓","Frågesport"],["sounds","🔊","Läten"],["playlist","🎵","Sjömansvisor"],["terms","⚓","Sjötermer"],["live","📡","Live AIS"],["places","🗺️","Seglandet 2026"],["kapten","⚙️","Kaptensrutan"],["ideas","💡","Idélåda"]];
 const TABS=()=>NAV_PRIMARY.concat(NAV_MORE).map(([k,ic,l])=>[k,ic+" "+l]);
 const RANKS=[[0,"Jungman"],[30,"Lättmatros"],[60,"Matros"],[130,"Båtsman"],[220,"Styrman"],[320,"Skeppare"],[420,"Kommodor 🏆"]];
 function rankFor(p){let r=RANKS[0][1];RANKS.forEach(([t,n])=>{if(p>=t)r=n;});return r;}
@@ -1988,7 +1992,7 @@ function updateTop(){
   document.getElementById("xpInfo").textContent=t>=14?"Kommodor!":(LEG-into)+" p till nästa hamn";
   updateSync();
 }
-const VIEW_IDS=["boardView","gameView","liveView","soundView","playlistView","triviaView","termsView","knotsView","surView","arcadeView","placesView","chatView","recipesView","navView","galleryView","reportView","kaptenView","ideasView","fleetView"];
+const VIEW_IDS=["boardView","gameView","liveView","soundView","playlistView","triviaView","termsView","knotsView","surView","arcadeView","placesView","chatView","recipesView","navView","galleryView","reportView","kaptenView","ideasView","fleetView","tripsView"];
 function render(){
   buildTabs();updateTop();
   if(current!=="arcade"){stopTet();stopSnake();}
@@ -2011,6 +2015,7 @@ function render(){
   if(current==="gallery"){show("galleryView");renderGallery();loadNotes().then(renderGallery);return;}
   if(current==="report"){show("reportView");renderReport();return;}
   if(current==="fleet"){show("fleetView");renderFleet();Promise.all([loadSailors(),loadBoats(),loadLogs(),loadBoatPositions()]).then(renderFleet);return;}
+  if(current==="trips"){show("tripsView");renderTrips();return;}
   if(current==="kapten"){show("kaptenView");renderKapten();return;}
   if(current==="ideas"){show("ideasView");renderIdeas();loadIdeas().then(renderIdeas);return;}
   show("gameView");renderSpotGrid();
@@ -2853,6 +2858,179 @@ async function deleteCaptainLogEntry(id){
   try{await SB.from("captain_log").delete().eq("id",id);captainLog=captainLog.filter(x=>x.id!==id);}
   catch(e){showToast("Kunde inte ta bort — kolla nätet");}
 }
+// ================= RESOR (planera nästa resa) =================
+let trips=[];
+async function loadTrips(){
+  const b=myBoat();
+  if(LOCAL_MODE){
+    const all=JSON.parse(localStorage.getItem("ss_trips")||"[]");
+    trips=b?all.filter(x=>x.boat_id===b.id):all;return;
+  }
+  if(!b){trips=[];return;}
+  try{const{data,error}=await SB.from("trips").select("*").eq("boat_id",b.id).order("created_at",{ascending:true});
+    if(!error&&data)trips=data;}catch(e){}
+}
+async function addTrip(name){
+  const b=myBoat();if(!b)return false;
+  const row={boat_id:b.id,name,status:"planned",stops:[]};
+  if(LOCAL_MODE){
+    row.id=uuid();row.created_at=new Date().toISOString();
+    const all=JSON.parse(localStorage.getItem("ss_trips")||"[]");
+    all.push(row);localStorage.setItem("ss_trips",JSON.stringify(all));
+    trips.push(row);return true;
+  }
+  try{
+    const{data,error}=await SB.from("trips").insert(row).select().single();
+    if(error)throw error;
+    trips.push(data);return true;
+  }catch(e){showToast("Kunde inte skapa resan — kolla nätet");return false;}
+}
+async function deleteTrip(id){
+  if(LOCAL_MODE){
+    const all=JSON.parse(localStorage.getItem("ss_trips")||"[]").filter(x=>x.id!==id);
+    localStorage.setItem("ss_trips",JSON.stringify(all));
+    trips=trips.filter(x=>x.id!==id);return;
+  }
+  try{await SB.from("trips").delete().eq("id",id);trips=trips.filter(x=>x.id!==id);}
+  catch(e){showToast("Kunde inte ta bort — kolla nätet");}
+}
+async function saveTripStops(id,stops){
+  const t=trips.find(x=>x.id===id);if(t)t.stops=stops;
+  if(LOCAL_MODE){
+    const all=JSON.parse(localStorage.getItem("ss_trips")||"[]");
+    const idx=all.findIndex(x=>x.id===id);
+    if(idx>=0){all[idx].stops=stops;localStorage.setItem("ss_trips",JSON.stringify(all));}
+    return;
+  }
+  try{await SB.from("trips").update({stops}).eq("id",id);}
+  catch(e){showToast("Kunde inte spara — kolla nätet");}
+}
+async function addTripStop(id,place,date){
+  const t=trips.find(x=>x.id===id);if(!t)return;
+  await saveTripStops(id,[...(t.stops||[]),{place,date:date||null}]);
+}
+async function removeTripStop(id,idx){
+  const t=trips.find(x=>x.id===id);if(!t)return;
+  await saveTripStops(id,(t.stops||[]).filter((_,i)=>i!==idx));
+}
+async function moveTripStop(id,idx,dir){
+  const t=trips.find(x=>x.id===id);if(!t)return;
+  const stops=[...(t.stops||[])];
+  const j=idx+dir;if(j<0||j>=stops.length)return;
+  [stops[idx],stops[j]]=[stops[j],stops[idx]];
+  await saveTripStops(id,stops);
+}
+async function setTripStatus(id,status){
+  const t=trips.find(x=>x.id===id);if(t)t.status=status;
+  if(LOCAL_MODE){
+    const all=JSON.parse(localStorage.getItem("ss_trips")||"[]");
+    const idx=all.findIndex(x=>x.id===id);
+    if(idx>=0){all[idx].status=status;localStorage.setItem("ss_trips",JSON.stringify(all));}
+    return;
+  }
+  try{await SB.from("trips").update({status}).eq("id",id);}
+  catch(e){showToast("Kunde inte spara — kolla nätet");}
+}
+function harborNameList(){
+  const names=new Set(TILE_SHORT);
+  PLACES.forEach(p=>names.add(p.n));
+  ALT_HARBORS.forEach(p=>names.add(p.n));
+  EXTRA_HARBORS.forEach(p=>names.add(p.n));
+  return[...names];
+}
+let tripsRenderGen=0;
+async function renderTrips(){
+  const box=document.getElementById("tripsBox");if(!box)return;
+  const gen=++tripsRenderGen;
+  box.innerHTML='<p class="soundIntro">Hämtar resor…</p>';
+  let track=[];
+  if(!LOCAL_MODE){
+    try{const ids=mySailors().map(s=>s.id);
+      if(ids.length){const{data}=await SB.from("track_points").select("lat,lng,sog,ts").in("sailor_id",ids).order("ts",{ascending:true}).limit(20000);track=data||[];}
+    }catch(e){}
+  }
+  await loadCaptainLog();
+  await loadTrips();
+  if(gen!==tripsRenderGen)return;
+  if(document.getElementById("tripsBox")!==box)return;
+  box.innerHTML="";
+  renderCaptainLogCard(box,track);
+  renderTripPlanner(box);
+}
+function renderTripPlanner(box){
+  const card=document.createElement("div");card.className="repCard";
+  card.innerHTML=`<h3>🧳 Planera nästa resa</h3>
+    ${isCaptain()?`<button class="cpBtn" id="tripAddBtn" style="margin-bottom:10px">+ Ny resa</button><div id="tripAddForm"></div>`:""}
+    <div id="tripList"></div>
+    <datalist id="harborSuggest">${harborNameList().map(n=>`<option value="${escHtml(n)}">`).join("")}</datalist>`;
+  box.appendChild(card);
+  const listEl=card.querySelector("#tripList");
+  if(!trips.length){
+    listEl.innerHTML='<p class="soundIntro">Inga resor planerade än. '+(isCaptain()?"Skapa den första ovan!":"Skepparen kan planera nästa resa här.")+'</p>';
+  }else{
+    trips.forEach(t=>listEl.appendChild(renderTripCard(t)));
+  }
+  if(!isCaptain())return;
+  const addBtn=card.querySelector("#tripAddBtn");
+  addBtn.onclick=()=>{
+    const formEl=card.querySelector("#tripAddForm");
+    if(formEl.innerHTML){formEl.innerHTML="";return;}
+    formEl.innerHTML=`<div class="cpCard">
+      <div class="field"><label>Resans namn</label><input id="tripName" maxlength="60" placeholder="t.ex. Höstresan 2026" style="width:100%;padding:9px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit"></div>
+      <button class="goBtn" id="tripSave" style="margin-top:8px">Skapa resa</button>
+      <div class="errMsg" id="tripErr"></div>
+    </div>`;
+    formEl.querySelector("#tripSave").onclick=async()=>{
+      const name=formEl.querySelector("#tripName").value.trim();
+      const err=formEl.querySelector("#tripErr");
+      if(!name){err.textContent="Ge resan ett namn.";return;}
+      const ok=await addTrip(name);
+      if(ok){showToast("Ny resa skapad! 🧳");renderTrips();}
+      else err.textContent="Kunde inte skapa — försök igen.";
+    };
+  };
+}
+function renderTripCard(t){
+  const d=document.createElement("div");d.className="cpCard";d.style.marginBottom="9px";
+  const stops=t.stops||[];
+  const stopsHtml=stops.length?stops.map((s,i)=>`
+    <div class="repRow">
+      <span>${i+1}. ${escHtml(s.place)}${s.date?" · "+s.date:""}</span>
+      ${isCaptain()?`<span style="white-space:nowrap">
+        ${i>0?`<button data-stopmv="${t.id}:${i}:-1" style="border:none;background:none;cursor:pointer;font-size:13px">↑</button>`:""}
+        ${i<stops.length-1?`<button data-stopmv="${t.id}:${i}:1" style="border:none;background:none;cursor:pointer;font-size:13px">↓</button>`:""}
+        <button data-stopdel="${t.id}:${i}" style="border:none;background:none;color:#c0392b;cursor:pointer;font-size:13px">✕</button>
+      </span>`:""}
+    </div>`).join(""):'<div class="d">Inga hamnar tillagda ännu.</div>';
+  d.innerHTML=`<div class="t"><span class="pnum">${t.status==="completed"?"✓":"🧭"}</span>${escHtml(t.name)}${t.status==="completed"?" — avslutad":""}
+      ${isCaptain()?`<button data-tripdel="${t.id}" style="float:right;border:none;background:none;color:#c0392b;font-size:15px;cursor:pointer">✕</button>`:""}</div>
+    <div class="d">${stopsHtml}</div>
+    ${isCaptain()?`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
+        <input list="harborSuggest" placeholder="Hamn" data-tsplace="${t.id}" style="flex:2;min-width:100px;padding:8px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit">
+        <input type="date" data-tsdate="${t.id}" style="flex:1;min-width:120px;padding:8px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit">
+        <button class="cpBtn" data-tsadd="${t.id}">+ Lägg till hamn</button>
+      </div>
+      <button class="cpBtn" data-tripdone="${t.id}" style="margin-top:8px">${t.status==="completed"?"↺ Återöppna resan":"✓ Markera avslutad"}</button>`:""}`;
+  if(isCaptain()){
+    d.querySelector(`[data-tripdel="${t.id}"]`).onclick=async()=>{await deleteTrip(t.id);renderTrips();};
+    d.querySelectorAll("[data-stopdel]").forEach(btn=>{
+      btn.onclick=async()=>{const[tid,idx]=btn.dataset.stopdel.split(":");await removeTripStop(tid,+idx);renderTrips();};
+    });
+    d.querySelectorAll("[data-stopmv]").forEach(btn=>{
+      btn.onclick=async()=>{const[tid,idx,dir]=btn.dataset.stopmv.split(":");await moveTripStop(tid,+idx,+dir);renderTrips();};
+    });
+    d.querySelector(`[data-tsadd="${t.id}"]`).onclick=async()=>{
+      const place=d.querySelector(`[data-tsplace="${t.id}"]`).value.trim();
+      const date=d.querySelector(`[data-tsdate="${t.id}"]`).value;
+      if(!place)return;
+      await addTripStop(t.id,place,date);renderTrips();
+    };
+    d.querySelector(`[data-tripdone="${t.id}"]`).onclick=async()=>{
+      await setTripStatus(t.id,t.status==="completed"?"planned":"completed");renderTrips();
+    };
+  }
+  return d;
+}
 function initHarborMap(){
   const mapDiv=document.getElementById("placeMap");
   if(!window.L){
@@ -3118,7 +3296,10 @@ async function renderReport(){
     <div class="repRow"><span>Toppfart</span><b>${topS.toFixed(1)} kn</b></div>${dayRows}`
     :'<div class="repRow"><span>Inget färdspår ännu — starta ⏺ Logga färd på kartan under segling.</span></div>'}`;
   r.appendChild(segl);
-  renderCaptainLogCard(r,track);
+  const clogPointer=document.createElement("p");clogPointer.className="soundIntro";
+  clogPointer.style.marginBottom="10px";
+  clogPointer.innerHTML="📓 Skepparens loggbok & resplanering flyttade till 🧳 Resor.";
+  r.appendChild(clogPointer);
   const dishCount=sid=>logsFor(sid).filter(l=>l.kind==="bonus"&&l.ref.startsWith("dishes:")).length;
   const dishRanked=[...mySailors()].map(s=>({s,n:dishCount(s.id)})).filter(x=>x.n>0).sort((a,b)=>b.n-a.n);
   if(dishRanked.length){
@@ -3242,7 +3423,7 @@ function renderCaptainLogCard(r,track){
         arrival_place:arrPlace,arrival_time:arrT?new Date(arrT).toISOString():null,
         miles:miles?parseFloat(miles):null,weather:weatherV||null,notes:notes||null,
       });
-      if(ok){showToast("Loggboksinlägg sparat! 📓");renderReport();}
+      if(ok){showToast("Loggboksinlägg sparat! 📓");renderTrips();}
       else err.textContent="Kunde inte spara — försök igen.";
     };
   };
