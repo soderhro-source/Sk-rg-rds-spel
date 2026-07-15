@@ -223,19 +223,14 @@
   .fishBar{position:relative;height:34px;background:#dbe9ef;border-radius:10px;margin:12px 0;overflow:hidden;}
   .fishZone{position:absolute;top:0;bottom:0;background:rgba(63,125,90,.35);border-left:2px solid #3f7d5a;border-right:2px solid #3f7d5a;}
   .fishMarker{position:absolute;top:2px;bottom:2px;width:4px;background:#d8612e;border-radius:2px;transform:translateX(-50%);}
-  .traderScene{position:relative;height:250px;border-radius:16px;overflow:hidden;margin:10px 0;cursor:pointer;
-    background:linear-gradient(180deg,#8fc6dd 0%,#8fc6dd 26%,#e7d7a8 26%,#dcc98f 54%,#3f7d5a 54%,#356b4c 100%);
-    box-shadow:inset 0 0 0 2px rgba(0,0,0,.08);touch-action:manipulation;}
-  .traderScene .tZone{position:absolute;}
-  .traderScene .tZone.tDock{left:28%;top:34%;width:13%;height:44%;background:#a97c50;border-radius:3px;}
-  .traderScene .tZone.tTown{left:66%;top:6%;width:32%;height:34%;background:rgba(255,255,255,.22);border-radius:12px;}
+  .traderScene{position:relative;height:270px;border-radius:16px;overflow:hidden;margin:10px 0;
+    background:linear-gradient(180deg,#bfe3f2,#8fc6dd);box-shadow:inset 0 0 0 2px rgba(0,0,0,.08);touch-action:manipulation;}
+  .traderScene canvas{display:block;width:100%;height:100%;cursor:pointer;}
   .tSpot{position:absolute;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;
-    background:none;border:none;padding:2px;font-family:"Helvetica Neue",Arial,sans-serif;font-size:10px;font-weight:700;
-    color:#0b2436;cursor:pointer;text-shadow:0 1px 3px rgba(255,255,255,.7);}
-  .tSpot span{font-size:27px;line-height:1;filter:drop-shadow(0 2px 1px rgba(0,0,0,.25));}
+    background:rgba(255,255,255,.4);border:none;border-radius:12px;padding:2px 6px 3px;font-family:"Helvetica Neue",Arial,sans-serif;font-size:10px;font-weight:700;
+    color:#0b2436;cursor:pointer;text-shadow:0 1px 2px rgba(255,255,255,.8);backdrop-filter:blur(1px);}
+  .tSpot span{font-size:22px;line-height:1;filter:drop-shadow(0 2px 1px rgba(0,0,0,.25));}
   .tSpot:active span{transform:scale(.9);}
-  .tAvatar{position:absolute;transform:translate(-50%,-100%);font-size:25px;transition:left .5s ease,top .5s ease;
-    filter:drop-shadow(0 2px 2px rgba(0,0,0,.35));pointer-events:none;}
   /* ---- Arcade ---- */
   .arcMenu{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
   .arcBtn{background:var(--sand);color:var(--ink);border:none;border-radius:14px;padding:16px 10px;
@@ -577,6 +572,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script src="config.js"></script>
 <script>
 // ================= DATA =================
@@ -1397,41 +1393,127 @@ function renderIdeas(){
     showToast("Idé skickad — tack! 💡");renderIdeas();
   };
 }
-const TRADER_LANDMARKS={
-  beach:{x:16,y:64,em:"🏖️",label:"Stranden"},
-  brygga:{x:36,y:80,em:"⚓",label:"Bryggan"},
-  marknad:{x:78,y:26,em:"🏪",label:"Marknaden"},
-  verkstad:{x:90,y:52,em:"⚒️",label:"Verkstaden"},
+const TRADER_LANDMARKS_3D={
+  beach:{x:-7,z:-0.5,em:"🏖️",label:"Stranden"},
+  brygga:{x:-2,z:-4.6,em:"⚓",label:"Bryggan"},
+  marknad:{x:6.5,z:3,em:"🏪",label:"Marknaden"},
+  verkstad:{x:9.5,z:0.3,em:"⚒️",label:"Verkstaden"},
 };
-let traderPos={x:50,y:78};
-let traderWalkTimer=null;
-let traderPanelKind=null,traderBeachMode=null;
-function startTrader(box){
-  traderPanelKind=null;traderBeachMode=null;
-  const spots=Object.entries(TRADER_LANDMARKS).map(([k,l])=>
-    `<button type="button" class="tSpot" id="tSpot-${k}" style="left:${l.x}%;top:${l.y}%"><span>${l.em}</span>${l.label}</button>`).join("");
-  box.innerHTML=`<p class="soundIntro">Gå runt i byn — till stranden för fiske eller strandfynd, till bryggan för att ta båten ut efter större fisk, eller in i byn för Marknaden och Verkstaden.</p>
-    <div class="cpCard" style="display:flex;justify-content:space-between;align-items:center;font-weight:700">
-      <div>💰 <span id="traderKr">0</span> kr</div><div>⛽ <span id="traderFuel">0</span></div></div>
-    <div class="traderScene" id="traderScene">
-      <div class="tZone tDock"></div><div class="tZone tTown"></div>
-      ${spots}
-      <div class="tAvatar" id="traderAvatar" style="left:${traderPos.x}%;top:${traderPos.y}%"></div>
-    </div>
-    <div id="traderPanel"></div>`;
-  document.getElementById("traderAvatar").textContent=(me&&me.emoji)||"🧍";
-  Object.keys(TRADER_LANDMARKS).forEach(k=>{
-    document.getElementById("tSpot-"+k).onclick=e=>{e.stopPropagation();traderGoTo(k);};
+let traderPos={x:0,z:2.5};
+let traderThree=null;
+function stopTraderScene(){
+  if(traderThree){
+    if(traderThree.raf)cancelAnimationFrame(traderThree.raf);
+    if(traderThree.renderer){try{traderThree.renderer.dispose();}catch(e){}}
+  }
+  traderThree=null;
+}
+function traderWorldToScreenPct(x,y,z,camera){
+  const v=new THREE.Vector3(x,y,z);
+  v.project(camera);
+  return{x:(v.x*0.5+0.5)*100,y:(-(v.y*0.5)+0.5)*100};
+}
+function traderBuildLandmarkMesh(THREE,key){
+  const g=new THREE.Group();
+  if(key==="beach"){
+    const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,1.4,6),new THREE.MeshStandardMaterial({color:0x8a6a45}));
+    pole.position.y=0.7;g.add(pole);
+    const cap=new THREE.Mesh(new THREE.ConeGeometry(1.1,0.7,10),new THREE.MeshStandardMaterial({color:0xd8612e}));
+    cap.position.y=1.5;cap.castShadow=true;g.add(cap);
+  }else if(key==="brygga"){
+    const hull=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.35,1.6),new THREE.MeshStandardMaterial({color:0xf2f0e8}));
+    hull.position.set(0,0.2,0);hull.castShadow=true;g.add(hull);
+    const mast=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,1.2,6),new THREE.MeshStandardMaterial({color:0x8a6a45}));
+    mast.position.set(0,0.9,0.1);g.add(mast);
+    const sail=new THREE.Mesh(new THREE.ConeGeometry(0.5,1.1,3),new THREE.MeshStandardMaterial({color:0xffffff,side:THREE.DoubleSide}));
+    sail.rotation.z=Math.PI/2;sail.rotation.y=Math.PI/2;sail.position.set(0,1,0.35);sail.castShadow=true;g.add(sail);
+  }else if(key==="marknad"){
+    const body=new THREE.Mesh(new THREE.BoxGeometry(2,1.1,1.6),new THREE.MeshStandardMaterial({color:0xf4efe4}));
+    body.position.y=0.55;body.castShadow=true;g.add(body);
+    const roof=new THREE.Mesh(new THREE.ConeGeometry(1.6,1,4),new THREE.MeshStandardMaterial({color:0xd8612e}));
+    roof.position.y=1.55;roof.rotation.y=Math.PI/4;roof.castShadow=true;g.add(roof);
+  }else if(key==="verkstad"){
+    const body=new THREE.Mesh(new THREE.BoxGeometry(1.5,0.9,1.3),new THREE.MeshStandardMaterial({color:0xc9bfa8}));
+    body.position.y=0.45;body.castShadow=true;g.add(body);
+    const roof=new THREE.Mesh(new THREE.BoxGeometry(1.7,0.15,1.5),new THREE.MeshStandardMaterial({color:0x6c7c84}));
+    roof.position.y=0.98;roof.rotation.z=0.12;roof.castShadow=true;g.add(roof);
+    const barrel=new THREE.Mesh(new THREE.CylinderGeometry(0.3,0.3,0.6,10),new THREE.MeshStandardMaterial({color:0x2a7ea6}));
+    barrel.position.set(1.1,0.3,0.5);barrel.castShadow=true;g.add(barrel);
+  }
+  return g;
+}
+function initTraderScene(canvas,width,height){
+  if(!window.THREE)return;
+  const THREE=window.THREE;
+  const scene=new THREE.Scene();
+  scene.background=new THREE.Color(0x8fc6dd);
+  scene.fog=new THREE.Fog(0x8fc6dd,22,42);
+
+  const aspect=width/Math.max(1,height),viewSize=8.5;
+  const camera=new THREE.OrthographicCamera(-viewSize*aspect,viewSize*aspect,viewSize,-viewSize,0.1,100);
+  camera.position.set(14,13,15);camera.lookAt(0,0,0);
+
+  const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:true});
+  renderer.setPixelRatio(Math.min(2,window.devicePixelRatio||1));
+  renderer.setSize(width,height,false);
+  renderer.shadowMap.enabled=true;
+
+  scene.add(new THREE.AmbientLight(0xffffff,0.75));
+  const sun=new THREE.DirectionalLight(0xfff3d6,0.85);
+  sun.position.set(9,16,7);sun.castShadow=true;
+  sun.shadow.mapSize.set(1024,1024);
+  sun.shadow.camera.left=-16;sun.shadow.camera.right=16;sun.shadow.camera.top=16;sun.shadow.camera.bottom=-16;
+  scene.add(sun);
+
+  const water=new THREE.Mesh(new THREE.BoxGeometry(30,0.3,9),new THREE.MeshStandardMaterial({color:0x5ec8e5}));
+  water.position.set(0,-0.15,-8.5);water.receiveShadow=true;scene.add(water);
+  const sand=new THREE.Mesh(new THREE.BoxGeometry(30,0.3,5.5),new THREE.MeshStandardMaterial({color:0xe7d7a8}));
+  sand.position.set(0,-0.15,-3);sand.receiveShadow=true;scene.add(sand);
+  const grass=new THREE.Mesh(new THREE.BoxGeometry(30,0.3,10),new THREE.MeshStandardMaterial({color:0x3f7d5a}));
+  grass.position.set(0,-0.15,5.5);grass.receiveShadow=true;scene.add(grass);
+  const dock=new THREE.Mesh(new THREE.BoxGeometry(1.6,0.25,6.4),new THREE.MeshStandardMaterial({color:0xa97c50}));
+  dock.position.set(-2,0.05,-5.2);dock.castShadow=true;dock.receiveShadow=true;scene.add(dock);
+
+  const landmarkMeshes={};
+  Object.entries(TRADER_LANDMARKS_3D).forEach(([k,l])=>{
+    const mesh=traderBuildLandmarkMesh(THREE,k);
+    mesh.position.set(l.x,0,l.z);
+    scene.add(mesh);landmarkMeshes[k]=mesh;
   });
-  document.getElementById("traderScene").onclick=e=>{
-    const rect=e.currentTarget.getBoundingClientRect();
-    if(!rect.width||!rect.height)return;
-    const x=Math.max(3,Math.min(97,(e.clientX-rect.left)/rect.width*100));
-    const y=Math.max(3,Math.min(97,(e.clientY-rect.top)/rect.height*100));
-    traderWalkTo(x,y,null);
-  };
-  traderUpdateHud();
-  renderTraderPanel();
+
+  const avatar=new THREE.Group();
+  const hull=new THREE.Mesh(new THREE.BoxGeometry(0.55,0.3,1.1),new THREE.MeshStandardMaterial({color:0xffffff}));
+  hull.position.y=0.18;hull.castShadow=true;avatar.add(hull);
+  const mast=new THREE.Mesh(new THREE.CylinderGeometry(0.04,0.04,1,6),new THREE.MeshStandardMaterial({color:0x8a6a45}));
+  mast.position.set(0,0.8,0);avatar.add(mast);
+  const sail=new THREE.Mesh(new THREE.ConeGeometry(0.42,0.9,3),new THREE.MeshStandardMaterial({color:0xd8612e,side:THREE.DoubleSide}));
+  sail.rotation.z=Math.PI/2;sail.rotation.y=Math.PI/2;sail.position.set(0,0.85,0.28);sail.castShadow=true;avatar.add(sail);
+  avatar.position.set(traderPos.x,0,traderPos.z);
+  scene.add(avatar);
+
+  const groundPlane=new THREE.Plane(new THREE.Vector3(0,1,0),0);
+  traderThree={THREE,scene,camera,renderer,avatar,landmarkMeshes,groundPlane,water,raf:null,walk:null,t:0};
+  traderRender();
+  traderAnimate();
+}
+function traderRender(){
+  if(!traderThree)return;
+  traderThree.renderer.render(traderThree.scene,traderThree.camera);
+}
+function traderAnimate(){
+  if(!traderThree)return;
+  traderThree.t+=0.02;
+  traderThree.water.position.y=-0.15+Math.sin(traderThree.t)*0.02;
+  if(traderThree.walk){
+    const w=traderThree.walk,elapsed=Date.now()-w.start,t=Math.min(1,elapsed/w.dur);
+    const ex=w.from.x+(w.to.x-w.from.x)*t,ez=w.from.z+(w.to.z-w.from.z)*t;
+    traderThree.avatar.position.set(ex,0,ez);
+    const ang=Math.atan2(w.to.x-w.from.x,w.to.z-w.from.z);
+    if(isFinite(ang))traderThree.avatar.rotation.y=ang;
+    if(t>=1){const onArrive=w.onArrive;traderThree.walk=null;if(onArrive)onArrive();}
+  }
+  traderRender();
+  traderThree.raf=requestAnimationFrame(traderAnimate);
 }
 function traderUpdateHud(){
   const ws=myWorkshop();
@@ -1439,23 +1521,61 @@ function traderUpdateHud(){
   if(krEl)krEl.textContent=ws.kronor;
   if(fuEl)fuEl.textContent=ws.fuel;
 }
-function traderWalkTo(x,y,onArrive){
-  const avatar=document.getElementById("traderAvatar");
-  if(!avatar)return;
-  const dx=x-traderPos.x,dy=y-traderPos.y,dist=Math.sqrt(dx*dx+dy*dy);
-  const dur=Math.max(250,Math.min(900,dist*11));
-  traderPos={x,y};
-  avatar.style.left=x+"%";avatar.style.top=y+"%";
-  if(traderWalkTimer)clearTimeout(traderWalkTimer);
-  traderWalkTimer=setTimeout(()=>{traderWalkTimer=null;if(onArrive)onArrive();},dur);
+function traderWalkTo(x,z,onArrive){
+  if(!traderThree){traderPos={x,z};if(onArrive)onArrive();return;}
+  const dist=Math.hypot(x-traderPos.x,z-traderPos.z);
+  const dur=Math.max(300,Math.min(1400,dist*160));
+  traderThree.walk={from:{x:traderPos.x,z:traderPos.z},to:{x,z},start:Date.now(),dur,onArrive};
+  traderPos={x,z};
 }
 function traderGoTo(landmark){
-  const l=TRADER_LANDMARKS[landmark];
-  traderWalkTo(l.x,l.y,()=>traderShowPanel(landmark));
+  const l=TRADER_LANDMARKS_3D[landmark];
+  traderWalkTo(l.x,l.z,()=>traderShowPanel(landmark));
 }
 function traderShowPanel(kind){
   traderPanelKind=kind;traderBeachMode=null;
   stopFishSession();
+  renderTraderPanel();
+}
+let traderPanelKind=null,traderBeachMode=null;
+function startTrader(box){
+  traderPanelKind=null;traderBeachMode=null;
+  traderPos={x:0,z:2.5};
+  box.innerHTML=`<p class="soundIntro">Gå runt i byn — till stranden för fiske eller strandfynd, till bryggan för att ta båten ut efter större fisk, eller in i byn för Marknaden och Verkstaden.</p>
+    <div class="cpCard" style="display:flex;justify-content:space-between;align-items:center;font-weight:700">
+      <div>💰 <span id="traderKr">0</span> kr</div><div>⛽ <span id="traderFuel">0</span></div></div>
+    <div class="traderScene" id="traderScene">
+      <canvas id="traderCanvas"></canvas>
+    </div>
+    <div id="traderPanel"></div>`;
+  const wrap=document.getElementById("traderScene"),canvas=document.getElementById("traderCanvas");
+  const w=wrap.clientWidth||360,h=wrap.clientHeight||270;
+  canvas.width=w;canvas.height=h;
+  if(window.THREE){
+    initTraderScene(canvas,w,h);
+    const spots=Object.entries(TRADER_LANDMARKS_3D).map(([k,l])=>{
+      const p=traderWorldToScreenPct(l.x,0,l.z,traderThree.camera);
+      return`<button type="button" class="tSpot" id="tSpot-${k}" style="left:${p.x}%;top:${p.y}%"><span>${l.em}</span>${l.label}</button>`;
+    }).join("");
+    wrap.insertAdjacentHTML("beforeend",spots);
+    canvas.onclick=e=>{
+      const rect=canvas.getBoundingClientRect();
+      const ndcX=((e.clientX-rect.left)/rect.width)*2-1,ndcY=-(((e.clientY-rect.top)/rect.height)*2-1);
+      const raycaster=new THREE.Raycaster();
+      raycaster.setFromCamera({x:ndcX,y:ndcY},traderThree.camera);
+      const pt=new THREE.Vector3();
+      raycaster.ray.intersectPlane(traderThree.groundPlane,pt);
+      if(pt){traderWalkTo(Math.max(-13,Math.min(13,pt.x)),Math.max(-8,Math.min(8,pt.z)),null);}
+    };
+  }else{
+    const spots=Object.entries(TRADER_LANDMARKS_3D).map(([k,l])=>
+      `<button type="button" class="tSpot" id="tSpot-${k}" style="left:${50+l.x*3}%;top:${50+l.z*4}%"><span>${l.em}</span>${l.label}</button>`).join("");
+    wrap.insertAdjacentHTML("beforeend",spots);
+  }
+  Object.keys(TRADER_LANDMARKS_3D).forEach(k=>{
+    document.getElementById("tSpot-"+k).onclick=e=>{e.stopPropagation();traderGoTo(k);};
+  });
+  traderUpdateHud();
   renderTraderPanel();
 }
 function renderTraderPanel(){
@@ -1900,7 +2020,7 @@ function newSailorForm(){
 function logout(){
   if(TRK.watch){navigator.geolocation.clearWatch(TRK.watch);TRK.watch=null;}
   TRK.follow=false;trkReleaseWake();
-  stopFishSession();
+  stopFishSession();stopTraderScene();
   me=null;localStorage.removeItem("ss_session");renderLogin();
 }
 function refreshWhoAmI(){
@@ -1998,7 +2118,7 @@ function updateTop(){
 const VIEW_IDS=["boardView","gameView","liveView","soundView","playlistView","triviaView","termsView","knotsView","surView","arcadeView","placesView","chatView","recipesView","navView","galleryView","reportView","kaptenView","ideasView"];
 function render(){
   buildTabs();updateTop();
-  if(current!=="arcade"){stopTet();stopSnake();}
+  if(current!=="arcade"){stopTet();stopSnake();stopTraderScene();}
   VIEW_IDS.forEach(id=>document.getElementById(id).style.display="none");
   const show=id=>{const el=document.getElementById(id);el.style.display="block";
     el.classList.remove("viewIn");void el.offsetWidth;el.classList.add("viewIn");};
@@ -2383,7 +2503,7 @@ function renderArcade(){
     b.onclick=()=>{arcGame=k;renderArcade();};menu.appendChild(b);
   });
   const box=document.getElementById("arcadeBox");
-  stopTet();stopSnake();
+  stopTet();stopSnake();stopTraderScene();
   if(arcGame==="tet")startTetris(box);
   else if(arcGame==="mem")startMemory(box);
   else if(arcGame==="m3")startM3(box);
