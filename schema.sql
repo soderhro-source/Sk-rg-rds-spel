@@ -106,6 +106,16 @@ create table if not exists ideas (
   created_at timestamptz default now()
 );
 
+-- Senast delade positionen per båt (för "Visa båtar" på Seglandet 2026-kartan)
+create table if not exists boat_positions (
+  boat_id uuid primary key references boats(id) on delete cascade,
+  lat double precision not null,
+  lng double precision not null,
+  sog real,
+  sailor_name text,
+  updated_at timestamptz not null default now()
+);
+
 -- En logg per sak och seglare (spots, hamnutmaningar, knopar, dagens quiz/minispel)
 create unique index if not exists one_per_sailor
   on logs (sailor_id, kind, ref)
@@ -127,6 +137,7 @@ alter table track_points enable row level security;
 alter table captain_log enable row level security;
 alter table custom_spots enable row level security;
 alter table ideas enable row level security;
+alter table boat_positions enable row level security;
 
 create policy "anon read sailors"   on sailors for select to anon using (true);
 create policy "anon insert sailors" on sailors for insert to anon with check (true);
@@ -162,11 +173,16 @@ create policy "anon insert custom_spots" on custom_spots for insert to anon with
 create policy "anon read ideas"   on ideas for select to anon using (true);
 create policy "anon insert ideas" on ideas for insert to anon with check (true);
 
+create policy "anon read boat_positions"   on boat_positions for select to anon using (true);
+create policy "anon insert boat_positions" on boat_positions for insert to anon with check (true);
+create policy "anon update boat_positions" on boat_positions for update to anon using (true) with check (true);
+
 -- Realtime så allas skärmar uppdateras direkt
 alter publication supabase_realtime add table logs;
 alter publication supabase_realtime add table chat;
 alter publication supabase_realtime add table settings;
 alter publication supabase_realtime add table boats;
+alter publication supabase_realtime add table boat_positions;
 
 -- Standardbåt — döp om eller lägg till fler via appens "Mönstra på"-formulär
 -- (nya båtar som skapas via appens wizard fyller start_harbor/end_harbor/model/loa/beam/draft/mast/weight/rig automatiskt)

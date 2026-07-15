@@ -546,6 +546,10 @@
     <p class="soundIntro">Törnrapporten — hela resan i siffror: hur ni seglade och vad var och en hann med. Uppdateras live, komplett när ni är i mål.</p>
     <div id="reportList"></div>
   </div>
+  <div id="fleetView" class="sounds" style="display:none">
+    <p class="soundIntro">Flottiljen — läget för alla båtar och alla seglare i hela resan, inte bara er egen besättning.</p>
+    <div id="fleetBox"></div>
+  </div>
   <div id="kaptenView" class="sounds" style="display:none">
     <div id="kaptenBox"></div>
   </div>
@@ -1131,6 +1135,12 @@ async function loadBoats(){
 }
 function myBoat(){return BOATS.find(b=>b.id===(me&&me.boat_id))||BOATS[0]||null;}
 function mySailors(){const b=myBoat();return b?sailors.filter(s=>s.boat_id===b.id):sailors;}
+let boatPositions=[];
+async function loadBoatPositions(){
+  if(LOCAL_MODE)return;
+  try{const{data,error}=await SB.from("boat_positions").select("*");
+    if(!error&&data)boatPositions=data;}catch(e){}
+}
 function boatOf(sailorId){const s=sailors.find(x=>x.id===sailorId);return s?BOATS.find(b=>b.id===s.boat_id):null;}
 async function loadLogs(){
   if(LOCAL_MODE){serverLogs=JSON.parse(localStorage.getItem("ss_logs")||"[]");return;}
@@ -1736,6 +1746,11 @@ if(SB){
     if(current==="board"||current==="spot")render();else updateTop();
   }).subscribe();
   setInterval(async()=>{await loadLogs();if(current==="board"||current==="spot")render();else updateTop();},90000);
+  SB.channel("boatpos-ch").on("postgres_changes",{event:"*",schema:"public",table:"boat_positions"},async()=>{
+    await loadBoatPositions();
+    if(current==="fleet")renderFleet();
+    if(current==="places")renderFleetMarkers();
+  }).subscribe();
 }
 function updateSync(){
   const el=document.getElementById("syncLine");
@@ -1891,7 +1906,7 @@ async function enterApp(){
   await Promise.all([loadLogs(),loadSettings()]);
   refreshWhoAmI();
   flush();render();
-  loadWind();loadChat();loadNotes();trkResumeIfWanted();
+  loadWind();loadChat();loadNotes();loadBoatPositions();trkResumeIfWanted();
   if(!localStorage.getItem("ss_intro"))showIntro();
   else setTimeout(maybePopQuiz,2300);
 }
@@ -1899,7 +1914,7 @@ async function enterApp(){
 // ================= TABS & RENDER =================
 let current="board",curCat="vessels",moreOpen=false;
 const NAV_PRIMARY=[["board","🎲","Plan"],["spot","🔭","Spana"],["knots","🪢","Knopar"],["sur","🎁","Dagens"],["arcade","🕹️","Spel"]];
-const NAV_MORE=[["chat","💬","Skeppschatt"],["gallery","📸","Galleri"],["report","📜","Törnrapport"],["navskola","🧭","Navigationsskolan"],["recipes","🍳","Byssan"],["trivia","❓","Frågesport"],["sounds","🔊","Läten"],["playlist","🎵","Sjömansvisor"],["terms","⚓","Sjötermer"],["live","📡","Live AIS"],["places","🗺️","Seglandet 2026"],["kapten","⚙️","Kaptensrutan"],["ideas","💡","Idélåda"]];
+const NAV_MORE=[["chat","💬","Skeppschatt"],["gallery","📸","Galleri"],["report","📜","Törnrapport"],["fleet","🏆","Flottiljen"],["navskola","🧭","Navigationsskolan"],["recipes","🍳","Byssan"],["trivia","❓","Frågesport"],["sounds","🔊","Läten"],["playlist","🎵","Sjömansvisor"],["terms","⚓","Sjötermer"],["live","📡","Live AIS"],["places","🗺️","Seglandet 2026"],["kapten","⚙️","Kaptensrutan"],["ideas","💡","Idélåda"]];
 const TABS=()=>NAV_PRIMARY.concat(NAV_MORE).map(([k,ic,l])=>[k,ic+" "+l]);
 const RANKS=[[0,"Jungman"],[30,"Lättmatros"],[60,"Matros"],[130,"Båtsman"],[220,"Styrman"],[320,"Skeppare"],[420,"Kommodor 🏆"]];
 function rankFor(p){let r=RANKS[0][1];RANKS.forEach(([t,n])=>{if(p>=t)r=n;});return r;}
@@ -1973,7 +1988,7 @@ function updateTop(){
   document.getElementById("xpInfo").textContent=t>=14?"Kommodor!":(LEG-into)+" p till nästa hamn";
   updateSync();
 }
-const VIEW_IDS=["boardView","gameView","liveView","soundView","playlistView","triviaView","termsView","knotsView","surView","arcadeView","placesView","chatView","recipesView","navView","galleryView","reportView","kaptenView","ideasView"];
+const VIEW_IDS=["boardView","gameView","liveView","soundView","playlistView","triviaView","termsView","knotsView","surView","arcadeView","placesView","chatView","recipesView","navView","galleryView","reportView","kaptenView","ideasView","fleetView"];
 function render(){
   buildTabs();updateTop();
   if(current!=="arcade"){stopTet();stopSnake();}
@@ -1995,6 +2010,7 @@ function render(){
   if(current==="navskola"){show("navView");renderNavSchool();return;}
   if(current==="gallery"){show("galleryView");renderGallery();loadNotes().then(renderGallery);return;}
   if(current==="report"){show("reportView");renderReport();return;}
+  if(current==="fleet"){show("fleetView");renderFleet();Promise.all([loadSailors(),loadBoats(),loadLogs(),loadBoatPositions()]).then(renderFleet);return;}
   if(current==="kapten"){show("kaptenView");renderKapten();return;}
   if(current==="ideas"){show("ideasView");renderIdeas();loadIdeas().then(renderIdeas);return;}
   show("gameView");renderSpotGrid();
@@ -2262,6 +2278,52 @@ function renderBoard(){
       addLog("checkpoint",ref,CP_PTS,TILE_SHORT[ti]+": "+ch.t);confetti(28);showToast("Hamnutmaning klar! +"+CP_PTS+" p ⚓");render();};
     cpEl.appendChild(d);
   });
+}
+// ================= FLOTTILJEN (alla båtar & seglare) =================
+function renderFleet(){
+  const box=document.getElementById("fleetBox");if(!box)return;
+  const meBoat=myBoat();
+  const boatRows=BOATS.map(b=>{
+    const crew=sailors.filter(s=>s.boat_id===b.id);
+    const n=Math.max(1,crew.length);
+    const pts=crew.reduce((s,x)=>s+ptsFor(x.id),0);
+    const route=(b.route&&b.route.length===14)?[b.start_harbor||"HELSINGFORS",...b.route]:TILE_SHORT;
+    const tile=tileFor(pts,LEG*n);
+    return `<div class="row"${meBoat&&b.id===meBoat.id?' style="font-weight:800"':""}>
+      <span>${b.emoji} ${b.name}${b.captain?" · 🧑‍✈️ "+b.captain:""}</span>
+      <span class="pts">${pts} p — ${tile>=14?"I MÅL 🎉":"vid "+route[tile]} · ${n} ombord</span>
+    </div>`;
+  }).join("");
+  const meds=["🥇","🥈","🥉"];
+  const ranked=sailors.map(s=>({s,p:ptsFor(s.id),boat:BOATS.find(b=>b.id===s.boat_id)})).sort((a,b)=>b.p-a.p);
+  const lbEl=document.createElement("div");
+  ranked.forEach((r,i)=>{
+    const rk=r.boat&&r.boat.roles?Object.keys(r.boat.roles).find(k=>r.boat.roles[k]===r.s.id):null;
+    const roleTag=rk?ROLES.find(x=>x.k===rk):null;
+    const d=document.createElement("div");
+    d.className="lbRow"+(me&&r.s.id===me.id?" meRow":"");
+    d.style.cursor="pointer";
+    d.innerHTML=`<div class="med">${meds[i]||i+1}</div><div class="em">${r.s.emoji}${roleTag?" "+roleTag.em:""}</div>
+      <div class="mid"><div class="nm">${r.s.name}${r.boat?" · "+r.boat.emoji+" "+r.boat.name:""}</div>
+      <div class="at">${rankFor(r.p)}${roleTag?" · "+roleTag.t:""}</div></div>
+      <div class="p">${r.p} p</div>`;
+    d.onclick=()=>showProfile(r.s);
+    lbEl.appendChild(d);
+  });
+  const posRows=(LOCAL_MODE?[]:boatPositions).map(bp=>{
+    const b=BOATS.find(x=>x.id===bp.boat_id);if(!b)return"";
+    const mins=Math.round((Date.now()-new Date(bp.updated_at).getTime())/60000);
+    const age=mins<1?"just nu":mins<60?mins+" min sedan":Math.round(mins/60)+" tim sedan";
+    return `<div class="row"><span>${b.emoji} ${b.name}</span><span class="pts">📍 ${age}${bp.sailor_name?" · "+bp.sailor_name:""}</span></div>`;
+  }).filter(Boolean).join("");
+  box.innerHTML=`<div class="termgrp">Flottiljens båtar</div>
+    ${boatRows||'<p class="soundIntro">Inga båtar ännu.</p>'}
+    ${posRows?`<div class="termgrp">Delade positioner just nu</div>${posRows}
+      <p class="soundIntro" style="margin-bottom:10px">Positioner delas av besättningar som slagit på "📡 Dela position" på Seglandet 2026-kartan.</p>`
+      :`<p class="soundIntro" style="margin:10px 0">Ingen båt delar sin position just nu — slå på "📡 Dela position" under 🗺️ Seglandet 2026 för att synas här och på kartan.</p>`}
+    <div class="termgrp">Alla seglare — topplistan</div>`;
+  box.appendChild(lbEl);
+  if(!ranked.length)box.insertAdjacentHTML("beforeend",'<p class="soundIntro">Inga seglare ännu.</p>');
 }
 // ================= KNOPAR =================
 function renderKnots(){
@@ -2803,10 +2865,12 @@ function initHarborMap(){
       <button class="mapBtn" id="mbFollow">📍 Följ oss</button>
       <button class="mapBtn" id="mbRec">⏺ Logga färd</button>
       <button class="mapBtn" id="mbTrack">🛤️ Dagens spår</button>
+      <button class="mapBtn" id="mbShare">📡 Dela position</button>
+      <button class="mapBtn" id="mbFleet">🚢 Visa båtar</button>
     </div>
     <div id="osmMap" style="height:340px;border-radius:14px;border:2.5px solid rgba(11,36,54,.14);box-shadow:0 5px 0 rgba(0,0,0,.24)"></div>
     <div class="trkBar" id="trkBar"></div>
-    <p style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:10.5px;color:#7fa3b4;text-align:center;margin:6px 0 12px">© OpenStreetMap · farleder © Väylävirasto · sjömärken © OpenSeaMap syns vid inzoomning<br>Översiktskarta — INTE för navigation, använd sjökort ombord</p>`;
+    <p style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:10.5px;color:#7fa3b4;text-align:center;margin:6px 0 12px">© OpenStreetMap · farleder © Väylävirasto · sjömärken © OpenSeaMap syns vid inzoomning<br>Översiktskarta — INTE för navigation, använd sjökort ombord<br>📡 Dela position sänder er position till hela flottiljen · 🚢 Visa båtar visar andras delade positioner</p>`;
   try{
     const m=L.map("osmMap",{scrollWheelZoom:false});
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:16,attribution:"© OpenStreetMap"}).addTo(m);
@@ -2831,12 +2895,40 @@ function initHarborMap(){
     document.getElementById("mbFollow").onclick=trkToggleFollow;
     document.getElementById("mbRec").onclick=trkToggleRec;
     document.getElementById("mbTrack").onclick=trkShowToday;
+    document.getElementById("mbShare").onclick=trkToggleShare;
+    document.getElementById("mbFleet").onclick=toggleFleetMarkers;
     const recBtn=document.getElementById("mbRec");
     recBtn.classList.toggle("on",TRK.rec);recBtn.textContent=TRK.rec?"⏹ Stoppa":"⏺ Logga färd";
+    const shareBtn=document.getElementById("mbShare");
+    shareBtn.classList.toggle("on",TRK.share);shareBtn.textContent=TRK.share?"⏹ Sluta dela":"📡 Dela position";
+    document.getElementById("mbFleet").classList.toggle("on",fleetMarkersOn);
+    if(fleetMarkersOn)renderFleetMarkers();
   }catch(e){mapDiv.innerHTML=`<div class="diagram">${routeMapSVG()}</div>`;}
 }
+function toggleFleetMarkers(){
+  if(LOCAL_MODE){showToast("Kräver server");return;}
+  fleetMarkersOn=!fleetMarkersOn;
+  const b=document.getElementById("mbFleet");if(b)b.classList.toggle("on",fleetMarkersOn);
+  if(fleetMarkersOn){loadBoatPositions().then(renderFleetMarkers);}
+  else{
+    if(window._fleetMarkers){window._fleetMarkers.forEach(mk=>mk.remove());window._fleetMarkers=[];}
+  }
+}
+function renderFleetMarkers(){
+  if(!window._osm||!fleetMarkersOn)return;
+  if(window._fleetMarkers)window._fleetMarkers.forEach(mk=>mk.remove());
+  window._fleetMarkers=boatPositions.map(bp=>{
+    const b=BOATS.find(x=>x.id===bp.boat_id);if(!b)return null;
+    const mins=Math.round((Date.now()-new Date(bp.updated_at).getTime())/60000);
+    const age=mins<1?"just nu":mins<60?mins+" min sedan":Math.round(mins/60)+" tim sedan";
+    return L.circleMarker([bp.lat,bp.lng],{radius:8,color:"#fff",weight:2,fillColor:"#3f7d5a",fillOpacity:.95})
+      .bindPopup(`${b.emoji} <b>${b.name}</b><br>Delad position — ${age}${bp.sailor_name?"<br>av "+bp.sailor_name:""}`)
+      .addTo(window._osm);
+  }).filter(Boolean);
+}
 // ================= FÄRDLOGG (GPS-spår) =================
-const TRK={watch:null,rec:false,follow:false,pts:[],queue:[],marker:null,line:null,lastQ:0};
+const TRK={watch:null,rec:false,follow:false,share:false,pts:[],queue:[],marker:null,line:null,lastQ:0,lastShare:0};
+let fleetMarkersOn=false;
 let lastFix=null,wakeLock=null;
 async function trkAcquireWake(){
   try{if("wakeLock" in navigator)wakeLock=await navigator.wakeLock.request("screen");}catch(e){}
@@ -2880,6 +2972,16 @@ function trkPos(p){
     }
     trkBarMsg(`⏺ ${sog!=null?sog.toFixed(1):"–"} kn · ${trkDist(TRK.pts).toFixed(1)} M loggade`);
   }else trkBarMsg(`📍 ${sog!=null&&sog>0.5?sog.toFixed(1)+" kn":"stilla"}`);
+  if(TRK.share)saveBoatPosition(lat,lng,sog);
+}
+async function saveBoatPosition(lat,lng,sog){
+  if(LOCAL_MODE)return;
+  const b=myBoat();if(!b)return;
+  if(Date.now()-TRK.lastShare<45000)return;
+  TRK.lastShare=Date.now();
+  try{await SB.from("boat_positions").upsert({boat_id:b.id,lat,lng,sog:sog!=null?+sog.toFixed(1):null,
+    sailor_name:me?me.name:null,updated_at:new Date().toISOString()});}
+  catch(e){TRK.lastShare=0;}
 }
 async function trkFlush(force){
   if(LOCAL_MODE||!TRK.queue.length)return;
@@ -2891,7 +2993,7 @@ async function trkFlush(force){
 function trkWatch(on){
   if(on&&!TRK.watch&&navigator.geolocation){
     TRK.watch=navigator.geolocation.watchPosition(trkPos,()=>trkBarMsg("GPS-fel — tillåt platsåtkomst"),{enableHighAccuracy:true,maximumAge:3000});
-  }else if(!on&&TRK.watch&&!TRK.follow&&!TRK.rec){
+  }else if(!on&&TRK.watch&&!TRK.follow&&!TRK.rec&&!TRK.share){
     navigator.geolocation.clearWatch(TRK.watch);TRK.watch=null;trkBarMsg("");
     if(TRK.marker){TRK.marker.remove();TRK.marker=null;}
   }
@@ -2899,7 +3001,7 @@ function trkWatch(on){
 function trkToggleFollow(){
   TRK.follow=!TRK.follow;
   document.getElementById("mbFollow").classList.toggle("on",TRK.follow);
-  trkWatch(TRK.follow||TRK.rec);
+  trkWatch(TRK.follow||TRK.rec||TRK.share);
 }
 function trkToggleRec(){
   TRK.rec=!TRK.rec;
@@ -2907,11 +3009,23 @@ function trkToggleRec(){
   const b=document.getElementById("mbRec");
   if(b){b.classList.toggle("on",TRK.rec);b.textContent=TRK.rec?"⏹ Stoppa":"⏺ Logga färd";}
   if(TRK.rec){showToast("Färdlogg PÅ — fortsätter automatiskt nästa gång du öppnar appen ⚡");trkWatch(true);trkAcquireWake();}
-  else{trkFlush(true);showToast("Färdlogg sparad! Se den under 🛤️ eller i Törnrapporten.");trkWatch(false);trkReleaseWake();}
+  else{trkFlush(true);showToast("Färdlogg sparad! Se den under 🛤️ eller i Törnrapporten.");trkWatch(TRK.follow||TRK.share);trkReleaseWake();}
+}
+function trkToggleShare(){
+  if(LOCAL_MODE){showToast("Kräver server");return;}
+  TRK.share=!TRK.share;
+  localStorage.setItem("ss_trk_share",TRK.share?"1":"0");
+  const b=document.getElementById("mbShare");
+  if(b){b.classList.toggle("on",TRK.share);b.textContent=TRK.share?"⏹ Sluta dela":"📡 Dela position";}
+  if(TRK.share){showToast("Delar er position med flottiljen 📡");TRK.lastShare=0;trkWatch(true);}
+  else{showToast("Slutade dela position");trkWatch(TRK.follow||TRK.rec);}
 }
 function trkResumeIfWanted(){
   if(localStorage.getItem("ss_trk_rec")==="1"&&navigator.geolocation){
     TRK.rec=true;trkWatch(true);trkAcquireWake();
+  }
+  if(!LOCAL_MODE&&localStorage.getItem("ss_trk_share")==="1"&&navigator.geolocation){
+    TRK.share=true;trkWatch(true);
   }
 }
 async function trkShowToday(){
