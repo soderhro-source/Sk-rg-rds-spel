@@ -3486,46 +3486,51 @@ function renderCaptainLogCard(r,track){
     };
   };
 }
+function harborMapsHref(p){
+  return p.lat!=null&&p.lng!=null
+    ?`https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`
+    :`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.n+" gästhamn")}`;
+}
+function harborRatingLine(notes,p){
+  if(p.r&&p.r!=="–")return ` · ★ ${p.r}`;
+  if(notes.length){
+    const avg=notes.reduce((s,x)=>s+(x.rating||0),0)/notes.length;
+    return ` · ★ ${avg.toFixed(1)} (${notes.length})`;
+  }
+  return "";
+}
+function buildHarborCard(p,numLabel){
+  const card=document.createElement("div");card.className="pcard";card.style.cursor="default";
+  const notes=portNotes.filter(x=>x.place===p.n);
+  const rate=harborRatingLine(notes,p);
+  const notesHtml=notes.map(x=>`<div style="border-top:1px solid rgba(11,36,54,.1);padding-top:7px;margin-top:7px">
+    <span style="color:#e9a02e;font-size:12px">${stars(x.rating)}</span>
+    <b style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:11.5px"> ${escHtml(x.author)}</b>
+    <div class="pnote" style="margin-top:3px">${escHtml(x.body||"")}</div>
+    ${x.photo_url?`<img src="${x.photo_url}" loading="lazy" style="width:100%;border-radius:10px;margin-top:6px;display:block">`:""}</div>`).join("");
+  card.innerHTML=`<div class="top"><div class="pn">${numLabel?`<span class="pnum">${numLabel}</span>`:""}${p.n}</div>
+    <a class="open" href="${harborMapsHref(p)}" target="_blank" rel="noopener">Karta ⤴</a></div>
+    <div class="meta"><b>${p.t}</b>${rate}${p.fee?` · <b>💶 ${p.fee}</b>`:""}</div>
+    ${p.svc?`<div class="meta" style="margin-top:5px;line-height:1.6">${p.svc}</div>`:""}
+    <div class="pnote">${p.note}</div>
+    ${notesHtml?`<div style="margin-top:4px">${notesHtml}</div>`:""}
+    <div class="noteForm" data-p="${escHtml(p.n)}"></div>
+    <button class="cpBtn" style="margin-top:10px;background:var(--sea)" data-w="${escHtml(p.n)}">✍️ Loggboka hamnen</button>`;
+  card.querySelector("[data-w]").onclick=()=>{noteFormOpen=noteFormOpen===p.n?null:p.n;renderPlaces();};
+  if(noteFormOpen===p.n)buildNoteForm(card.querySelector(".noteForm"),p);
+  return card;
+}
 function renderPlaces(){
   initHarborMap();
   const pl=document.getElementById("placeList");pl.innerHTML="";
-  PLACES.forEach((p,i)=>{
-    const card=document.createElement("div");card.className="pcard";card.style.cursor="default";
-    const rate=p.r&&p.r!=="–"?` · ★ ${p.r}`:"";
-    const notes=portNotes.filter(x=>x.place===p.n);
-    const notesHtml=notes.map(x=>`<div style="border-top:1px solid rgba(11,36,54,.1);padding-top:7px;margin-top:7px">
-      <span style="color:#e9a02e;font-size:12px">${stars(x.rating)}</span>
-      <b style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:11.5px"> ${escHtml(x.author)}</b>
-      <div class="pnote" style="margin-top:3px">${escHtml(x.body||"")}</div>
-      ${x.photo_url?`<img src="${x.photo_url}" loading="lazy" style="width:100%;border-radius:10px;margin-top:6px;display:block">`:""}</div>`).join("");
-    card.innerHTML=`<div class="top"><div class="pn"><span class="pnum">${i+1}</span>${p.n}</div>
-      <a class="open" href="https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}" target="_blank" rel="noopener">Karta ⤴</a></div>
-      <div class="meta"><b>${p.t}</b>${rate}${p.fee?` · <b>💶 ${p.fee}</b>`:""}</div>
-      ${p.svc?`<div class="meta" style="margin-top:5px;line-height:1.6">${p.svc}</div>`:""}
-      <div class="pnote">${p.note}</div>
-      ${notesHtml?`<div style="margin-top:4px">${notesHtml}</div>`:""}
-      <div class="noteForm" data-p="${i}"></div>
-      <button class="cpBtn" style="margin-top:10px;background:var(--sea)" data-w="${i}">✍️ Loggboka hamnen</button>`;
-    card.querySelector(`[data-w="${i}"]`).onclick=()=>{noteFormOpen=noteFormOpen===i?null:i;renderPlaces();};
-    pl.appendChild(card);
-    if(noteFormOpen===i)buildNoteForm(card.querySelector(".noteForm"),p);
-  });
+  PLACES.forEach((p,i)=>pl.appendChild(buildHarborCard(p,i+1)));
   const h=document.createElement("div");h.className="termgrp";h.textContent="Fler hamnar i området";pl.appendChild(h);
   const info=document.createElement("p");info.className="soundIntro";
-  info.textContent="Reservalternativ om vind eller servicebehov ändrar rutten. Priser uppskattade — kolla på plats.";
+  info.textContent="Reservalternativ om vind eller servicebehov ändrar rutten. Priser uppskattade — kolla på plats. Betygsätt och loggboka dem precis som huvudhamnarna.";
   pl.appendChild(info);
-  const harborCard=p=>{
-    const c=document.createElement("div");c.className="pcard";c.style.cursor="default";
-    c.innerHTML=`<div class="top"><div class="pn">${p.n}</div>
-      <a class="open" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.n+" gästhamn")}" target="_blank" rel="noopener">Karta ⤴</a></div>
-      <div class="meta"><b>${p.t}</b> · <b>💶 ${p.fee}</b></div>
-      <div class="meta" style="margin-top:5px;line-height:1.6">${p.svc}</div>
-      <div class="pnote">${p.note}</div>`;
-    return c;
-  };
-  ALT_HARBORS.forEach(p=>pl.appendChild(harborCard(p)));
+  ALT_HARBORS.forEach(p=>pl.appendChild(buildHarborCard(p)));
   if(extraHarborsOpen){
-    EXTRA_HARBORS.forEach(p=>pl.appendChild(harborCard(p)));
+    EXTRA_HARBORS.forEach(p=>pl.appendChild(buildHarborCard(p)));
     const less=document.createElement("button");less.className="cpBtn";
     less.style.cssText="display:block;margin:10px auto";less.textContent="− Visa färre";
     less.onclick=()=>{extraHarborsOpen=false;renderPlaces();};
