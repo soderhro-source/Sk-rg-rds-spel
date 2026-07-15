@@ -941,6 +941,7 @@ const SURPRISES=[
 ];
 const ROLE_PTS=3;
 const DISH_PTS=2;
+const COOK_PTS=3;
 const ROLES=[
   {k:"rorsman",em:"🧭",t:"Rorsman",sub:"Håller kursen"},
   {k:"skeppskock",em:"🍳",t:"Skeppskock",sub:"Ansvarar för maten"},
@@ -2400,6 +2401,16 @@ function renderSur(){
           :`<button class="goBtn" id="roleGo">Klar! (+${ROLE_PTS} p)</button>`}
       </div>`;
   }
+  const cookRef="cook:"+today();
+  const cookDone=me&&hasLog(me.id,"bonus",cookRef);
+  const cookHtml=`<div class="termgrp" style="margin-top:18px">Byssan</div>
+    <div class="surCard">
+      <div class="em">🍳</div>
+      <div class="pts">LAGAT MAT IDAG · +${COOK_PTS} P</div>
+      <div class="big">Laga en måltid åt besättningen — vem som helst ombord kan ta den, en gång per dag.</div>
+      ${cookDone?`<div class="claimed">Klart för idag! ✓</div>`
+        :`<button class="goBtn" id="cookGo">Lagat mat! (+${COOK_PTS} p)</button>`}
+    </div>`;
   const dishRef="dishes:"+today();
   const dishDone=me&&hasLog(me.id,"bonus",dishRef);
   const dishHtml=`<div class="termgrp" style="margin-top:18px">Husgeråd</div>
@@ -2418,9 +2429,11 @@ function renderSur(){
       :`<button class="goBtn" id="surGo">Vi klarade den — jag loggar! (+${s.v} p)</button>`}
     </div>
     <p class="soundIntro" style="margin-top:14px">Ny överraskning varje dag. Först till kvarn — bara en ombord kan ta poängen. Gör upp ärligt vem som förtjänar den!</p>
-    ${dishHtml}${roleHtml}`;
+    ${cookHtml}${dishHtml}${roleHtml}`;
   const sb=document.getElementById("surGo");
   if(sb)sb.onclick=()=>{addLog("surprise",ref,s.v,s.t);showToast("Överraskning tagen! +"+s.v+" p 🎁");render();};
+  const cb=document.getElementById("cookGo");
+  if(cb)cb.onclick=()=>{addLog("bonus",cookRef,COOK_PTS,"Lagat mat");showToast("Lagat mat! +"+COOK_PTS+" p 🍳");render();};
   const db=document.getElementById("dishGo");
   if(db)db.onclick=()=>{addLog("bonus",dishRef,DISH_PTS,"Diskat");showToast("Diskat! +"+DISH_PTS+" p 🍽️");render();};
   const rb=document.getElementById("roleGo");
@@ -3332,6 +3345,18 @@ async function renderReport(){
   clogPointer.style.marginBottom="10px";
   clogPointer.innerHTML="📓 Skepparens loggbok & resplanering flyttade till 🧳 Resor.";
   r.appendChild(clogPointer);
+  const cookCount=sid=>logsFor(sid).filter(l=>l.kind==="bonus"&&l.ref.startsWith("cook:")).length;
+  const cookRanked=[...mySailors()].map(s=>({s,n:cookCount(s.id)})).filter(x=>x.n>0).sort((a,b)=>b.n-a.n);
+  if(cookRanked.length){
+    const top=cookRanked[0];
+    const tied=cookRanked.filter(x=>x.n===top.n);
+    const champs=tied.map(x=>x.s.emoji+" "+escHtml(x.s.name)).join(" & ");
+    const cookC=document.createElement("div");cookC.className="repCard";
+    cookC.innerHTML=`<h3>🍳👑 Kockmästaren</h3>
+      <div class="repRow"><span>${champs}</span><b>${top.n} gång${top.n===1?"":"er"}</b></div>
+      ${cookRanked.length>1?cookRanked.slice(tied.length).map(x=>`<div class="repRow" style="opacity:.7"><span>${x.s.emoji} ${escHtml(x.s.name)}</span><b>${x.n}</b></div>`).join(""):""}`;
+    r.appendChild(cookC);
+  }
   const dishCount=sid=>logsFor(sid).filter(l=>l.kind==="bonus"&&l.ref.startsWith("dishes:")).length;
   const dishRanked=[...mySailors()].map(s=>({s,n:dishCount(s.id)})).filter(x=>x.n>0).sort((a,b)=>b.n-a.n);
   if(dishRanked.length){
@@ -3359,6 +3384,7 @@ async function renderReport(){
       <div class="repRow"><span>❓ Quizdagar (inkl. pop-quiz)</span><b>${c("quiz")}</b></div>
       <div class="repRow"><span>🕹️ Spelrumsdagar</span><b>${c("minigame")}</b></div>
       <div class="repRow"><span>🎁 Överraskningar vunna</span><b>${c("surprise")}</b></div>
+      <div class="repRow"><span>🍳 Lagat mat</span><b>${cookCount(row.s.id)}</b></div>
       <div class="repRow"><span>🍽️ Diskat</span><b>${dishCount(row.s.id)}</b></div>
       <div class="repRow"><span>📓 Loggbok / 📸 foton</span><b>${myNotes.length} / ${myNotes.filter(x=>x.photo_url).length}</b></div>
       <div class="repRow"><span>💬 Chattmeddelanden</span><b>${myChat}</b></div>
