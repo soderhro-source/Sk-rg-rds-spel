@@ -30,6 +30,8 @@ create table if not exists sailors (
   pin_hash text not null,
   emoji text not null default '⛵',
   boat_id uuid references boats(id),
+  gender text check (gender in ('F','M','A')),
+  age_group text check (age_group in ('barn','ungdom','vuxen')),
   created_at timestamptz default now()
 );
 
