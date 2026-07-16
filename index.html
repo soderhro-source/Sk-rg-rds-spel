@@ -222,9 +222,10 @@
   .surCard .claimed{font-family:"Helvetica Neue",Arial,sans-serif;font-size:14px;font-weight:700;
     color:var(--green);margin-top:12px;}
   /* ---- Fiske & Handel ---- */
-  .fishBar{position:relative;height:34px;background:#dbe9ef;border-radius:10px;margin:12px 0;overflow:hidden;}
-  .fishZone{position:absolute;top:0;bottom:0;background:rgba(63,125,90,.35);border-left:2px solid #3f7d5a;border-right:2px solid #3f7d5a;}
-  .fishMarker{position:absolute;top:2px;bottom:2px;width:4px;background:#d8612e;border-radius:2px;transform:translateX(-50%);}
+  #fishCv{display:block;margin:10px auto 0;background:url('fiske-village.jpg') 78% 60%/cover no-repeat;
+    border-radius:10px;touch-action:none;box-shadow:inset 0 0 0 2px rgba(0,0,0,.15);}
+  #runCv{display:block;margin:10px auto 0;background:url('fiske-village.jpg') 14% 38%/cover no-repeat;
+    border-radius:10px;touch-action:none;box-shadow:inset 0 0 0 2px rgba(0,0,0,.15);}
   .traderScene{position:relative;height:270px;border-radius:16px;overflow:hidden;margin:10px 0;
     background:url('fiske-village.jpg') center/cover no-repeat;box-shadow:inset 0 0 0 2px rgba(0,0,0,.08);touch-action:manipulation;}
   .tSpot{position:absolute;transform:translate(0,-50%);display:flex;flex-direction:row;align-items:center;gap:5px;
@@ -1090,8 +1091,10 @@ const ROD_COSTS=[0,40,120,300];
 const FUEL_PRICE=8,FUEL_PACK=5;
 const FRIDGE_COST=150,SAILS_COST=200,NET_COST=100;
 const NET_RATE=1,NET_CAP_HOURS=24;
-const FISH_SESSION_MS=60000,FISH_SAILS_BONUS_MS=25000,FISH_STRIKE_PERIOD_MS=1400;
+const FISH_SESSION_MS=60000,FISH_SAILS_BONUS_MS=25000;
 const FISH_PTS=3;
+const HAZARD_TYPES=[{k:"tire",em:"🛞"},{k:"jelly",em:"🪼"},{k:"weed",em:"🌿"}];
+function fishHookRadius(rodLevel){return 15+rodLevel*4;}
 function defaultWorkshop(){return{kronor:0,fuel:0,rodLevel:0,fridge:false,sails:false,net:false,netAt:null,catch:[]};}
 function myWorkshop(){const b=myBoat();return Object.assign(defaultWorkshop(),(b&&b.workshop)||{},{catch:(b&&b.workshop&&b.workshop.catch)||[]});}
 async function saveWorkshop(ws){
@@ -1129,17 +1132,6 @@ function rollSpecies(pool,rodLevel){
   let r=Math.random()*total;
   for(const s of avail){r-=s.w;if(r<=0)return s;}
   return avail[avail.length-1];
-}
-function castPosition(startTs,nowTs,periodMs){
-  const t=((nowTs-startTs)%periodMs+periodMs)%periodMs/periodMs;
-  return (t<0.5?t*2:2-t*2)*100;
-}
-function strikeZoneWidth(rodLevel){return Math.min(75,30+rodLevel*15);}
-function resolveCast(pos,zoneWidth){
-  const zoneStart=(100-zoneWidth)/2,zoneEnd=zoneStart+zoneWidth;
-  if(pos<zoneStart||pos>zoneEnd)return{hit:false};
-  const center=50,dist=Math.abs(pos-center),perfect=dist<zoneWidth*0.2;
-  return{hit:true,perfect};
 }
 function netAccrued(ws){
   if(!ws.net||!ws.netAt)return 0;
@@ -1553,13 +1545,13 @@ function traderUpdateHud(){
   if(vkBadge)vkBadge.style.display=netAccrued(ws)>0?"flex":"none";
 }
 function traderShowPanel(kind){
-  traderPanelKind=kind;traderBeachMode=null;
-  stopFishSession();
+  traderPanelKind=kind;traderBeachMode=null;traderMarknadMode=null;
+  stopFishSession();stopRunGameLoop();
   renderTraderPanel();
 }
 let traderPanelKind=null,traderBeachMode=null;
 function startTrader(box){
-  traderPanelKind=null;traderBeachMode=null;
+  traderPanelKind=null;traderBeachMode=null;traderMarknadMode=null;
   const ws0=myWorkshop();
   const spots=TRADER_SPOTS.map(s=>`<button type="button" class="tSpot" id="tSpot-${s.k}" style="left:${s.x}%;top:${s.y}%">
     <span>${s.k==="marknad"?"🏪":s.k==="verkstad"?"⚒️":s.k==="brygga"?"⚓":"🏖️"}<span class="tBadge" id="tBadge-${s.k}" style="display:none"></span></span>${s.label}</button>`).join("");
@@ -1626,61 +1618,156 @@ function renderBryggaPanel(panel){
 }
 let fishSession=null;
 function stopFishSession(){
-  if(fishSession){
-    if(fishSession.biteTimer)clearTimeout(fishSession.biteTimer);
-    if(fishSession.tickTimer)clearInterval(fishSession.tickTimer);
-  }
+  if(fishSession&&fishSession.tickTimer)clearInterval(fishSession.tickTimer);
   fishSession=null;
+  stopFishGameLoop();
 }
 function startFishSession(mode,sails){
   stopFishSession();
-  fishSession={mode,endsAt:Date.now()+FISH_SESSION_MS+(mode==="boat"&&sails?FISH_SAILS_BONUS_MS:0),phase:"idle",
-    casts:0,caught:0,biteTimer:null,tickTimer:null,strikeStartTs:0};
+  fishSession={mode,endsAt:Date.now()+FISH_SESSION_MS+(mode==="boat"&&sails?FISH_SAILS_BONUS_MS:0),caught:0,tickTimer:null};
   fishSession.tickTimer=setInterval(()=>{
     if(!fishSession)return;
     if(Date.now()>=fishSession.endsAt){endFishSession();return;}
     if(current==="arcade"&&arcGame==="trader")renderTraderPanel();
-  },120);
+  },250);
 }
 function endFishSession(){
-  const summary=fishSession?{casts:fishSession.casts,caught:fishSession.caught}:null;
+  const summary=fishSession?{caught:fishSession.caught}:null;
   stopFishSession();
   if(current==="arcade"&&arcGame==="trader")renderTraderPanel();
-  if(summary)showToast(`Fisketuren är slut — ${summary.caught} fångster på ${summary.casts} kast! 🎣`);
+  if(summary)showToast(`Fisketuren är slut — ${summary.caught} fångster denna tur! 🎣`);
 }
-function castLine(){
-  if(!fishSession||fishSession.phase!=="idle")return;
-  fishSession.phase="waiting";renderTraderPanel();
-  fishSession.biteTimer=setTimeout(()=>{
-    if(!fishSession)return;
-    fishSession.phase="strike";fishSession.strikeStartTs=Date.now();
-    renderTraderPanel();
-  },700+Math.random()*1100);
+// ---- Krokfiske: live drag-the-hook mini-game (replaces the old cast/wait/tap-timing-bar mechanic).
+// Keeps every economy hook from the old version untouched (rollSpecies' rodLevel gating, addCatch,
+// the once-daily "storfångst" rare-catch bonus, fuel/sails session length) — only the moment-to-moment
+// interaction and rendering changed, from discrete button taps to a continuous drag-and-catch loop.
+const FISHG={raf:null,mode:null,canvas:null,hookX:0,hookY:0,targetX:0,targetY:0,fishes:[],hazards:[],
+  parts:[],stuckUntil:0,nextFishAt:0,nextHazardAt:0,caught:0,lastTs:0,waterTop:0,waterBot:0};
+function stopFishGameLoop(){
+  if(FISHG.raf){cancelAnimationFrame(FISHG.raf);FISHG.raf=null;}
+  FISHG.canvas=null;
 }
-async function reelIn(){
-  if(!fishSession||fishSession.phase!=="strike")return;
-  const ws=myWorkshop();
-  const pos=castPosition(fishSession.strikeStartTs,Date.now(),FISH_STRIKE_PERIOD_MS);
-  const res=resolveCast(pos,strikeZoneWidth(ws.rodLevel));
-  fishSession.casts++;fishSession.phase="idle";
-  if(res.hit){
-    const pool=fishSession.mode==="boat"?FISH_SPECIES:BEACH_FISH_SPECIES;
-    const species=rollSpecies(pool,fishSession.mode==="boat"?ws.rodLevel:0);
-    addCatch(ws,species.k);fishSession.caught++;
-    await saveWorkshop(ws);
-    if(species.rare&&me&&!hasLog(me.id,"bonus","fish:"+today())){
-      addLog("bonus","fish:"+today(),FISH_PTS,"Storfångst: "+species.n);
-      confetti(30);showToast(`Storfångst! ${species.em} ${species.n} — +${FISH_PTS} p! 🎉`);
-    }else{
-      showToast(`${res.perfect?"Perfekt kast! ":""}${species.em} ${species.n} fångad!`);
-    }
-  }else{
-    showToast("Napp men den kom loss… 🎣💨");
+function fishGameSetTarget(canvas,clientX,clientY){
+  const rect=canvas.getBoundingClientRect();
+  const scaleX=rect.width?canvas.width/rect.width:1,scaleY=rect.height?canvas.height/rect.height:1;
+  const x=(clientX-rect.left)*scaleX,y=(clientY-rect.top)*scaleY;
+  FISHG.targetX=Math.max(10,Math.min(canvas.width-10,x));
+  FISHG.targetY=Math.max(FISHG.waterTop,Math.min(FISHG.waterBot,y));
+}
+function startFishGameLoop(canvas,mode){
+  stopFishGameLoop();
+  FISHG.canvas=canvas;FISHG.mode=mode;
+  FISHG.waterTop=canvas.height*0.24;FISHG.waterBot=canvas.height*0.94;
+  FISHG.hookX=FISHG.targetX=canvas.width/2;
+  FISHG.hookY=FISHG.targetY=(FISHG.waterTop+FISHG.waterBot)/2;
+  FISHG.fishes=[];FISHG.hazards=[];FISHG.parts=[];FISHG.stuckUntil=0;FISHG.caught=0;
+  FISHG.nextFishAt=0;FISHG.nextHazardAt=1500;FISHG.lastTs=performance.now();
+  const onMove=e=>{
+    e.preventDefault();
+    const t=e.touches&&e.touches[0];
+    fishGameSetTarget(canvas,t?t.clientX:e.clientX,t?t.clientY:e.clientY);
+  };
+  canvas.onpointerdown=onMove;canvas.onpointermove=e=>{if(e.buttons)onMove(e);};
+  canvas.ontouchstart=onMove;canvas.ontouchmove=onMove;
+  if(typeof requestAnimationFrame!=="function")return; // no rAF (e.g. a test harness) — state/wiring above still set up
+  function frame(ts){
+    if(FISHG.canvas!==canvas||!fishSession||current!=="arcade"||arcGame!=="trader"){stopFishGameLoop();return;}
+    const dt=Math.min(48,ts-FISHG.lastTs);FISHG.lastTs=ts;
+    fishGameStep(dt,canvas);
+    fishGameDraw(canvas);
+    FISHG.raf=requestAnimationFrame(frame);
   }
-  renderTraderPanel();
+  FISHG.raf=requestAnimationFrame(frame);
+}
+function fishGameStep(dt,canvas){
+  FISHG.hookX+=(FISHG.targetX-FISHG.hookX)*Math.min(1,dt/90);
+  FISHG.hookY+=(FISHG.targetY-FISHG.hookY)*Math.min(1,dt/90);
+  const ws=myWorkshop();
+  const pool=FISHG.mode==="boat"?FISH_SPECIES:BEACH_FISH_SPECIES;
+  FISHG.nextFishAt-=dt;
+  if(FISHG.nextFishAt<=0){
+    const sp=rollSpecies(pool,FISHG.mode==="boat"?ws.rodLevel:0);
+    const dir=Math.random()<0.5?1:-1;
+    const y=FISHG.waterTop+Math.random()*(FISHG.waterBot-FISHG.waterTop);
+    const speed=(0.035+Math.random()*0.03+sp.base*0.001)*canvas.width;
+    FISHG.fishes.push({sp,x:dir>0?-24:canvas.width+24,y,dir,speed,r:Math.max(8,13-sp.base*0.15)});
+    FISHG.nextFishAt=500+Math.random()*650;
+  }
+  FISHG.nextHazardAt-=dt;
+  if(FISHG.nextHazardAt<=0){
+    const hz=HAZARD_TYPES[Math.floor(Math.random()*HAZARD_TYPES.length)];
+    const dir=Math.random()<0.5?1:-1;
+    const y=FISHG.waterTop+Math.random()*(FISHG.waterBot-FISHG.waterTop);
+    FISHG.hazards.push({hz,x:dir>0?-24:canvas.width+24,y,dir,speed:(0.02+Math.random()*0.015)*canvas.width});
+    FISHG.nextHazardAt=2600+Math.random()*2200;
+  }
+  const stuck=Date.now()<FISHG.stuckUntil;
+  const hookR=fishHookRadius(ws.rodLevel);
+  FISHG.fishes=FISHG.fishes.filter(f=>{
+    f.x+=f.dir*f.speed*dt/1000;
+    if(!stuck){
+      const dx=f.x-FISHG.hookX,dy=f.y-FISHG.hookY;
+      if(Math.sqrt(dx*dx+dy*dy)<hookR+f.r){fishCaught(f,ws);return false;}
+    }
+    return f.x>-40&&f.x<canvas.width+40;
+  });
+  FISHG.hazards=FISHG.hazards.filter(h=>{
+    h.x+=h.dir*h.speed*dt/1000;
+    if(!stuck){
+      const dx=h.x-FISHG.hookX,dy=h.y-FISHG.hookY;
+      if(Math.sqrt(dx*dx+dy*dy)<hookR+13){hazardHit(h);return false;}
+    }
+    return h.x>-40&&h.x<canvas.width+40;
+  });
+  FISHG.parts=FISHG.parts.filter(p=>{p.y-=dt*0.03;p.life-=dt;return p.life>0;});
+}
+function fishCaught(f,ws){
+  addCatch(ws,f.sp.k);saveWorkshop(ws);
+  FISHG.caught++;if(fishSession)fishSession.caught=(fishSession.caught||0)+1;
+  FISHG.parts.push({x:f.x,y:f.y,txt:f.sp.em+" +1",life:700,color:"#ffe1a1"});
+  if(f.sp.rare&&me&&!hasLog(me.id,"bonus","fish:"+today())){
+    addLog("bonus","fish:"+today(),FISH_PTS,"Storfångst: "+f.sp.n);
+    confetti(24);showToast(`Storfångst! ${f.sp.em} ${f.sp.n} — +${FISH_PTS} p! 🎉`);
+  }
+}
+function hazardHit(h){
+  FISHG.stuckUntil=Date.now()+900;
+  FISHG.parts.push({x:h.x,y:h.y,txt:h.hz.em+" Fast!",life:700,color:"#ff9d9d"});
+}
+function fishGameDraw(canvas){
+  const ctx=canvas.getContext("2d");if(!ctx)return;
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H); // canvas has a transparent bg so the illustrated village/dock art shows through
+  const wg=ctx.createLinearGradient(0,FISHG.waterTop,0,FISHG.waterBot);
+  wg.addColorStop(0,"rgba(42,126,166,.35)");wg.addColorStop(1,"rgba(11,36,54,.55)");
+  ctx.fillStyle=wg;ctx.fillRect(0,FISHG.waterTop,W,FISHG.waterBot-FISHG.waterTop);
+  ctx.font="20px serif";ctx.textAlign="center";
+  const backingDisc=(x,y,r)=>{ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle="rgba(255,255,255,.4)";ctx.fill();};
+  FISHG.hazards.forEach(h=>{backingDisc(h.x,h.y,13);ctx.fillText(h.hz.em,h.x,h.y+7);});
+  FISHG.fishes.forEach(f=>{
+    backingDisc(f.x,f.y,f.r+5);
+    ctx.save();ctx.translate(f.x,f.y);if(f.dir<0)ctx.scale(-1,1);
+    ctx.font="22px serif";ctx.fillText(f.sp.em,0,7);
+    ctx.restore();
+  });
+  ctx.strokeStyle="rgba(255,255,255,.75)";ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(FISHG.hookX,FISHG.hookY);ctx.stroke();
+  const stuck=Date.now()<FISHG.stuckUntil;
+  ctx.fillStyle=stuck?"#c0392b":"#f4efe4";
+  ctx.beginPath();ctx.arc(FISHG.hookX,FISHG.hookY,6,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle="rgba(11,36,54,.5)";ctx.lineWidth=1.5;ctx.stroke();
+  FISHG.parts.forEach(p=>{
+    ctx.globalAlpha=Math.max(0,p.life/700);
+    ctx.fillStyle=p.color;ctx.font="bold 13px 'Helvetica Neue',Arial,sans-serif";
+    ctx.fillText(p.txt,p.x,p.y);
+    ctx.globalAlpha=1;
+  });
+  ctx.textAlign="left";ctx.fillStyle="#fff";ctx.font="bold 13px 'Helvetica Neue',Arial,sans-serif";
+  ctx.shadowColor="rgba(0,0,0,.5)";ctx.shadowBlur=3;
+  ctx.fillText("🎣 "+FISHG.caught,8,18);
+  ctx.shadowBlur=0;
 }
 function renderFishUI(panel,mode){
-  const ws=myWorkshop();
   if(!fishSession){
     panel.innerHTML=`<div class="surCard">
       <div class="em">🎣</div><div class="pts">FISKETUR SLUT</div>
@@ -1703,26 +1790,26 @@ function renderFishUI(panel,mode){
     };
     return;
   }
-  const remainS=Math.max(0,Math.ceil((fishSession.endsAt-Date.now())/1000));
-  let phaseHtml;
-  if(fishSession.phase==="waiting"){
-    phaseHtml=`<div class="big">Väntar på napp…</div>`;
-  }else if(fishSession.phase==="strike"){
-    const zw=strikeZoneWidth(ws.rodLevel),pos=castPosition(fishSession.strikeStartTs,Date.now(),FISH_STRIKE_PERIOD_MS);
-    phaseHtml=`<div class="big">Nu! Tryck när markören är i den gröna zonen.</div>
-      <div class="fishBar"><div class="fishZone" style="left:${(100-zw)/2}%;width:${zw}%"></div><div class="fishMarker" id="fishMarker" style="left:${pos}%"></div></div>
-      <button class="goBtn" id="fishReel">Dra upp! 🎣</button>`;
-  }else{
-    phaseHtml=`<div class="big">Redo — kasta ut igen!</div><button class="goBtn" id="fishCast">Kasta ut</button>`;
+  const existing=document.getElementById("fishCv");
+  if(existing&&FISHG.canvas===existing){
+    // A live session already has its canvas/RAF loop running — the surrounding tickTimer re-renders
+    // every 250ms just to refresh the countdown, so only patch that text instead of rebuilding the
+    // panel (which would tear down and restart the canvas/loop from scratch on every tick).
+    const remainS=Math.max(0,Math.ceil((fishSession.endsAt-Date.now())/1000));
+    const remEl=document.getElementById("fishRemain");if(remEl)remEl.textContent=remainS+"s kvar";
+    const caughtEl=document.getElementById("fishCaughtTxt");if(caughtEl)caughtEl.textContent=fishSession.caught||0;
+    return;
   }
+  const remainS=Math.max(0,Math.ceil((fishSession.endsAt-Date.now())/1000));
   panel.innerHTML=`<div class="surCard">
     <div class="em">🎣</div>
-    <div class="pts">${mode==="boat"?"UTE PÅ FISKETUR":"FISKAR VID STRANDEN"} · ${remainS}s kvar</div>
-    ${phaseHtml}
-    <div class="d" style="margin-top:10px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px">Denna tur: ${fishSession.casts} kast, ${fishSession.caught} fångster</div>
+    <div class="pts">${mode==="boat"?"UTE PÅ FISKETUR":"FISKAR VID STRANDEN"} · <span id="fishRemain">${remainS}s kvar</span></div>
+    <canvas id="fishCv" width="300" height="230"></canvas>
+    <div class="d" style="margin-top:8px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;text-align:center">Dra kroken till en fisk för att fånga den — undvik skräpet i vattnet!</div>
+    <div class="d" style="margin-top:4px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px">Denna tur: <span id="fishCaughtTxt">${fishSession.caught||0}</span> fångster</div>
   </div>`;
-  const cb=document.getElementById("fishCast");if(cb)cb.onclick=castLine;
-  const rb=document.getElementById("fishReel");if(rb)rb.onclick=reelIn;
+  const cv=document.getElementById("fishCv");
+  if(cv)startFishGameLoop(cv,mode);
 }
 let gatherBusy=false;
 function renderSamlaUI(panel){
@@ -1752,7 +1839,49 @@ function renderSamlaUI(panel){
   };
   document.getElementById("samlaBackBtn").onclick=()=>{traderBeachMode=null;renderTraderPanel();};
 }
+let traderMarknadMode=null; // null=intro choice, "run"=playing the runner, "done"=summary, "sell"=the actual market
 function renderMarknadPanel(panel){
+  if(traderMarknadMode==="run")return renderMarknadRun(panel);
+  if(traderMarknadMode==="done")return renderMarknadSummary(panel);
+  if(traderMarknadMode==="sell")return renderMarknadSell(panel);
+  return renderMarknadIntro(panel);
+}
+function renderMarknadIntro(panel){
+  panel.innerHTML=`<div class="surCard">
+    <div class="em">🏙️</div><div class="pts">TILL TORGET</div>
+    <div class="big">Spring in till byn och samla mynt på vägen — eller gå raka spåret till marknaden.</div>
+    <button class="goBtn" id="runGoBtn">🏃 Spring dit! (samla mynt)</button>
+    <button class="cpBtn" id="runSkipBtn" style="margin-top:8px">➡️ Gå direkt till marknaden</button>
+  </div>`;
+  document.getElementById("runGoBtn").onclick=()=>{traderMarknadMode="run";renderTraderPanel();};
+  document.getElementById("runSkipBtn").onclick=()=>{traderMarknadMode="sell";renderTraderPanel();};
+}
+function renderMarknadRun(panel){
+  const existing=document.getElementById("runCv");
+  if(existing&&RUNG.canvas===existing)return; // loop already running — don't tear down and restart it
+  panel.innerHTML=`<div class="surCard">
+    <div class="em">🏃</div><div class="pts">PÅ VÄG TILL TORGET</div>
+    <canvas id="runCv" width="320" height="170"></canvas>
+    <div class="d" style="margin-top:8px;text-align:center;font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px">Tryck eller mellanslag för att hoppa — samla mynt, hoppa över det som ligger i vägen!</div>
+  </div>`;
+  const cv=document.getElementById("runCv");
+  if(cv)startRunGameLoop(cv);
+}
+function renderMarknadSummary(panel){
+  const s=RUNG.summary||{coins:0,kr:0,pts:0,hits:0};
+  const ref="marknad:"+today();
+  const canLog=me&&s.pts>0&&!hasLog(me.id,"minigame",ref);
+  panel.innerHTML=`<div class="surCard">
+    <div class="em">🏙️</div><div class="pts">NI NÅDDE TORGET!</div>
+    <div class="big">${s.coins} mynt samlade — ${s.kr} kr insatta i kassan.${s.hits?" ("+s.hits+" krockar på vägen.)":""}</div>
+    ${canLog?`<button class="logBtn" id="runLogBtn">Bokför +${s.pts} p</button>`:me&&hasLog(me.id,"minigame",ref)?'<p style="font-family:Helvetica Neue,Arial,sans-serif;font-size:12px;color:#5a6b73">Dagens poäng redan bokförda.</p>':""}
+    <button class="goBtn" id="runContinueBtn" style="margin-top:10px">➡️ Till marknaden</button>
+  </div>`;
+  const lb=document.getElementById("runLogBtn");
+  if(lb)lb.onclick=()=>{addLog("minigame",ref,s.pts,"Till Torget "+s.coins+" mynt");showToast("+"+s.pts+" p bokförda! 🕹️");renderTraderPanel();};
+  document.getElementById("runContinueBtn").onclick=()=>{traderMarknadMode="sell";renderTraderPanel();};
+}
+function renderMarknadSell(panel){
   const ws=myWorkshop();
   const spoiled=applySpoilage(ws);
   if(spoiled){saveWorkshop(ws);showToast("Fångst utan kylskåp blev dålig och kastades. 🗑️");}
@@ -1775,6 +1904,115 @@ function renderMarknadPanel(panel){
   };
   document.getElementById("marknadBackBtn").onclick=()=>traderShowPanel(null);
 }
+// ---- Till Torget: a simple side-scrolling jump-and-collect runner, themed as the sailor
+// jogging up the path to the village market (a generic endless-runner mechanic — deliberately NOT
+// recreating any specific platformer's iconic character/block designs, just the well-worn genre).
+// No fail state on purpose: this is flavor/bonus content bolted onto the fishing-and-trading economy,
+// not a skill gate, so getting hit costs a moment's invulnerability flash, never the run itself.
+const RUN_GRAVITY=1500,RUN_JUMP_V=430,RUN_GROUND_Y=140,RUN_TARGET_DIST=2200,RUN_CHAR_X=48;
+const RUN_OBSTACLES=["🦀","🪨","📦"];
+const RUNG={raf:null,canvas:null,charY:0,vy:0,onGround:true,dist:0,speed:150,obstacles:[],coins:[],
+  parts:[],coinsCollected:0,hits:0,invulnUntil:0,nextObstacleAt:0,nextCoinAt:0,lastTs:0,summary:null,keyHandler:null};
+function stopRunGameLoop(){
+  if(RUNG.raf){cancelAnimationFrame(RUNG.raf);RUNG.raf=null;}
+  if(RUNG.keyHandler){document.removeEventListener("keydown",RUNG.keyHandler);RUNG.keyHandler=null;}
+  RUNG.canvas=null;
+}
+function startRunGameLoop(canvas){
+  stopRunGameLoop();
+  Object.assign(RUNG,{canvas,charY:0,vy:0,onGround:true,dist:0,speed:150,obstacles:[],coins:[],parts:[],
+    coinsCollected:0,hits:0,invulnUntil:0,nextObstacleAt:900,nextCoinAt:500,lastTs:performance.now(),summary:null});
+  const jump=e=>{if(e)e.preventDefault();if(RUNG.onGround){RUNG.vy=RUN_JUMP_V;RUNG.onGround=false;}};
+  canvas.onpointerdown=jump;canvas.ontouchstart=jump;
+  RUNG.keyHandler=e=>{if(e.code==="Space"&&current==="arcade"&&arcGame==="trader"&&traderMarknadMode==="run"){e.preventDefault();jump();}};
+  document.addEventListener("keydown",RUNG.keyHandler);
+  if(typeof requestAnimationFrame!=="function")return; // no rAF (e.g. a test harness) — state/wiring above still set up
+  function frame(ts){
+    if(RUNG.canvas!==canvas||current!=="arcade"||arcGame!=="trader"||traderMarknadMode!=="run"){stopRunGameLoop();return;}
+    const dt=Math.min(48,ts-RUNG.lastTs);RUNG.lastTs=ts;
+    runGameStep(dt,canvas);
+    runGameDraw(canvas);
+    if(RUNG.dist>=RUN_TARGET_DIST){runFinish();return;}
+    RUNG.raf=requestAnimationFrame(frame);
+  }
+  RUNG.raf=requestAnimationFrame(frame);
+}
+function runGameStep(dt,canvas){
+  RUNG.speed=150+Math.min(130,RUNG.dist*0.05);
+  RUNG.vy-=RUN_GRAVITY*dt/1000;
+  RUNG.charY+=RUNG.vy*dt/1000;
+  if(RUNG.charY<=0){RUNG.charY=0;RUNG.vy=0;RUNG.onGround=true;}
+  RUNG.dist+=RUNG.speed*dt/1000;
+  RUNG.nextObstacleAt-=dt;
+  if(RUNG.nextObstacleAt<=0){
+    RUNG.obstacles.push({x:canvas.width+20,em:RUN_OBSTACLES[Math.floor(Math.random()*RUN_OBSTACLES.length)]});
+    RUNG.nextObstacleAt=900+Math.random()*700;
+  }
+  RUNG.nextCoinAt-=dt;
+  if(RUNG.nextCoinAt<=0){
+    RUNG.coins.push({x:canvas.width+20,y:Math.random()<0.5?38:0,taken:false});
+    RUNG.nextCoinAt=500+Math.random()*500;
+  }
+  const dx=RUNG.speed*dt/1000;
+  const invuln=Date.now()<RUNG.invulnUntil;
+  RUNG.obstacles=RUNG.obstacles.filter(o=>{
+    o.x-=dx;
+    if(!invuln&&Math.abs(o.x-RUN_CHAR_X)<16&&RUNG.charY<26){
+      RUNG.hits++;RUNG.invulnUntil=Date.now()+700;
+      RUNG.parts.push({x:o.x,y:RUN_GROUND_Y-30,txt:"💥",life:500});
+    }
+    return o.x>-30;
+  });
+  RUNG.coins=RUNG.coins.filter(c=>{
+    c.x-=dx;
+    if(!c.taken&&Math.abs(c.x-RUN_CHAR_X)<16&&Math.abs(RUNG.charY-c.y)<22){
+      RUNG.coinsCollected++;
+      RUNG.parts.push({x:c.x,y:RUN_GROUND_Y-c.y-30,txt:"+1 🪙",life:500});
+      return false;
+    }
+    return c.x>-30;
+  });
+  RUNG.parts=RUNG.parts.filter(p=>{p.y-=dt*0.03;p.life-=dt;return p.life>0;});
+}
+function runGameDraw(canvas){
+  const ctx=canvas.getContext("2d");if(!ctx)return;
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H); // transparent bg so the illustrated village-path art shows through
+  ctx.fillStyle="rgba(138,90,46,.75)";ctx.fillRect(0,RUN_GROUND_Y,W,H-RUN_GROUND_Y);
+  ctx.strokeStyle="rgba(0,0,0,.18)";ctx.lineWidth=1;
+  for(let x=-(RUNG.dist%20);x<W;x+=20){ctx.beginPath();ctx.moveTo(x,RUN_GROUND_Y);ctx.lineTo(x,H);ctx.stroke();}
+  ctx.textAlign="center";
+  const backingDisc=(x,y,r)=>{ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle="rgba(255,255,255,.55)";ctx.fill();};
+  ctx.font="20px serif";
+  RUNG.coins.forEach(c=>{if(!c.taken){backingDisc(c.x,RUN_GROUND_Y-c.y-14,11);ctx.fillText("🪙",c.x,RUN_GROUND_Y-c.y-8);}});
+  ctx.font="22px serif";
+  RUNG.obstacles.forEach(o=>{backingDisc(o.x,RUN_GROUND_Y-10,13);ctx.fillText(o.em,o.x,RUN_GROUND_Y-2);});
+  const invuln=Date.now()<RUNG.invulnUntil;
+  ctx.globalAlpha=invuln&&Math.floor(Date.now()/100)%2===0?0.4:1;
+  backingDisc(RUN_CHAR_X,RUN_GROUND_Y-RUNG.charY-10,15);
+  ctx.font="30px serif";ctx.fillText("🏃",RUN_CHAR_X,RUN_GROUND_Y-RUNG.charY-2);
+  ctx.globalAlpha=1;
+  RUNG.parts.forEach(p=>{
+    ctx.globalAlpha=Math.max(0,p.life/500);
+    ctx.fillStyle="#fff";ctx.font="bold 13px 'Helvetica Neue',Arial,sans-serif";
+    ctx.fillText(p.txt,p.x,RUN_GROUND_Y-p.y-20);
+    ctx.globalAlpha=1;
+  });
+  ctx.textAlign="left";ctx.fillStyle="#0b2436";ctx.font="bold 13px 'Helvetica Neue',Arial,sans-serif";
+  ctx.fillText("🪙 "+RUNG.coinsCollected,8,18);
+  ctx.textAlign="right";
+  ctx.fillText(Math.min(100,Math.round(RUNG.dist/RUN_TARGET_DIST*100))+"%",W-8,18);
+}
+function runFinish(){
+  stopRunGameLoop();
+  const ws=myWorkshop();
+  const kr=RUNG.coinsCollected*3;
+  ws.kronor+=kr;saveWorkshop(ws);
+  const pts=Math.min(4,Math.floor(RUNG.coinsCollected/3));
+  RUNG.summary={coins:RUNG.coinsCollected,kr,pts,hits:RUNG.hits};
+  traderMarknadMode="done";
+  renderTraderPanel();
+}
 function renderVerkstadPanel(panel){
   const ws=myWorkshop();
   const netAcc=netAccrued(ws);
@@ -1786,7 +2024,7 @@ function renderVerkstadPanel(panel){
       <button class="cpBtn" id="buyFuelBtn">Köp ${FUEL_PACK} bensin (${FUEL_PACK*FUEL_PRICE} kr)</button></div>
     <div class="termgrp" style="margin-top:14px">🎣 Fiskespö</div>
     <div class="cpCard"><div class="t">${ROD_NAMES[ws.rodLevel]}${ws.rodLevel>=ROD_NAMES.length-1?" (max)":""}</div>
-      <div class="d">Bredare zon = lättare kast, och låser upp finare fisk ute på havet.</div>
+      <div class="d">Större krok = lättare att fånga, och låser upp finare fisk ute på havet.</div>
       ${ws.rodLevel<ROD_COSTS.length-1?`<button class="cpBtn" id="buyRodBtn">Uppgradera till ${ROD_NAMES[ws.rodLevel+1]} (${ROD_COSTS[ws.rodLevel+1]} kr)</button>`:""}</div>
     <div class="termgrp" style="margin-top:14px">❄️ Kylskåp</div>
     <div class="cpCard"><div class="t">${ws.fridge?"Installerat ✓":"Inte installerat"}</div>
@@ -2138,7 +2376,7 @@ function updateTop(){
 const VIEW_IDS=["boardView","gameView","liveView","soundView","playlistView","triviaView","termsView","knotsView","surView","arcadeView","placesView","chatView","recipesView","navView","galleryView","reportView","kaptenView","ideasView","fleetView","tripsView"];
 function render(){
   buildTabs();updateTop();
-  if(current!=="arcade"){stopTet();stopSnake();}
+  if(current!=="arcade"){stopTet();stopSnake();stopFishGameLoop();stopRunGameLoop();}
   VIEW_IDS.forEach(id=>document.getElementById(id).style.display="none");
   const show=id=>{const el=document.getElementById(id);el.style.display="block";
     el.classList.remove("viewIn");void el.offsetWidth;el.classList.add("viewIn");};
@@ -2631,7 +2869,7 @@ function renderArcade(){
     b.onclick=()=>{arcGame=k;renderArcade();};menu.appendChild(b);
   });
   const box=document.getElementById("arcadeBox");
-  stopTet();stopSnake();
+  stopTet();stopSnake();stopFishGameLoop();stopRunGameLoop();
   if(arcGame==="tet")startTetris(box);
   else if(arcGame==="mem")startMemory(box);
   else if(arcGame==="m3")startM3(box);
