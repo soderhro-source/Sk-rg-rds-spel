@@ -19,6 +19,8 @@ create table if not exists boats (
   mast text,
   weight text,
   rig text,
+  engine text,
+  oil text,
   created_at timestamptz default now()
 );
 

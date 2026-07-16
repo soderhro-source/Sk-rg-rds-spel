@@ -29,7 +29,8 @@
   .sync .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle;}
   .weekbar{display:flex;align-items:center;justify-content:space-between;margin:16px 0 4px;
     padding:12px 16px;border-radius:14px;background:linear-gradient(100deg,rgba(216,97,46,.18),rgba(20,80,107,.18));
-    border:1px solid rgba(255,255,255,.14);}
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+    border:1px solid rgba(255,255,255,.14);box-shadow:0 8px 20px rgba(0,0,0,.18);}
   .weekbar .lab{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10px;letter-spacing:.2em;
     text-transform:uppercase;color:#cfe0e8;}
   .weekbar .big{font-size:24px;font-weight:700;}
@@ -40,7 +41,8 @@
     background:rgba(255,255,255,.06);color:#cfe0e8;border:1px solid rgba(255,255,255,.12);transition:.18s;}
   .tab.active{background:var(--buoy);color:#fff;border-color:var(--buoy);}
   .scorebar{display:flex;align-items:center;justify-content:space-between;margin:14px 0;
-    padding:11px 16px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);}
+    padding:11px 16px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);box-shadow:0 8px 20px rgba(0,0,0,.16);}
   .scorebar .label{font-family:"Helvetica Neue",Arial,sans-serif;font-size:11px;
     letter-spacing:.2em;text-transform:uppercase;color:#8fb6c8;}
   .scorebar .tally{font-size:24px;font-weight:700;}
@@ -330,8 +332,9 @@
   /* HUD */
   .hud{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:14px 0 0;}
   .hudChip{display:flex;align-items:center;gap:8px;background:rgba(6,23,34,.55);
-    border:2px solid rgba(255,255,255,.2);border-radius:999px;padding:4px 12px 4px 5px;
-    box-shadow:0 3px 0 rgba(0,0,0,.35);min-width:0;}
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    border:1.5px solid rgba(255,255,255,.22);border-radius:999px;padding:4px 12px 4px 5px;
+    box-shadow:0 3px 0 rgba(0,0,0,.3), 0 8px 18px rgba(0,0,0,.35);min-width:0;}
   .hudAva{width:36px;height:36px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;
     font-size:20px;background:linear-gradient(160deg,#f4efe4,#d8c9a8);border:2.5px solid #f2c14e;
     box-shadow:inset 0 -3px 0 rgba(0,0,0,.15);}
@@ -340,32 +343,40 @@
   .hudName small{display:block;font-size:9.5px;color:#ffd98a;font-weight:700;letter-spacing:.08em;text-transform:uppercase;}
   .coin{display:flex;align-items:center;gap:5px;font-family:"Helvetica Neue",Arial,sans-serif;
     font-size:15px;font-weight:900;color:#5a3b00;padding:6px 12px;border-radius:999px;
-    background:linear-gradient(180deg,#ffe1a1,#f2b64e 55%,#e9a02e);border:2px solid #b97f16;
-    box-shadow:0 3px 0 #8a5e0f, inset 0 2px 0 rgba(255,255,255,.6);white-space:nowrap;}
+    background:linear-gradient(180deg,#ffe1a1,#f2b64e 55%,#e9a02e);border:1.5px solid #b97f16;
+    box-shadow:0 3px 0 #8a5e0f, 0 6px 16px rgba(233,160,46,.45), inset 0 2px 0 rgba(255,255,255,.65);white-space:nowrap;}
   .coin.sea{background:linear-gradient(180deg,#9fd8ef,#5ec8e5 55%,#3fa9c9);border-color:#22809e;
-    box-shadow:0 3px 0 #17607a, inset 0 2px 0 rgba(255,255,255,.6);color:#083344;}
+    box-shadow:0 3px 0 #17607a, 0 6px 16px rgba(63,169,201,.45), inset 0 2px 0 rgba(255,255,255,.65);color:#083344;}
   /* Bottennav som riktiga mobilspel */
   .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;margin:0;
     padding:8px 6px calc(9px + env(safe-area-inset-bottom));flex-wrap:nowrap;gap:4px;
-    justify-content:space-around;background:linear-gradient(180deg,#123a50,#081c29 70%);
-    border-top:2.5px solid rgba(255,255,255,.14);box-shadow:0 -10px 30px rgba(0,0,0,.45);}
+    justify-content:space-around;background:linear-gradient(180deg,rgba(18,58,80,.92),rgba(8,28,41,.97) 70%);
+    backdrop-filter:blur(16px) saturate(1.3);-webkit-backdrop-filter:blur(16px) saturate(1.3);
+    border-top:1.5px solid rgba(255,255,255,.16);box-shadow:0 -14px 36px rgba(0,0,0,.5);}
   .tab{flex:1;max-width:72px;display:flex;flex-direction:column;align-items:center;gap:2px;
     padding:7px 2px 6px;border-radius:14px;background:none;border:none;
     font-size:9.5px;font-weight:800;letter-spacing:.02em;color:#7fa3b4;transition:.15s;}
   .tab .ic{font-size:22px;line-height:1;filter:grayscale(.35) brightness(.9);transition:.15s;}
-  .tab.active{background:linear-gradient(180deg,#ff8a4d,#d8612e 60%,#b34a1f);color:#fff;
-    border:none;box-shadow:0 3px 0 #7d3312, inset 0 2px 0 rgba(255,255,255,.3);transform:translateY(-5px);
+  .tab.active{background:linear-gradient(180deg,#ff9a5c,#d8612e 60%,#b34a1f);color:#fff;
+    border:none;box-shadow:0 3px 0 #7d3312, 0 8px 18px rgba(216,97,46,.5), inset 0 2px 0 rgba(255,255,255,.3);transform:translateY(-5px);
     animation:tabHop .3s ease;}
   .tab.active .ic{filter:none;transform:scale(1.12);animation:tabIcPop .35s ease;}
   @keyframes tabHop{0%{transform:translateY(0)}40%{transform:translateY(-9px)}100%{transform:translateY(-5px)}}
   @keyframes tabIcPop{0%{transform:scale(.7) rotate(-8deg)}55%{transform:scale(1.25) rotate(4deg)}100%{transform:scale(1.12) rotate(0)}}
   .moreSheet{position:fixed;left:10px;right:10px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:29;
-    background:var(--sand);border-radius:18px;padding:8px;border:2.5px solid rgba(11,36,54,.18);
-    box-shadow:0 14px 44px rgba(0,0,0,.55);animation:viewIn .18s ease;}
-  .moreRow{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;cursor:pointer;
-    font-family:"Helvetica Neue",Arial,sans-serif;font-size:14.5px;font-weight:700;color:var(--ink);}
+    background:var(--sand);border-radius:20px;padding:8px;border:1.5px solid rgba(11,36,54,.14);
+    box-shadow:0 20px 54px rgba(0,0,0,.55), inset 0 2px 0 rgba(255,255,255,.6);animation:viewIn .18s cubic-bezier(.2,.8,.3,1.1);}
+  .moreRow{display:flex;align-items:center;gap:12px;padding:9px 10px;border-radius:14px;cursor:pointer;
+    font-family:"Helvetica Neue",Arial,sans-serif;font-size:14.5px;font-weight:700;color:var(--ink);
+    transition:background .12s, transform .1s;}
+  .moreRow:active{transform:scale(.98);background:rgba(11,36,54,.05);}
   .moreRow.active{background:rgba(216,97,46,.14);}
-  .moreRow .ic{font-size:21px;width:26px;text-align:center;}
+  .moreRow .ic{font-size:19px;width:38px;height:38px;flex:none;border-radius:12px;
+    display:flex;align-items:center;justify-content:center;background:rgba(11,36,54,.06);}
+  .moreRow.g0 .ic{background:rgba(216,97,46,.16);}
+  .moreRow.g1 .ic{background:rgba(20,80,107,.14);}
+  .moreRow.g2 .ic{background:rgba(63,125,90,.16);}
+  .moreRow.g3 .ic{background:rgba(242,193,78,.28);}
   .moreGroupLabel{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10.5px;font-weight:700;
     letter-spacing:.14em;text-transform:uppercase;color:#8a94a3;padding:10px 14px 4px;}
   .moreGroupLabel:first-child{padding-top:4px;}
@@ -379,18 +390,26 @@
     font-size:11.5px;font-weight:800;padding:6px 12px;white-space:nowrap;min-width:0;}
   /* Glansiga knappar */
   .goBtn,.liveBtn,button.act.share,.cpBtn,.qnext,.play{
-    background:linear-gradient(180deg,#ff8a4d,#d8612e 58%,#c14e1d)!important;color:#fff;
-    border:none;box-shadow:0 4px 0 #8f3a12, inset 0 2px 0 rgba(255,255,255,.35);
-    text-shadow:0 1px 2px rgba(0,0,0,.3);transition:.12s;}
+    position:relative;overflow:hidden;border-radius:13px;
+    background:linear-gradient(180deg,#ff9a5c,#d8612e 58%,#c14e1d)!important;color:#fff;
+    border:none;box-shadow:0 4px 0 #8f3a12, 0 10px 22px rgba(216,97,46,.4), inset 0 2px 0 rgba(255,255,255,.4);
+    text-shadow:0 1px 2px rgba(0,0,0,.3);transition:transform .12s cubic-bezier(.2,.8,.3,1.3), box-shadow .12s;}
+  .goBtn::after,.liveBtn::after,button.act.share::after,.cpBtn::after,.qnext::after,.play::after{
+    content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(115deg,rgba(255,255,255,.38) 0%,rgba(255,255,255,0) 34%);}
   .goBtn:active,.liveBtn:active,button.act.share:active,.cpBtn:active,.qnext:active{
-    transform:translateY(3px);box-shadow:0 1px 0 #8f3a12, inset 0 2px 0 rgba(255,255,255,.35);}
-  .logBtn{background:linear-gradient(180deg,#5ba97c,#3f7d5a 58%,#33684a)!important;
-    box-shadow:0 4px 0 #244834, inset 0 2px 0 rgba(255,255,255,.3);text-shadow:0 1px 2px rgba(0,0,0,.3);}
-  .logBtn:active{transform:translateY(3px);box-shadow:0 1px 0 #244834;}
+    transform:translateY(3px);box-shadow:0 1px 0 #8f3a12, 0 3px 10px rgba(216,97,46,.3), inset 0 2px 0 rgba(255,255,255,.35);}
+  .logBtn{position:relative;overflow:hidden;border-radius:13px;
+    background:linear-gradient(180deg,#6bc190,#3f7d5a 58%,#33684a)!important;
+    box-shadow:0 4px 0 #244834, 0 10px 22px rgba(63,125,90,.4), inset 0 2px 0 rgba(255,255,255,.35);text-shadow:0 1px 2px rgba(0,0,0,.3);}
+  .logBtn::after{content:"";position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(115deg,rgba(255,255,255,.32) 0%,rgba(255,255,255,0) 34%);}
+  .logBtn:active{transform:translateY(3px);box-shadow:0 1px 0 #244834, 0 3px 10px rgba(63,125,90,.3);}
   .reset{box-shadow:0 4px 0 rgba(0,0,0,.35);}
   /* Kort & paneler — enhetligt spelspråk */
   .card,.scard,.pcard,.qcard,.diagram,.lbRow,.cpCard,.surCard,.pinBox,.introCard,.ship,.memCard,.arcBtn,.sailorBtn{
-    border:2.5px solid rgba(11,36,54,.14);box-shadow:0 5px 0 rgba(0,0,0,.24);}
+    border:1.5px solid rgba(11,36,54,.1);
+    box-shadow:0 5px 0 rgba(0,0,0,.2), 0 16px 30px rgba(11,36,54,.26), inset 0 1px 0 rgba(255,255,255,.55);}
   .card{border-radius:16px;}
   .card.done{border-color:#2c5b40;}
   .rareCard{border-color:#f2c14e!important;box-shadow:0 5px 0 rgba(0,0,0,.24),0 0 16px rgba(242,193,78,.45)!important;}
@@ -399,8 +418,9 @@
   .termgrp{background:linear-gradient(180deg,#1a5b7d,#124259);color:#ffd98a;text-align:center;
     padding:8px 16px;border-radius:999px;border:2px solid rgba(255,255,255,.16);
     box-shadow:0 3px 0 rgba(0,0,0,.35);max-width:260px;margin:20px auto 12px;}
-  .toast{bottom:calc(96px + env(safe-area-inset-bottom));border:2.5px solid rgba(11,36,54,.15);
-    box-shadow:0 5px 0 rgba(0,0,0,.3),0 12px 40px rgba(0,0,0,.4);}
+  .toast{bottom:calc(96px + env(safe-area-inset-bottom));border:1.5px solid rgba(11,36,54,.12);
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    box-shadow:0 5px 0 rgba(0,0,0,.25),0 18px 48px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.6);}
   @keyframes ringPulse{0%,100%{stroke-width:3;opacity:1}50%{stroke-width:6.5;opacity:.75}}
   svg .cur{animation:ringPulse 1.4s ease-in-out infinite;}
   .chip{box-shadow:0 2px 0 rgba(0,0,0,.25);}
@@ -605,10 +625,13 @@ const BOAT_DRAFT_POOL=["1,0 m","1,2 m","1,5 m","1,8 m","2,0 m"];
 const BOAT_MAST_POOL=["12 m","14 m","15 m","16 m","18 m"];
 const BOAT_WEIGHT_POOL=["3 200 kg","4 000 kg","5 200 kg","6 500 kg","7 500 kg"];
 const BOAT_RIG_POOL=["Slup (en mast)","Ketch (två master)","Yawl","Kutter (en mast, två förs.)"];
+const BOAT_ENGINE_POOL=["Volvo Penta MD2040","Volvo Penta D1-30","Volvo Penta D2-40","Yanmar 2GM20","Yanmar 3YM30","Vetus M4.17","Perkins Perama M30"];
+const BOAT_OIL_POOL=["15W-40 dieselolja","10W-40 dieselolja","20W-50 dieselolja","SAE 30 (enkelgradig)","5W-40 syntetisk dieselolja"];
 function myBoatSpecs(){
   const b=myBoat();
   return{name:b?b.name:"er båt",model:b&&b.model||null,loa:b&&b.loa||null,beam:b&&b.beam||null,
-    draft:b&&b.draft||null,mast:b&&b.mast||null,weight:b&&b.weight||null,rig:b&&b.rig||null};
+    draft:b&&b.draft||null,mast:b&&b.mast||null,weight:b&&b.weight||null,rig:b&&b.rig||null,
+    engine:b&&b.engine||null,oil:b&&b.oil||null};
 }
 function pickDistractors(pool,correct,n){return shuffle(pool.filter(x=>x!==correct)).slice(0,n);}
 function mcQuestion(q,correct,distractors,e){const opts=shuffle([correct,...distractors]);return{q,a:opts,c:opts.indexOf(correct),e};}
@@ -620,12 +643,15 @@ function boatSpecQuestions(prefix){
   if(bs.beam)qs.push(mcQuestion(`${prefix}Hur bred är ${name}?`,bs.beam,pickDistractors(BOAT_BEAM_POOL,bs.beam,2),`Bredd ${bs.beam} — bra att veta vid trång boxplats i gästhamn.`));
   if(bs.weight)qs.push(mcQuestion(`${prefix}Vad väger ${name}?`,bs.weight,pickDistractors(BOAT_WEIGHT_POOL,bs.weight,2),`Deplacement ${bs.weight} — påverkar hur lång tid det tar att stanna.`));
   if(bs.rig)qs.push(mcQuestion(`${prefix}Vilken riggtyp är ${name}?`,bs.rig,pickDistractors(BOAT_RIG_POOL,bs.rig,2),`${bs.rig}.`));
+  if(bs.engine)qs.push(mcQuestion(`${prefix}Vilken motor har ${name}?`,bs.engine,pickDistractors(BOAT_ENGINE_POOL,bs.engine,2),`${bs.engine} — ${name}s motor. Maskinchefen ska känna till den.`));
+  if(bs.oil)qs.push(mcQuestion(`${prefix}Vilken motorolja ska ${name} ha?`,bs.oil,pickDistractors(BOAT_OIL_POOL,bs.oil,2),`${bs.oil} — kolla alltid mot motorns handbok innan påfyllning.`));
   return qs;
 }
 function allPopQuiz(){return POPQUIZ.concat(boatSpecQuestions(""));}
 function allQuiz(){return QUIZ.concat(boatSpecQuestions("OM BÅTEN: "));}
 const BOAT_SPEC_FIELDS=[["Model","Modell",BOAT_MODEL_POOL],["Loa","Längd",BOAT_LOA_POOL],["Beam","Bredd",BOAT_BEAM_POOL],
-  ["Draft","Djupgående",BOAT_DRAFT_POOL],["Mast","Masthöjd",BOAT_MAST_POOL],["Weight","Vikt",BOAT_WEIGHT_POOL],["Rig","Riggtyp",BOAT_RIG_POOL]];
+  ["Draft","Djupgående",BOAT_DRAFT_POOL],["Mast","Masthöjd",BOAT_MAST_POOL],["Weight","Vikt",BOAT_WEIGHT_POOL],["Rig","Riggtyp",BOAT_RIG_POOL],
+  ["Engine","Motor",BOAT_ENGINE_POOL],["Oil","Motorolja",BOAT_OIL_POOL]];
 function specFieldHtml(prefix,id,label,pool,current){
   const opts=pool.map(v=>`<option value="${escHtml(v)}"${v===current?" selected":""}>${escHtml(v)}</option>`).join("");
   const isOther=!!current&&!pool.includes(current);
@@ -982,8 +1008,14 @@ const ROLE_TASKS={
   utkik:["Var först att ropa ut ett mötande fartyg idag.","Spana efter sällsynta (orange) arter i en hel timme.","Håll extra utkik efter faror — grund, bojar och annan trafik."],
   navigator:["Peka ut båtens ungefärliga position på sjökortet utan att kolla GPS.","Räkna ut avstånd och ETA till nästa hamn.","Kolla farleden för nästa etapp och rapportera eventuella grunda partier."],
 };
+function maskinchefTasks(){
+  const bs=myBoatSpecs(),pool=ROLE_TASKS.maskinchef.slice();
+  if(bs.engine)pool.push(`Kontrollera ${bs.engine} — lyssna efter ojämn gång eller avvikande ljud under en timmes körning.`);
+  if(bs.oil)pool.push(`Kolla oljenivån — ${bs.name} ska ha ${bs.oil}.`);
+  return pool;
+}
 function roleTaskFor(k){
-  const pool=ROLE_TASKS[k]||["Hjälp besättningen på bästa sätt idag."];
+  const pool=k==="maskinchef"?maskinchefTasks():(ROLE_TASKS[k]||["Hjälp besättningen på bästa sätt idag."]);
   const idx=[...today()+k].reduce((a,c)=>a+c.charCodeAt(0),0)%pool.length;
   return pool[idx];
 }
@@ -1354,7 +1386,7 @@ function renderKapten(){
       <div id="kapRoleList"></div>`;
   }else{
     const bs=myBoatSpecs();
-    const specLine=[bs.model,bs.loa&&"LOA "+bs.loa,bs.beam&&"bredd "+bs.beam,bs.draft&&"djupgående "+bs.draft,bs.mast&&"mast "+bs.mast,bs.weight&&"vikt "+bs.weight,bs.rig].filter(Boolean).join(" · ");
+    const specLine=[bs.model,bs.loa&&"LOA "+bs.loa,bs.beam&&"bredd "+bs.beam,bs.draft&&"djupgående "+bs.draft,bs.mast&&"mast "+bs.mast,bs.weight&&"vikt "+bs.weight,bs.rig,bs.engine&&"motor "+bs.engine,bs.oil&&"olja "+bs.oil].filter(Boolean).join(" · ");
     const roleRows=ROLES.map(r=>{const h=roleHolder(r.k);
       return `<div class="row"><span>${r.em} ${r.t}</span><span class="pts">${h?h.emoji+" "+h.name:"—"}</span></div>`;}).join("");
     html+=`<div class="termgrp">Båt</div>
@@ -2027,13 +2059,13 @@ function buildTabs(){
   const sheet=document.getElementById("moreSheet");
   if(moreOpen){
     sheet.style.display="block";sheet.className="moreSheet";sheet.innerHTML="";
-    NAV_MORE_GROUPS.forEach(([groupLabel,keys])=>{
+    NAV_MORE_GROUPS.forEach(([groupLabel,keys],gi)=>{
       const h=document.createElement("div");h.className="moreGroupLabel";h.textContent=groupLabel;
       sheet.appendChild(h);
       keys.forEach(k=>{
         const item=NAV_MORE.find(([kk])=>kk===k);if(!item)return;
         const[,ic,label]=item;
-        const r=document.createElement("div");r.className="moreRow"+(k===current?" active":"");
+        const r=document.createElement("div");r.className="moreRow g"+gi+(k===current?" active":"");
         r.innerHTML=`<span class="ic">${ic}</span>${label}`;
         r.onclick=()=>navTo(k);sheet.appendChild(r);
       });
