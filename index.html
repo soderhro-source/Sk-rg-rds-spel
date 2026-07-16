@@ -224,7 +224,7 @@
   /* ---- Fiske & Handel ---- */
   #fishCv{display:block;margin:10px auto 0;background:url('fiske-village.jpg') 78% 60%/cover no-repeat;
     border-radius:10px;touch-action:none;box-shadow:inset 0 0 0 2px rgba(0,0,0,.15);}
-  #runCv{display:block;margin:10px auto 0;background:url('fiske-village.jpg') 14% 38%/cover no-repeat;
+  #runCv{display:block;margin:10px auto 0;background:linear-gradient(#8ecbff,#cdeaff);
     border-radius:10px;touch-action:none;box-shadow:inset 0 0 0 2px rgba(0,0,0,.15);}
   .traderScene{position:relative;height:270px;border-radius:16px;overflow:hidden;margin:10px 0;
     background:url('fiske-village.jpg') center/cover no-repeat;box-shadow:inset 0 0 0 2px rgba(0,0,0,.08);touch-action:manipulation;}
@@ -1862,7 +1862,7 @@ function renderMarknadRun(panel){
   panel.innerHTML=`<div class="surCard">
     <div class="em">🏃</div><div class="pts">PÅ VÄG TILL TORGET</div>
     <canvas id="runCv" width="320" height="170"></canvas>
-    <div class="d" style="margin-top:8px;text-align:center;font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px">Tryck eller mellanslag för att hoppa — samla mynt, hoppa över det som ligger i vägen!</div>
+    <div class="d" style="margin-top:8px;text-align:center;font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px">Tryck eller mellanslag för att hoppa. Studsa på ❓-blocken underifrån för mynt, hoppa på fienderna, undvik rören — spring ända fram till flaggan!</div>
   </div>`;
   const cv=document.getElementById("runCv");
   if(cv)startRunGameLoop(cv);
@@ -1904,15 +1904,18 @@ function renderMarknadSell(panel){
   };
   document.getElementById("marknadBackBtn").onclick=()=>traderShowPanel(null);
 }
-// ---- Till Torget: a simple side-scrolling jump-and-collect runner, themed as the sailor
-// jogging up the path to the village market (a generic endless-runner mechanic — deliberately NOT
-// recreating any specific platformer's iconic character/block designs, just the well-worn genre).
-// No fail state on purpose: this is flavor/bonus content bolted onto the fishing-and-trading economy,
-// not a skill gate, so getting hit costs a moment's invulnerability flash, never the run itself.
-const RUN_GRAVITY=1500,RUN_JUMP_V=430,RUN_GROUND_Y=140,RUN_TARGET_DIST=2200,RUN_CHAR_X=48;
-const RUN_OBSTACLES=["🦀","🪨","📦"];
-const RUNG={raf:null,canvas:null,charY:0,vy:0,onGround:true,dist:0,speed:150,obstacles:[],coins:[],
-  parts:[],coinsCollected:0,hits:0,invulnUntil:0,nextObstacleAt:0,nextCoinAt:0,lastTs:0,summary:null,keyHandler:null};
+// ---- Till Torget: a side-scrolling platformer runner in the classic-Mario tradition, themed as the
+// sailor jogging up the path to the village market. Leans into the genre's defining mechanics — bump
+// "?" blocks from below to pop coins, stomp enemies from above, hop over green pipes, grab a mushroom
+// power-up, finish on a flagpole — using generic genre conventions and original canvas-drawn artwork
+// (a sailor hero, a goomba-ish critter, nautical pennant flag), NOT copies of any specific game's
+// trademarked character/block sprites. No fail state on purpose: this is bonus content on top of the
+// fishing-and-trading economy, so a bad hit costs a brief invulnerability flash, never the run itself.
+const RUN_GRAVITY=1500,RUN_JUMP_V=440,RUN_GROUND_Y=140,RUN_TARGET_DIST=2200,RUN_CHAR_X=48,RUN_CHAR_H=30;
+const RUNG={raf:null,canvas:null,charY:0,vy:0,onGround:true,dist:0,speed:150,animT:0,
+  pipes:[],enemies:[],blocks:[],coins:[],mushrooms:[],clouds:[],parts:[],
+  coinsCollected:0,hits:0,invulnUntil:0,bigUntil:0,flag:null,flagSpawned:false,finishing:false,finishT:0,
+  nextGroundAt:0,nextBlockAt:0,nextCoinAt:0,lastTs:0,summary:null,keyHandler:null};
 function stopRunGameLoop(){
   if(RUNG.raf){cancelAnimationFrame(RUNG.raf);RUNG.raf=null;}
   if(RUNG.keyHandler){document.removeEventListener("keydown",RUNG.keyHandler);RUNG.keyHandler=null;}
@@ -1920,9 +1923,12 @@ function stopRunGameLoop(){
 }
 function startRunGameLoop(canvas){
   stopRunGameLoop();
-  Object.assign(RUNG,{canvas,charY:0,vy:0,onGround:true,dist:0,speed:150,obstacles:[],coins:[],parts:[],
-    coinsCollected:0,hits:0,invulnUntil:0,nextObstacleAt:900,nextCoinAt:500,lastTs:performance.now(),summary:null});
-  const jump=e=>{if(e)e.preventDefault();if(RUNG.onGround){RUNG.vy=RUN_JUMP_V;RUNG.onGround=false;}};
+  Object.assign(RUNG,{canvas,charY:0,vy:0,onGround:true,dist:0,speed:150,animT:0,
+    pipes:[],enemies:[],blocks:[],coins:[],mushrooms:[],parts:[],
+    clouds:[{x:70,y:24,s:1},{x:180,y:14,s:0.8},{x:290,y:32,s:1.1}],
+    coinsCollected:0,hits:0,invulnUntil:0,bigUntil:0,flag:null,flagSpawned:false,finishing:false,finishT:0,
+    nextGroundAt:900,nextBlockAt:1300,nextCoinAt:600,lastTs:performance.now(),summary:null});
+  const jump=e=>{if(e)e.preventDefault();if(RUNG.onGround&&!RUNG.finishing){RUNG.vy=RUN_JUMP_V;RUNG.onGround=false;}};
   canvas.onpointerdown=jump;canvas.ontouchstart=jump;
   RUNG.keyHandler=e=>{if(e.code==="Space"&&current==="arcade"&&arcGame==="trader"&&traderMarknadMode==="run"){e.preventDefault();jump();}};
   document.addEventListener("keydown",RUNG.keyHandler);
@@ -1930,78 +1936,191 @@ function startRunGameLoop(canvas){
   function frame(ts){
     if(RUNG.canvas!==canvas||current!=="arcade"||arcGame!=="trader"||traderMarknadMode!=="run"){stopRunGameLoop();return;}
     const dt=Math.min(48,ts-RUNG.lastTs);RUNG.lastTs=ts;
+    if(RUNG.finishing){ // reached the flagpole: brief slide-down before the summary
+      RUNG.finishT+=dt;RUNG.animT+=dt;
+      RUNG.charY=Math.max(0,RUNG.charY-dt*0.12);
+      runGameDraw(canvas);
+      if(RUNG.finishT>800){runFinish();return;}
+      RUNG.raf=requestAnimationFrame(frame);return;
+    }
     runGameStep(dt,canvas);
     runGameDraw(canvas);
-    if(RUNG.dist>=RUN_TARGET_DIST){runFinish();return;}
+    if(RUNG.dist>=RUN_TARGET_DIST+600){runFinish();return;} // safety net if the flagpole was somehow missed
     RUNG.raf=requestAnimationFrame(frame);
   }
   RUNG.raf=requestAnimationFrame(frame);
 }
+function runnerHit(x){
+  RUNG.hits++;RUNG.invulnUntil=Date.now()+700;
+  RUNG.parts.push({x,y:26,txt:"💥",life:500});
+}
 function runGameStep(dt,canvas){
-  RUNG.speed=150+Math.min(130,RUNG.dist*0.05);
+  if(RUNG.finishing)return;
+  RUNG.animT+=dt;
+  RUNG.speed=150+Math.min(140,RUNG.dist*0.05);
   RUNG.vy-=RUN_GRAVITY*dt/1000;
   RUNG.charY+=RUNG.vy*dt/1000;
   if(RUNG.charY<=0){RUNG.charY=0;RUNG.vy=0;RUNG.onGround=true;}
   RUNG.dist+=RUNG.speed*dt/1000;
-  RUNG.nextObstacleAt-=dt;
-  if(RUNG.nextObstacleAt<=0){
-    RUNG.obstacles.push({x:canvas.width+20,em:RUN_OBSTACLES[Math.floor(Math.random()*RUN_OBSTACLES.length)]});
-    RUNG.nextObstacleAt=900+Math.random()*700;
+  const dx=RUNG.speed*dt/1000;
+  const spawnable=RUNG.dist<RUN_TARGET_DIST-340; // stop spawning near the finish so the flagpole run is clear
+  RUNG.clouds.forEach(c=>{c.x-=dx*0.12*c.s;if(c.x<-40)c.x=canvas.width+40;});
+  RUNG.nextGroundAt-=dt;
+  if(RUNG.nextGroundAt<=0&&spawnable){
+    if(Math.random()<0.5)RUNG.pipes.push({x:canvas.width+24,h:26+Math.random()*12});
+    else RUNG.enemies.push({x:canvas.width+24,alive:true,stompT:0});
+    RUNG.nextGroundAt=1000+Math.random()*800;
+  }
+  RUNG.nextBlockAt-=dt;
+  if(RUNG.nextBlockAt<=0&&spawnable){
+    const n=1+Math.floor(Math.random()*2),special=Math.floor(Math.random()*n);
+    for(let i=0;i<n;i++)RUNG.blocks.push({x:canvas.width+24+i*30,by:52,used:false,mush:(i===special&&Math.random()<0.35)});
+    RUNG.nextBlockAt=1500+Math.random()*900;
   }
   RUNG.nextCoinAt-=dt;
-  if(RUNG.nextCoinAt<=0){
-    RUNG.coins.push({x:canvas.width+20,y:Math.random()<0.5?38:0,taken:false});
-    RUNG.nextCoinAt=500+Math.random()*500;
+  if(RUNG.nextCoinAt<=0&&spawnable){
+    const base=canvas.width+20,ch=12+Math.random()*30;
+    for(let i=0;i<3;i++)RUNG.coins.push({x:base+i*22,ch});
+    RUNG.nextCoinAt=1100+Math.random()*700;
   }
-  const dx=RUNG.speed*dt/1000;
   const invuln=Date.now()<RUNG.invulnUntil;
-  RUNG.obstacles=RUNG.obstacles.filter(o=>{
-    o.x-=dx;
-    if(!invuln&&Math.abs(o.x-RUN_CHAR_X)<16&&RUNG.charY<26){
-      RUNG.hits++;RUNG.invulnUntil=Date.now()+700;
-      RUNG.parts.push({x:o.x,y:RUN_GROUND_Y-30,txt:"💥",life:500});
-    }
-    return o.x>-30;
+  const feetH=RUNG.charY,headH=RUNG.charY+RUN_CHAR_H;
+  RUNG.pipes=RUNG.pipes.filter(p=>{p.x-=dx;
+    if(!invuln&&Math.abs(p.x-RUN_CHAR_X)<16&&feetH<p.h-3)runnerHit(p.x);
+    return p.x>-40;
   });
-  RUNG.coins=RUNG.coins.filter(c=>{
-    c.x-=dx;
-    if(!c.taken&&Math.abs(c.x-RUN_CHAR_X)<16&&Math.abs(RUNG.charY-c.y)<22){
-      RUNG.coinsCollected++;
-      RUNG.parts.push({x:c.x,y:RUN_GROUND_Y-c.y-30,txt:"+1 🪙",life:500});
-      return false;
+  RUNG.enemies=RUNG.enemies.filter(e=>{e.x-=dx;
+    if(e.alive&&Math.abs(e.x-RUN_CHAR_X)<18){
+      if(RUNG.vy<0&&feetH>6&&feetH<30){ // stomp: falling onto its head
+        e.alive=false;e.stompT=Date.now();RUNG.vy=250;RUNG.onGround=false;
+        RUNG.coinsCollected++;RUNG.parts.push({x:e.x,y:22,txt:"+1",life:500});
+      }else if(!invuln&&feetH<14)runnerHit(e.x); // ran into its side
+    }
+    if(!e.alive&&Date.now()-e.stompT>400)return false;
+    return e.x>-40;
+  });
+  RUNG.blocks=RUNG.blocks.filter(b=>{b.x-=dx;
+    if(!b.used&&RUNG.vy>0&&Math.abs(b.x-RUN_CHAR_X)<16&&headH>=b.by-4&&headH<=b.by+16){
+      b.used=true;RUNG.vy=-40; // head-bonk
+      if(b.mush){RUNG.mushrooms.push({x:b.x,mh:b.by-14});RUNG.parts.push({x:b.x,y:b.by+8,txt:"🍄",life:600});}
+      else{RUNG.coinsCollected++;RUNG.parts.push({x:b.x,y:b.by+14,txt:"+1",life:600});}
+    }
+    return b.x>-40;
+  });
+  RUNG.mushrooms=RUNG.mushrooms.filter(m=>{m.x-=dx*0.7;if(m.mh>0)m.mh=Math.max(0,m.mh-dt*0.05);
+    if(Math.abs(m.x-RUN_CHAR_X)<16&&Math.abs(feetH-m.mh)<20){
+      RUNG.coinsCollected+=3;RUNG.bigUntil=Date.now()+4000;
+      RUNG.parts.push({x:m.x,y:m.mh+18,txt:"+3 🍄",life:700});return false;
+    }
+    return m.x>-40;
+  });
+  RUNG.coins=RUNG.coins.filter(c=>{c.x-=dx;
+    if(Math.abs(c.x-RUN_CHAR_X)<15&&Math.abs((feetH+14)-c.ch)<18){
+      RUNG.coinsCollected++;RUNG.parts.push({x:c.x,y:c.ch,txt:"+1",life:500});return false;
     }
     return c.x>-30;
   });
-  RUNG.parts=RUNG.parts.filter(p=>{p.y-=dt*0.03;p.life-=dt;return p.life>0;});
+  if(!RUNG.flagSpawned&&RUNG.dist>=RUN_TARGET_DIST-280){RUNG.flag={x:canvas.width+10};RUNG.flagSpawned=true;}
+  if(RUNG.flag){RUNG.flag.x-=dx;if(RUNG.flag.x<=RUN_CHAR_X+6&&!RUNG.finishing){RUNG.finishing=true;RUNG.finishT=0;}}
+  RUNG.parts=RUNG.parts.filter(p=>{p.y+=dt*0.02;p.life-=dt;return p.life>0;});
+}
+// ---- runner draw helpers (canvas primitives → crisp & render-reliable, unlike canvas emoji) ----
+function runHill(ctx,W,groundY,speed,color,amp){
+  ctx.fillStyle=color;const step=100,shift=(RUNG.dist*speed)%step;
+  for(let x=-step-shift;x<W+step;x+=step){ctx.beginPath();ctx.arc(x+step/2,groundY,amp,Math.PI,0);ctx.fill();}
+}
+function runCloud(ctx,c){
+  ctx.fillStyle="rgba(255,255,255,.92)";const s=c.s;
+  [[0,0,7],[8,-3,8],[16,0,7],[8,3,7]].forEach(([dx,dy,r])=>{ctx.beginPath();ctx.arc(c.x+dx*s,c.y+dy*s,r*s,0,7);ctx.fill();});
+}
+function runPipe(ctx,x,groundY,h){
+  const topY=groundY-h;
+  ctx.fillStyle="#3fae4a";ctx.fillRect(x-8,topY+7,16,h-7);
+  ctx.fillStyle="#2e8b3a";ctx.fillRect(x-11,topY,22,8);
+  ctx.strokeStyle="#1e5e28";ctx.lineWidth=1.5;ctx.strokeRect(x-11,topY,22,8);ctx.strokeRect(x-8,topY+7,16,h-7);
+  ctx.fillStyle="rgba(255,255,255,.35)";ctx.fillRect(x-6,topY+9,3,h-9);
+}
+function runQBlock(ctx,x,groundY,by,used){
+  const s=18,bx=x-s/2,byTop=groundY-(by+s);
+  ctx.fillStyle=used?"#b06a2e":"#f2b333";ctx.fillRect(bx,byTop,s,s);
+  ctx.strokeStyle="#7a4a10";ctx.lineWidth=1.5;ctx.strokeRect(bx,byTop,s,s);
+  ctx.fillStyle="#7a4a10";[[3,3],[s-3,3],[3,s-3],[s-3,s-3]].forEach(([dx,dy])=>ctx.fillRect(bx+dx-1,byTop+dy-1,2,2));
+  if(!used){ctx.fillStyle="#7a4a10";ctx.font="bold 12px Arial";ctx.textAlign="center";ctx.fillText("?",x,byTop+13);}
+}
+function runCoin(ctx,x,y,phase){
+  const w=Math.abs(Math.cos(phase))*5+2;
+  ctx.fillStyle="#ffd34d";ctx.beginPath();ctx.ellipse(x,y,w,8,0,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle="#c8971a";ctx.lineWidth=1.2;ctx.stroke();
+}
+function runGoomba(ctx,x,groundY,alive){
+  if(!alive){ctx.fillStyle="#8a5a2e";ctx.fillRect(x-11,groundY-5,22,5);return;}
+  const gy=groundY-2;
+  ctx.fillStyle="#8a5a2e";ctx.beginPath();ctx.arc(x,gy-8,11,Math.PI,0);ctx.fill();ctx.fillRect(x-11,gy-8,22,8);
+  ctx.fillStyle="#5a3a1e";ctx.fillRect(x-8,gy,5,3);ctx.fillRect(x+3,gy,5,3);
+  ctx.fillStyle="#fff";ctx.fillRect(x-6,gy-12,4,5);ctx.fillRect(x+2,gy-12,4,5);
+  ctx.fillStyle="#000";ctx.fillRect(x-4,gy-10,2,3);ctx.fillRect(x+4,gy-10,2,3);
+  ctx.strokeStyle="#3a2410";ctx.lineWidth=1.5;ctx.beginPath();
+  ctx.moveTo(x-7,gy-14);ctx.lineTo(x-2,gy-11);ctx.moveTo(x+7,gy-14);ctx.lineTo(x+2,gy-11);ctx.stroke();
+}
+function runMushroom(ctx,x,groundY,mh){
+  const my=groundY-mh;
+  ctx.fillStyle="#f6e6c8";ctx.fillRect(x-5,my-2,10,7);
+  ctx.fillStyle="#e2483a";ctx.beginPath();ctx.arc(x,my-2,10,Math.PI,0);ctx.fill();ctx.fillRect(x-10,my-4,20,3);
+  ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(x-4,my-6,2.2,0,7);ctx.fill();ctx.beginPath();ctx.arc(x+4,my-5,2,0,7);ctx.fill();
+  ctx.fillStyle="#000";ctx.fillRect(x-3,my+1,2,2);ctx.fillRect(x+1,my+1,2,2);
+}
+function runFlag(ctx,x,groundY){
+  const top=groundY-92;
+  ctx.strokeStyle="#5a6b73";ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x,top);ctx.lineTo(x,groundY);ctx.stroke();
+  ctx.fillStyle="#e2483a";ctx.beginPath();ctx.arc(x,top,4,0,7);ctx.fill();
+  ctx.fillStyle="#d8612e";ctx.beginPath();ctx.moveTo(x,top+5);ctx.lineTo(x+22,top+11);ctx.lineTo(x,top+17);ctx.closePath();ctx.fill();
+}
+function runSailor(ctx,x,groundY,feetH,big){
+  const sc=big?1.25:1,fy=groundY-feetH,lp=Math.sin(RUNG.animT/70);
+  ctx.strokeStyle="#22384a";ctx.lineWidth=3*sc;ctx.beginPath();
+  ctx.moveTo(x,fy-12*sc);ctx.lineTo(x-4*sc+lp*3,fy);ctx.moveTo(x,fy-12*sc);ctx.lineTo(x+4*sc-lp*3,fy);ctx.stroke();
+  ctx.fillStyle="#f4efe4";ctx.fillRect(x-6*sc,fy-24*sc,12*sc,13*sc);
+  ctx.fillStyle="#1f4e6b";for(let i=0;i<3;i++)ctx.fillRect(x-6*sc,fy-22*sc+i*4*sc,12*sc,2*sc);
+  ctx.strokeStyle="#e8c9a0";ctx.lineWidth=2.5*sc;ctx.beginPath();
+  ctx.moveTo(x-5*sc,fy-20*sc);ctx.lineTo(x-9*sc-lp*2,fy-14*sc);ctx.moveTo(x+5*sc,fy-20*sc);ctx.lineTo(x+9*sc+lp*2,fy-14*sc);ctx.stroke();
+  ctx.fillStyle="#f0c9a0";ctx.beginPath();ctx.arc(x,fy-29*sc,5*sc,0,7);ctx.fill();
+  ctx.fillStyle="#f4efe4";ctx.beginPath();ctx.arc(x,fy-31*sc,5.5*sc,Math.PI,0);ctx.fill();ctx.fillRect(x-5.5*sc,fy-31*sc,11*sc,2*sc);
+  ctx.fillStyle="#1f4e6b";ctx.fillRect(x-1.5*sc,fy-35*sc,3*sc,3*sc);
 }
 function runGameDraw(canvas){
   const ctx=canvas.getContext("2d");if(!ctx)return;
-  const W=canvas.width,H=canvas.height;
-  ctx.clearRect(0,0,W,H); // transparent bg so the illustrated village-path art shows through
-  ctx.fillStyle="rgba(138,90,46,.75)";ctx.fillRect(0,RUN_GROUND_Y,W,H-RUN_GROUND_Y);
-  ctx.strokeStyle="rgba(0,0,0,.18)";ctx.lineWidth=1;
-  for(let x=-(RUNG.dist%20);x<W;x+=20){ctx.beginPath();ctx.moveTo(x,RUN_GROUND_Y);ctx.lineTo(x,H);ctx.stroke();}
-  ctx.textAlign="center";
-  const backingDisc=(x,y,r)=>{ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle="rgba(255,255,255,.55)";ctx.fill();};
-  ctx.font="20px serif";
-  RUNG.coins.forEach(c=>{if(!c.taken){backingDisc(c.x,RUN_GROUND_Y-c.y-14,11);ctx.fillText("🪙",c.x,RUN_GROUND_Y-c.y-8);}});
-  ctx.font="22px serif";
-  RUNG.obstacles.forEach(o=>{backingDisc(o.x,RUN_GROUND_Y-10,13);ctx.fillText(o.em,o.x,RUN_GROUND_Y-2);});
-  const invuln=Date.now()<RUNG.invulnUntil;
+  const W=canvas.width,H=canvas.height,gY=RUN_GROUND_Y;
+  const sky=ctx.createLinearGradient(0,0,0,gY);sky.addColorStop(0,"#8ecbff");sky.addColorStop(1,"#cdeaff");
+  ctx.fillStyle=sky;ctx.fillRect(0,0,W,gY);
+  runHill(ctx,W,gY,0.06,"#8fd06a",44);
+  runHill(ctx,W,gY,0.12,"#6ab04c",30);
+  RUNG.clouds.forEach(c=>runCloud(ctx,c));
+  ctx.fillStyle="#5a9e3e";ctx.fillRect(0,gY,W,5); // grass top
+  ctx.fillStyle="#8a5a2e";ctx.fillRect(0,gY+5,W,H-gY-5); // dirt
+  ctx.strokeStyle="rgba(0,0,0,.15)";ctx.lineWidth=1;
+  for(let x=-(RUNG.dist%22);x<W;x+=22){ctx.beginPath();ctx.moveTo(x,gY+5);ctx.lineTo(x,H);ctx.stroke();}
+  RUNG.pipes.forEach(p=>runPipe(ctx,p.x,gY,p.h));
+  RUNG.blocks.forEach(b=>runQBlock(ctx,b.x,gY,b.by,b.used));
+  RUNG.coins.forEach(c=>runCoin(ctx,c.x,gY-c.ch,RUNG.animT/120+c.x));
+  RUNG.mushrooms.forEach(m=>runMushroom(ctx,m.x,gY,m.mh));
+  RUNG.enemies.forEach(e=>runGoomba(ctx,e.x,gY,e.alive));
+  if(RUNG.flag)runFlag(ctx,RUNG.flag.x,gY);
+  const invuln=Date.now()<RUNG.invulnUntil,big=Date.now()<RUNG.bigUntil;
   ctx.globalAlpha=invuln&&Math.floor(Date.now()/100)%2===0?0.4:1;
-  backingDisc(RUN_CHAR_X,RUN_GROUND_Y-RUNG.charY-10,15);
-  ctx.font="30px serif";ctx.fillText("🏃",RUN_CHAR_X,RUN_GROUND_Y-RUNG.charY-2);
+  runSailor(ctx,RUN_CHAR_X,gY,RUNG.charY,big);
   ctx.globalAlpha=1;
   RUNG.parts.forEach(p=>{
-    ctx.globalAlpha=Math.max(0,p.life/500);
-    ctx.fillStyle="#fff";ctx.font="bold 13px 'Helvetica Neue',Arial,sans-serif";
-    ctx.fillText(p.txt,p.x,RUN_GROUND_Y-p.y-20);
+    ctx.globalAlpha=Math.max(0,p.life/600);
+    ctx.fillStyle="#fff";ctx.font="bold 13px 'Helvetica Neue',Arial,sans-serif";ctx.textAlign="center";
+    ctx.strokeStyle="rgba(0,0,0,.5)";ctx.lineWidth=3;ctx.strokeText(p.txt,p.x,gY-p.y-16);ctx.fillText(p.txt,p.x,gY-p.y-16);
     ctx.globalAlpha=1;
   });
-  ctx.textAlign="left";ctx.fillStyle="#0b2436";ctx.font="bold 13px 'Helvetica Neue',Arial,sans-serif";
-  ctx.fillText("🪙 "+RUNG.coinsCollected,8,18);
+  ctx.textAlign="left";ctx.font="bold 13px 'Helvetica Neue',Arial,sans-serif";
+  ctx.fillStyle="#fff";ctx.strokeStyle="rgba(0,0,0,.5)";ctx.lineWidth=3;
+  ctx.strokeText("🪙 "+RUNG.coinsCollected,8,18);ctx.fillText("🪙 "+RUNG.coinsCollected,8,18);
   ctx.textAlign="right";
-  ctx.fillText(Math.min(100,Math.round(RUNG.dist/RUN_TARGET_DIST*100))+"%",W-8,18);
+  const pct=Math.min(100,Math.round(RUNG.dist/RUN_TARGET_DIST*100))+"%";
+  ctx.strokeText(pct,W-8,18);ctx.fillText(pct,W-8,18);
 }
 function runFinish(){
   stopRunGameLoop();
