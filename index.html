@@ -1637,12 +1637,17 @@ function endFishSession(){
   if(current==="arcade"&&arcGame==="trader")renderTraderPanel();
   if(summary)showToast(`Fisketuren är slut — ${summary.caught} fångster denna tur! 🎣`);
 }
-// ---- Krokfiske: live drag-the-hook mini-game (replaces the old cast/wait/tap-timing-bar mechanic).
-// Keeps every economy hook from the old version untouched (rollSpecies' rodLevel gating, addCatch,
-// the once-daily "storfångst" rare-catch bonus, fuel/sails session length) — only the moment-to-moment
-// interaction and rendering changed, from discrete button taps to a continuous drag-and-catch loop.
+// ---- Krokfiske: live drag-the-hook mini-game in the classic mobile-fishing-game tradition — a
+// vertical cross-section with the fishing boat on the surface, the line descending into water that
+// darkens with depth, fish swimming past at species-typical depths (finer fish deeper, so chasing
+// value means diving toward the bottom, dodging the junk on the way), kelp swaying at the bottom,
+// and "+N kr" popups tied to each species' real market price. All original canvas-drawn artwork —
+// no emoji fillText (crisper, and renders identically in the headless sandbox and on real devices).
+// Keeps every economy hook untouched: rollSpecies' rodLevel gating, addCatch, the once-daily
+// "storfångst" rare-catch bonus, fuel/sails session length.
 const FISHG={raf:null,mode:null,canvas:null,hookX:0,hookY:0,targetX:0,targetY:0,fishes:[],hazards:[],
-  parts:[],stuckUntil:0,nextFishAt:0,nextHazardAt:0,caught:0,lastTs:0,waterTop:0,waterBot:0};
+  parts:[],bubbles:[],stuckUntil:0,nextFishAt:0,nextHazardAt:0,nextBubbleAt:0,caught:0,kr:0,
+  animT:0,lastTs:0,waterTop:0,waterBot:0};
 function stopFishGameLoop(){
   if(FISHG.raf){cancelAnimationFrame(FISHG.raf);FISHG.raf=null;}
   FISHG.canvas=null;
@@ -1652,16 +1657,21 @@ function fishGameSetTarget(canvas,clientX,clientY){
   const scaleX=rect.width?canvas.width/rect.width:1,scaleY=rect.height?canvas.height/rect.height:1;
   const x=(clientX-rect.left)*scaleX,y=(clientY-rect.top)*scaleY;
   FISHG.targetX=Math.max(10,Math.min(canvas.width-10,x));
-  FISHG.targetY=Math.max(FISHG.waterTop,Math.min(FISHG.waterBot,y));
+  FISHG.targetY=Math.max(FISHG.waterTop+6,Math.min(FISHG.waterBot,y));
 }
+// Species-typical swim depth as a fraction of the water column: cheap surface shoal fish up top,
+// the valuable ones (torsk, lax) down deep — the genre's "worth more the deeper you dare" rule,
+// which also makes the rod upgrade (bigger hook) matter most exactly where the junk is thickest.
+function fishDepthFrac(sp){return Math.min(0.92,0.06+0.75*(sp.base/22))+(Math.random()*0.24-0.12);}
 function startFishGameLoop(canvas,mode){
   stopFishGameLoop();
   FISHG.canvas=canvas;FISHG.mode=mode;
-  FISHG.waterTop=canvas.height*0.24;FISHG.waterBot=canvas.height*0.94;
+  FISHG.waterTop=canvas.height*0.18;FISHG.waterBot=canvas.height-8;
   FISHG.hookX=FISHG.targetX=canvas.width/2;
   FISHG.hookY=FISHG.targetY=(FISHG.waterTop+FISHG.waterBot)/2;
-  FISHG.fishes=[];FISHG.hazards=[];FISHG.parts=[];FISHG.stuckUntil=0;FISHG.caught=0;
-  FISHG.nextFishAt=0;FISHG.nextHazardAt=1500;FISHG.lastTs=performance.now();
+  FISHG.fishes=[];FISHG.hazards=[];FISHG.parts=[];FISHG.bubbles=[];
+  FISHG.stuckUntil=0;FISHG.caught=0;FISHG.kr=0;FISHG.animT=0;
+  FISHG.nextFishAt=0;FISHG.nextHazardAt=1500;FISHG.nextBubbleAt=400;FISHG.lastTs=performance.now();
   const onMove=e=>{
     e.preventDefault();
     const t=e.touches&&e.touches[0];
@@ -1680,6 +1690,7 @@ function startFishGameLoop(canvas,mode){
   FISHG.raf=requestAnimationFrame(frame);
 }
 function fishGameStep(dt,canvas){
+  FISHG.animT+=dt;
   FISHG.hookX+=(FISHG.targetX-FISHG.hookX)*Math.min(1,dt/90);
   FISHG.hookY+=(FISHG.targetY-FISHG.hookY)*Math.min(1,dt/90);
   const ws=myWorkshop();
@@ -1688,18 +1699,24 @@ function fishGameStep(dt,canvas){
   if(FISHG.nextFishAt<=0){
     const sp=rollSpecies(pool,FISHG.mode==="boat"?ws.rodLevel:0);
     const dir=Math.random()<0.5?1:-1;
-    const y=FISHG.waterTop+Math.random()*(FISHG.waterBot-FISHG.waterTop);
+    const y=FISHG.waterTop+Math.max(0.04,fishDepthFrac(sp))*(FISHG.waterBot-FISHG.waterTop);
     const speed=(0.035+Math.random()*0.03+sp.base*0.001)*canvas.width;
-    FISHG.fishes.push({sp,x:dir>0?-24:canvas.width+24,y,dir,speed,r:Math.max(8,13-sp.base*0.15)});
+    FISHG.fishes.push({sp,x:dir>0?-24:canvas.width+24,y,dir,speed,r:Math.max(9,8+sp.base*0.35),wob:Math.random()*7});
     FISHG.nextFishAt=500+Math.random()*650;
   }
   FISHG.nextHazardAt-=dt;
   if(FISHG.nextHazardAt<=0){
     const hz=HAZARD_TYPES[Math.floor(Math.random()*HAZARD_TYPES.length)];
     const dir=Math.random()<0.5?1:-1;
-    const y=FISHG.waterTop+Math.random()*(FISHG.waterBot-FISHG.waterTop);
-    FISHG.hazards.push({hz,x:dir>0?-24:canvas.width+24,y,dir,speed:(0.02+Math.random()*0.015)*canvas.width});
-    FISHG.nextHazardAt=2600+Math.random()*2200;
+    // junk hangs in the mid-to-deep water, guarding the valuable fish below it
+    const y=FISHG.waterTop+(0.35+Math.random()*0.55)*(FISHG.waterBot-FISHG.waterTop);
+    FISHG.hazards.push({hz,x:dir>0?-24:canvas.width+24,y,dir,speed:(0.02+Math.random()*0.015)*canvas.width,wob:Math.random()*7});
+    FISHG.nextHazardAt=2400+Math.random()*2000;
+  }
+  FISHG.nextBubbleAt-=dt;
+  if(FISHG.nextBubbleAt<=0){
+    FISHG.bubbles.push({x:FISHG.hookX+(Math.random()*10-5),y:FISHG.hookY-6,r:1.5+Math.random()*2.5,life:1800});
+    FISHG.nextBubbleAt=350+Math.random()*400;
   }
   const stuck=Date.now()<FISHG.stuckUntil;
   const hookR=fishHookRadius(ws.rodLevel);
@@ -1719,12 +1736,14 @@ function fishGameStep(dt,canvas){
     }
     return h.x>-40&&h.x<canvas.width+40;
   });
+  FISHG.bubbles=FISHG.bubbles.filter(b=>{b.y-=dt*0.025;b.life-=dt;return b.life>0&&b.y>FISHG.waterTop;});
   FISHG.parts=FISHG.parts.filter(p=>{p.y-=dt*0.03;p.life-=dt;return p.life>0;});
 }
 function fishCaught(f,ws){
   addCatch(ws,f.sp.k);saveWorkshop(ws);
   FISHG.caught++;if(fishSession)fishSession.caught=(fishSession.caught||0)+1;
-  FISHG.parts.push({x:f.x,y:f.y,txt:f.sp.em+" +1",life:700,color:"#ffe1a1"});
+  const kr=sellPrice(f.sp.k);FISHG.kr+=kr;
+  FISHG.parts.push({x:f.x,y:f.y,txt:"+"+kr+" kr",life:800,color:f.sp.rare?"#ffd34d":"#ffe1a1"});
   if(f.sp.rare&&me&&!hasLog(me.id,"bonus","fish:"+today())){
     addLog("bonus","fish:"+today(),FISH_PTS,"Storfångst: "+f.sp.n);
     confetti(24);showToast(`Storfångst! ${f.sp.em} ${f.sp.n} — +${FISH_PTS} p! 🎉`);
@@ -1732,40 +1751,120 @@ function fishCaught(f,ws){
 }
 function hazardHit(h){
   FISHG.stuckUntil=Date.now()+900;
-  FISHG.parts.push({x:h.x,y:h.y,txt:h.hz.em+" Fast!",life:700,color:"#ff9d9d"});
+  FISHG.parts.push({x:h.x,y:h.y,txt:"Fast!",life:700,color:"#ff9d9d"});
+}
+// ---- fishing draw helpers (canvas primitives — crisp & render-reliable, unlike canvas emoji) ----
+const FISH_LOOKS={
+  "strömming":{c:"#a9c3d6",belly:"#dce9f2",len:1.5},
+  "abborre":{c:"#6f9e58",belly:"#c9dcae",len:1.55,stripes:"#41603a"},
+  "gädda":{c:"#7a8a4a",belly:"#c2c99a",len:2.3},
+  "torsk":{c:"#a58a5e",belly:"#d9c9a8",len:1.8,spots:"#7d6642"},
+  "lax":{c:"#d98a74",belly:"#f2c9b8",len:1.9},
+};
+function drawFishShape(ctx,f){
+  const lk=FISH_LOOKS[f.sp.k]||{c:"#8aa9b8",belly:"#cfe0e8",len:1.7};
+  const r=f.r,L=r*lk.len,wob=Math.sin(FISHG.animT/140+f.wob)*0.1;
+  ctx.save();ctx.translate(f.x,f.y);
+  if(f.dir<0)ctx.scale(-1,1);
+  ctx.rotate(wob);
+  ctx.fillStyle=lk.c; // tail
+  ctx.beginPath();ctx.moveTo(-L*0.75,0);ctx.lineTo(-L*1.15,-r*0.65);ctx.lineTo(-L*1.15,r*0.65);ctx.closePath();ctx.fill();
+  ctx.beginPath();ctx.ellipse(0,0,L,r*0.72,0,0,Math.PI*2);ctx.fill(); // body
+  ctx.fillStyle=lk.belly;
+  ctx.beginPath();ctx.ellipse(0,r*0.22,L*0.82,r*0.42,0,0,Math.PI*2);ctx.fill();
+  if(lk.stripes){ctx.strokeStyle=lk.stripes;ctx.lineWidth=1.6;
+    for(let i=-1;i<=1;i++){ctx.beginPath();ctx.moveTo(i*L*0.34,-r*0.6);ctx.lineTo(i*L*0.34,r*0.45);ctx.stroke();}}
+  if(lk.spots){ctx.fillStyle=lk.spots;
+    [[-L*0.35,-r*0.25],[0,-r*0.4],[L*0.3,-r*0.15]].forEach(([sx,sy])=>{ctx.beginPath();ctx.arc(sx,sy,1.6,0,7);ctx.fill();});}
+  ctx.fillStyle=lk.c; // top fin
+  ctx.beginPath();ctx.moveTo(-L*0.25,-r*0.6);ctx.quadraticCurveTo(0,-r*1.25,L*0.3,-r*0.55);ctx.closePath();ctx.fill();
+  ctx.fillStyle="#fff";ctx.beginPath();ctx.arc(L*0.55,-r*0.15,r*0.22,0,7);ctx.fill(); // eye
+  ctx.fillStyle="#000";ctx.beginPath();ctx.arc(L*0.6,-r*0.15,r*0.11,0,7);ctx.fill();
+  ctx.restore();
+}
+function drawHazardShape(ctx,h){
+  const wob=Math.sin(FISHG.animT/220+h.wob)*2;
+  ctx.save();ctx.translate(h.x,h.y+wob);
+  if(h.hz.k==="tire"){
+    ctx.strokeStyle="#2b2f33";ctx.lineWidth=7;ctx.beginPath();ctx.arc(0,0,10,0,Math.PI*2);ctx.stroke();
+    ctx.strokeStyle="#4a5056";ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,10,0,Math.PI*2);ctx.stroke();
+  }else if(h.hz.k==="jelly"){
+    ctx.fillStyle="rgba(233,160,205,.8)";
+    ctx.beginPath();ctx.arc(0,-2,10,Math.PI,0);ctx.fill();ctx.fillRect(-10,-2,20,3);
+    ctx.strokeStyle="rgba(233,160,205,.7)";ctx.lineWidth=1.6;
+    for(let i=-1;i<=1;i++){ctx.beginPath();ctx.moveTo(i*5,2);
+      ctx.quadraticCurveTo(i*5+Math.sin(FISHG.animT/160+i)*3,8,i*5,14);ctx.stroke();}
+  }else{ // drifting weed clump
+    ctx.strokeStyle="#3f7d5a";ctx.lineWidth=2.4;
+    for(let i=-1;i<=1;i++){ctx.beginPath();ctx.moveTo(i*4,10);
+      ctx.quadraticCurveTo(i*4+Math.sin(FISHG.animT/190+i*2)*5,-2,i*6,-11);ctx.stroke();}
+  }
+  ctx.restore();
+}
+function drawFishingBoat(ctx,x,surfY){
+  ctx.save();ctx.translate(x,surfY+Math.sin(FISHG.animT/450)*1.5);
+  ctx.fillStyle="#b34a30"; // hull
+  ctx.beginPath();ctx.moveTo(-34,-6);ctx.lineTo(34,-6);ctx.lineTo(26,6);ctx.lineTo(-26,6);ctx.closePath();ctx.fill();
+  ctx.fillStyle="#f4efe4";ctx.fillRect(-24,-7,68,3); // gunwale stripe
+  ctx.fillStyle="#f4efe4";ctx.fillRect(-18,-20,20,14); // cabin
+  ctx.fillStyle="#7fb4cc";ctx.fillRect(-14,-17,5,5);ctx.fillRect(-6,-17,5,5); // windows
+  ctx.strokeStyle="#5a4632";ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(12,-6);ctx.lineTo(24,-26);ctx.stroke(); // rod
+  ctx.restore();
 }
 function fishGameDraw(canvas){
   const ctx=canvas.getContext("2d");if(!ctx)return;
-  const W=canvas.width,H=canvas.height;
-  ctx.clearRect(0,0,W,H); // canvas has a transparent bg so the illustrated village/dock art shows through
-  const wg=ctx.createLinearGradient(0,FISHG.waterTop,0,FISHG.waterBot);
-  wg.addColorStop(0,"rgba(42,126,166,.35)");wg.addColorStop(1,"rgba(11,36,54,.55)");
-  ctx.fillStyle=wg;ctx.fillRect(0,FISHG.waterTop,W,FISHG.waterBot-FISHG.waterTop);
-  ctx.font="20px serif";ctx.textAlign="center";
-  const backingDisc=(x,y,r)=>{ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fillStyle="rgba(255,255,255,.4)";ctx.fill();};
-  FISHG.hazards.forEach(h=>{backingDisc(h.x,h.y,13);ctx.fillText(h.hz.em,h.x,h.y+7);});
-  FISHG.fishes.forEach(f=>{
-    backingDisc(f.x,f.y,f.r+5);
-    ctx.save();ctx.translate(f.x,f.y);if(f.dir<0)ctx.scale(-1,1);
-    ctx.font="22px serif";ctx.fillText(f.sp.em,0,7);
-    ctx.restore();
+  const W=canvas.width,H=canvas.height,surfY=FISHG.waterTop;
+  const sky=ctx.createLinearGradient(0,0,0,surfY); // sky band
+  sky.addColorStop(0,"#a8d8f0");sky.addColorStop(1,"#d8ecf7");
+  ctx.fillStyle=sky;ctx.fillRect(0,0,W,surfY);
+  ctx.fillStyle="rgba(255,255,255,.9)"; // small clouds
+  [[40,12],[150,20],[265,10]].forEach(([cx,cy])=>{
+    [[0,0,6],[7,-2,7],[14,0,6]].forEach(([dx,dy,r])=>{ctx.beginPath();ctx.arc(cx+dx,cy+dy,r,0,7);ctx.fill();});});
+  const wg=ctx.createLinearGradient(0,surfY,0,H); // water darkening with depth
+  wg.addColorStop(0,"#5db4dc");wg.addColorStop(0.45,"#2a7ea6");wg.addColorStop(1,"#0b2436");
+  ctx.fillStyle=wg;ctx.fillRect(0,surfY,W,H-surfY);
+  ctx.strokeStyle="rgba(255,255,255,.55)";ctx.lineWidth=2; // surface waves
+  ctx.beginPath();
+  for(let x=0;x<=W;x+=8)ctx.lineTo(x,surfY+Math.sin(x/14+FISHG.animT/300)*2);
+  ctx.stroke();
+  ctx.fillStyle="rgba(255,255,255,.05)"; // faint light shafts
+  [[W*0.25,26],[W*0.6,34],[W*0.85,22]].forEach(([sx,sw])=>{
+    ctx.beginPath();ctx.moveTo(sx,surfY);ctx.lineTo(sx+sw,surfY);ctx.lineTo(sx+sw+18,H);ctx.lineTo(sx-18,H);ctx.closePath();ctx.fill();});
+  ctx.lineWidth=3; // kelp swaying at the bottom
+  for(let i=0;i<5;i++){
+    const kx=20+i*(W-40)/4,kh=26+((i*37)%18);
+    ctx.strokeStyle=i%2?"#2c5b40":"#3f7d5a";
+    ctx.beginPath();ctx.moveTo(kx,H);
+    ctx.quadraticCurveTo(kx+Math.sin(FISHG.animT/500+i)*7,H-kh*0.6,kx+Math.sin(FISHG.animT/350+i*2)*10,H-kh);
+    ctx.stroke();
+  }
+  FISHG.bubbles.forEach(b=>{
+    ctx.strokeStyle="rgba(255,255,255,"+Math.max(0,b.life/1800*0.7)+")";ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,Math.PI*2);ctx.stroke();
   });
-  ctx.strokeStyle="rgba(255,255,255,.75)";ctx.lineWidth=1.5;
-  ctx.beginPath();ctx.moveTo(W/2,0);ctx.lineTo(FISHG.hookX,FISHG.hookY);ctx.stroke();
-  const stuck=Date.now()<FISHG.stuckUntil;
-  ctx.fillStyle=stuck?"#c0392b":"#f4efe4";
-  ctx.beginPath();ctx.arc(FISHG.hookX,FISHG.hookY,6,0,Math.PI*2);ctx.fill();
-  ctx.strokeStyle="rgba(11,36,54,.5)";ctx.lineWidth=1.5;ctx.stroke();
+  FISHG.hazards.forEach(h=>drawHazardShape(ctx,h));
+  FISHG.fishes.forEach(f=>drawFishShape(ctx,f));
+  drawFishingBoat(ctx,W/2,surfY);
+  ctx.strokeStyle="rgba(255,255,255,.8)";ctx.lineWidth=1.5; // line: rod tip → hook
+  ctx.beginPath();ctx.moveTo(W/2+24,surfY-26);ctx.lineTo(FISHG.hookX,FISHG.hookY-8);ctx.stroke();
+  const stuck=Date.now()<FISHG.stuckUntil; // J-shaped hook
+  ctx.strokeStyle=stuck?"#e2483a":"#f4efe4";ctx.lineWidth=2.5;
+  ctx.beginPath();ctx.moveTo(FISHG.hookX,FISHG.hookY-8);ctx.lineTo(FISHG.hookX,FISHG.hookY+2);
+  ctx.arc(FISHG.hookX-4,FISHG.hookY+2,4,0,Math.PI*0.9);ctx.stroke();
+  ctx.fillStyle=stuck?"#e2483a":"#ffd34d"; // bait glint
+  ctx.beginPath();ctx.arc(FISHG.hookX,FISHG.hookY-8,3,0,Math.PI*2);ctx.fill();
+  ctx.textAlign="center";ctx.font="bold 13px 'Helvetica Neue',Arial,sans-serif";
   FISHG.parts.forEach(p=>{
-    ctx.globalAlpha=Math.max(0,p.life/700);
-    ctx.fillStyle=p.color;ctx.font="bold 13px 'Helvetica Neue',Arial,sans-serif";
-    ctx.fillText(p.txt,p.x,p.y);
+    ctx.globalAlpha=Math.max(0,p.life/800);
+    ctx.strokeStyle="rgba(0,0,0,.55)";ctx.lineWidth=3;ctx.strokeText(p.txt,p.x,p.y);
+    ctx.fillStyle=p.color;ctx.fillText(p.txt,p.x,p.y);
     ctx.globalAlpha=1;
   });
-  ctx.textAlign="left";ctx.fillStyle="#fff";ctx.font="bold 13px 'Helvetica Neue',Arial,sans-serif";
-  ctx.shadowColor="rgba(0,0,0,.5)";ctx.shadowBlur=3;
-  ctx.fillText("🎣 "+FISHG.caught,8,18);
-  ctx.shadowBlur=0;
+  ctx.textAlign="left";ctx.fillStyle="#fff";ctx.strokeStyle="rgba(0,0,0,.5)";ctx.lineWidth=3;
+  ctx.strokeText("🎣 "+FISHG.caught,8,16);ctx.fillText("🎣 "+FISHG.caught,8,16);
+  ctx.textAlign="right";
+  ctx.strokeText(FISHG.kr+" kr",W-8,16);ctx.fillText(FISHG.kr+" kr",W-8,16);
 }
 function renderFishUI(panel,mode){
   if(!fishSession){
