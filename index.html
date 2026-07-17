@@ -3692,17 +3692,18 @@ async function renderTrips(){
 function renderTripPlanner(box){
   const card=document.createElement("div");card.className="repCard";
   card.innerHTML=`<h3>🧳 Planera nästa resa</h3>
-    ${isCaptain()?`<button class="cpBtn" id="tripAddBtn" style="margin-bottom:10px">+ Ny resa</button><div id="tripAddForm"></div>`:""}
+    ${canPlan()?`<p class="soundIntro" style="margin:-2px 0 8px">Kapten &amp; navigatör planerar rutten här — lägg till hamnar (ett stopp per dag antas), flytta eller ta bort dem, och se hur långt ni seglat och hur mycket som är kvar.</p>
+    <button class="cpBtn" id="tripAddBtn" style="margin-bottom:10px">+ Ny resa</button><div id="tripAddForm"></div>`:""}
     <div id="tripList"></div>
     <datalist id="harborSuggest">${harborNameList().map(n=>`<option value="${escHtml(n)}">`).join("")}</datalist>`;
   box.appendChild(card);
   const listEl=card.querySelector("#tripList");
   if(!trips.length){
-    listEl.innerHTML='<p class="soundIntro">Inga resor planerade än. '+(isCaptain()?"Skapa den första ovan!":"Skepparen kan planera nästa resa här.")+'</p>';
+    listEl.innerHTML='<p class="soundIntro">Inga resor planerade än. '+(canPlan()?"Skapa den första ovan!":"Kaptenen eller navigatören kan planera nästa resa här.")+'</p>';
   }else{
     trips.forEach(t=>listEl.appendChild(renderTripCard(t)));
   }
-  if(!isCaptain())return;
+  if(!canPlan())return;
   const addBtn=card.querySelector("#tripAddBtn");
   addBtn.onclick=()=>{
     const formEl=card.querySelector("#tripAddForm");
@@ -3722,46 +3723,96 @@ function renderTripPlanner(box){
     };
   };
 }
+function dateAddDays(dateStr,n){
+  const d=new Date((dateStr||today())+"T12:00");d.setDate(d.getDate()+n);
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function dateShort(dateStr){const p=(dateStr||"").split("-");return p.length===3?(+p[2])+"/"+(+p[1]):dateStr;}
+// Assumes ONE stop per day when a stop has no explicit date: the first undated stop starts today,
+// each following undated stop is the previous effective date + 1 day. An explicit date resets the
+// running date. Returns {date, assumed} per stop so the overview/timeline can reason about "so far
+// sailed vs left" and the stop lines can show the inferred day.
+function tripEffectiveDates(t){
+  const stops=t.stops||[];const out=[];let cur=null;
+  stops.forEach(s=>{
+    if(s.date){cur=s.date;out.push({date:cur,assumed:false});}
+    else{cur=cur?dateAddDays(cur,1):today();out.push({date:cur,assumed:true});}
+  });
+  return out;
+}
+// Route overview: total distance, how much already sailed vs remaining (split at "today" using the
+// effective dates, or all-sailed for a completed trip), and sailing time from distance at the trip's
+// assumed speed (default 5 kn). Legs to/from an unknown harbour are counted but flagged, never crash.
+function tripRouteOverview(t,speed){
+  const stops=t.stops||[],b=myBoat(),eff=tripEffectiveDates(t),td=today();
+  let total=0,sailed=0,remaining=0,unknown=0,reachedCount=0;
+  stops.forEach((s,i)=>{
+    const prevName=i===0?(b&&b.start_harbor):stops[i-1].place;
+    const dist=prevName?harborDistNm(prevName,s.place):null;
+    const reached=t.status==="completed"||(eff[i]&&eff[i].date<=td);
+    if(reached)reachedCount++;
+    if(dist==null){unknown++;return;}
+    total+=dist;if(reached)sailed+=dist;else remaining+=dist;
+  });
+  const sp=Math.max(0.5,speed||5),hrs=x=>x/sp;
+  return{stops:stops.length,reachedCount,total,sailed,remaining,unknown,
+    totalHrs:hrs(total),remainingHrs:hrs(remaining),days:stops.length,
+    arrival:eff.length?eff[eff.length-1].date:null,eff};
+}
 function renderTripCard(t){
   const d=document.createElement("div");d.className="cpCard";d.style.marginBottom="9px";
   const stops=t.stops||[];
   const speed=tripSpeeds[t.id]||5;
   const b=myBoat();
+  const ov=tripRouteOverview(t,speed);
+  const overviewHtml=stops.length?`<div style="background:rgba(20,80,107,.07);border-radius:10px;padding:9px 11px;margin:6px 0 4px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#3a4a52;line-height:1.5">
+      <b style="letter-spacing:.06em;text-transform:uppercase;font-size:10.5px;color:#14506b">📊 Ruttöversikt · ca 1 hamn/dag</b><br>
+      Total sträcka: <b>${ov.total.toFixed(1)} M</b> · ca <b>${ov.totalHrs.toFixed(1)} tim</b> segling vid ${speed} kn · ~${ov.days} dag${ov.days===1?"":"ar"}<br>
+      ${t.status==="completed"?`Hela resan avklarad ✓ (${ov.total.toFixed(1)} M)`:
+        `Seglat hittills: <b>${ov.sailed.toFixed(1)} M</b> (${ov.reachedCount}/${ov.stops} hamnar) · Kvar: <b>${ov.remaining.toFixed(1)} M</b> · ca ${ov.remainingHrs.toFixed(1)} tim`}
+      ${ov.arrival&&t.status!=="completed"?`<br>Beräknad framme (sista hamn): <b>${dateShort(ov.arrival)}</b>`:""}
+      ${ov.unknown?`<br>⚠️ ${ov.unknown} etapp${ov.unknown===1?"":"er"} med okänt avstånd — kontrollera hamnnamnet`:""}
+    </div>`:"";
   const stopsHtml=stops.length?stops.map((s,i)=>{
     const prevName=i===0?(b&&b.start_harbor):stops[i-1].place;
     const dist=prevName?harborDistNm(prevName,s.place):null;
     const legLine=dist!=null
       ?`⛵ ${dist.toFixed(1)} M från ${escHtml(prevName)} · ca ${(dist/speed).toFixed(1)} tim vid ${speed} kn`
       :`⛵ Okänt avstånd${prevName?" (kontrollera hamnnamnet)":""}`;
+    const eff=ov.eff[i];
+    const dateLabel=s.date?" · "+dateShort(s.date):(eff?` · ${dateShort(eff.date)} (ca)`:"");
     const windId=`tripWind-${t.id}-${i}`;
     return `
     <div style="padding:5px 0;border-bottom:1px dashed rgba(11,36,54,.12)">
       <div class="repRow" style="border:none;padding:0">
-        <span>${i+1}. ${escHtml(s.place)}${s.date?" · "+s.date:""}</span>
-        ${isCaptain()?`<span style="white-space:nowrap">
-          ${i>0?`<button data-stopmv="${t.id}:${i}:-1" class="mvBtn">↑</button>`:""}
-          ${i<stops.length-1?`<button data-stopmv="${t.id}:${i}:1" class="mvBtn">↓</button>`:""}
-          ${delBtnHtml("stop:"+t.id+":"+i,`data-stopdel="${t.id}:${i}"`)}
+        <span>${i+1}. ${escHtml(s.place)}${dateLabel}</span>
+        ${canPlan()?`<span style="white-space:nowrap">
+          ${i>0?`<button data-stopmv="${t.id}:${i}:-1" class="mvBtn" title="Flytta upp">↑</button>`:""}
+          ${i<stops.length-1?`<button data-stopmv="${t.id}:${i}:1" class="mvBtn" title="Flytta ner">↓</button>`:""}
+          ${delBtnHtml("stop:"+t.id+":"+i,`data-stopdel="${t.id}:${i}" title="Ta bort hamnen"`)}
         </span>`:""}
       </div>
       <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#6c7c84;margin-top:2px">${legLine}</div>
-      <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#6c7c84" id="${windId}">${s.date?"💨 Hämtar vindprognos…":"💨 Lägg till datum för vindprognos"}</div>
+      <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#6c7c84" id="${windId}">💨 Hämtar vindprognos…</div>
     </div>`;
   }).join(""):'<div class="d">Inga hamnar tillagda ännu.</div>';
+  const nextDate=stops.length?dateAddDays(ov.eff[ov.eff.length-1].date,1):today();
   d.innerHTML=`<div class="t"><span class="pnum">${t.status==="completed"?"✓":"🧭"}</span>${escHtml(t.name)}${t.status==="completed"?" — avslutad":""}
-      ${isCaptain()?delBtnHtml("trip:"+t.id,`data-tripdel="${t.id}" style="float:right"`):""}</div>
+      ${canPlan()?delBtnHtml("trip:"+t.id,`data-tripdel="${t.id}" style="float:right"`):""}</div>
+    ${overviewHtml}
     <div class="d">${stopsHtml}</div>
     ${stops.length?`<div style="display:flex;align-items:center;gap:6px;margin-top:8px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#6c7c84">
         Antagen fart: <input type="number" min="1" step="0.5" value="${speed}" data-tripspeed="${t.id}" style="width:56px;padding:5px;border-radius:6px;border:1px solid #d9d2c4;text-align:right"> kn</div>`:""}
-    ${isCaptain()?`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
+    ${canPlan()?`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
         <input list="harborSuggest" placeholder="Hamn" data-tsplace="${t.id}" style="flex:2;min-width:100px;padding:8px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit">
-        <input type="date" data-tsdate="${t.id}" style="flex:1;min-width:120px;padding:8px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit">
+        <input type="date" data-tsdate="${t.id}" value="${nextDate}" title="Standard: dagen efter förra hamnen (1 hamn/dag)" style="flex:1;min-width:120px;padding:8px;border-radius:8px;border:1px solid #d9d2c4;font-family:inherit">
         <button class="cpBtn" data-tsadd="${t.id}">+ Lägg till hamn</button>
       </div>
+      <div class="wizHint" style="margin-top:4px">Datumet fylls i automatiskt (1 hamn/dag) — ändra det bara om ni stannar längre eller hoppar över dagar.</div>
       <button class="cpBtn" data-tripdone="${t.id}" style="margin-top:8px">${t.status==="completed"?"↺ Återöppna resan":"✓ Markera avslutad"}</button>`:""}`;
   const speedInput=d.querySelector(`[data-tripspeed="${t.id}"]`);
   if(speedInput)speedInput.oninput=e=>{tripSpeeds[t.id]=parseFloat(e.target.value)||5;renderTrips();};
-  if(isCaptain()){
+  if(canPlan()){
     wireDelBtn(d.querySelector(`[data-tripdel="${t.id}"]`),"trip:"+t.id,async()=>{await deleteTrip(t.id);renderTrips();});
     d.querySelectorAll("[data-stopdel]").forEach(btn=>{
       const[tid,idx]=btn.dataset.stopdel.split(":");
@@ -3781,16 +3832,16 @@ function renderTripCard(t){
     };
   }
   stops.forEach((s,i)=>{
-    if(!s.date)return;
+    const eff=ov.eff[i];const useDate=eff?eff.date:s.date;
     const c=harborCoords(s.place);
     if(!c){
       const el=d.querySelector(`#tripWind-${t.id}-${i}`);
       if(el)el.textContent="💨 Okänd hamn — ingen vindprognos";
       return;
     }
-    windForecastForDate(c[0],c[1],s.date).then(w=>{
+    windForecastForDate(c[0],c[1],useDate).then(w=>{
       const el=document.getElementById(`tripWind-${t.id}-${i}`);if(!el)return;
-      el.textContent=w?`💨 Väntad vind ca kl 12: ${Math.round(w.s)} m/s ${windCompass(w.d)} · byar ${Math.round(w.g)}`
+      el.textContent=w?`💨 Väntad vind ${eff&&eff.assumed?"(antaget datum) ":""}ca kl 12: ${Math.round(w.s)} m/s ${windCompass(w.d)} · byar ${Math.round(w.g)}`
         :"💨 Ingen vindprognos ännu (för långt fram eller redan passerat)";
     });
   });
