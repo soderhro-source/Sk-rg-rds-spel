@@ -752,7 +752,7 @@ const GAMES = {
     {n:"Fiskgjuse",fi:"Sääksi",tip:"Svävar, dyker fötterna först.",v:4,rare:true},
     {n:"Havsörn",fi:"Merikotka",tip:"Enormt vingspann — skanna himlen.",v:5,rare:true},
     {n:"Brun kärrhök",fi:"Ruskosuohaukka",tip:"Lågt över vass, V-vingar.",v:3,rare:true},
-    {n:"Mås på stolpe",fi:"Tolppalokki",tip:"Klassiskt motiv — gratis poäng!",v:1},
+    {n:"Mås på stolpe",fi:"Tolppalokki",tip:"Klassiskt motiv — gratis poäng!",v:1,noId:true},
   ]},
   flora:{label:"Flora & Land",items:[
     {n:"En (buske)",fi:"Kataja",tip:"Pelarformad, överallt på hällar.",v:1},
@@ -761,14 +761,14 @@ const GAMES = {
     {n:"Blåstång",fi:"Rakkolevä",tip:"Brun tång i strandlinjen.",v:1},
     {n:"Ljung",fi:"Kanerva",tip:"Lila matta sensommar.",v:2},
     {n:"Blåklocka",fi:"Kissankello",tip:"På torra ängar.",v:2},
-    {n:"Betesö / får",fi:"Laidun",tip:"Håller landskapet öppet.",v:2},
-    {n:"Röd stuga",fi:"Punainen mökki",tip:"Faluröd — överallt.",v:1},
-    {n:"Strandbastu",fi:"Rantasauna",tip:"Liten stuga vid vattenbrynet.",v:1},
-    {n:"Väderkvarn",fi:"Tuulimylly",tip:"Bevarad på flera öar.",v:3,rare:true},
-    {n:"Kyrktorn",fi:"Kirkontorni",tip:"Nagu, Pargas siluett.",v:2},
-    {n:"Fyr",fi:"Majakka",tip:"Bengtskär störst i Norden.",v:3,rare:true},
-    {n:"Kalt klippskär",fi:"Luoto",tip:"Slipad granit utan träd.",v:1},
-    {n:"Fiskodling",fi:"Kalankasvatus",tip:"Flytande kassar i sundet.",v:2},
+    {n:"Betesö / får",fi:"Laidun",tip:"Håller landskapet öppet.",v:2,noId:true},
+    {n:"Röd stuga",fi:"Punainen mökki",tip:"Faluröd — överallt.",v:1,noId:true},
+    {n:"Strandbastu",fi:"Rantasauna",tip:"Liten stuga vid vattenbrynet.",v:1,noId:true},
+    {n:"Väderkvarn",fi:"Tuulimylly",tip:"Bevarad på flera öar.",v:3,rare:true,noId:true},
+    {n:"Kyrktorn",fi:"Kirkontorni",tip:"Nagu, Pargas siluett.",v:2,noId:true},
+    {n:"Fyr",fi:"Majakka",tip:"Bengtskär störst i Norden.",v:3,rare:true,noId:true},
+    {n:"Kalt klippskär",fi:"Luoto",tip:"Slipad granit utan träd.",v:1,noId:true},
+    {n:"Fiskodling",fi:"Kalankasvatus",tip:"Flytande kassar i sundet.",v:2,noId:true},
     {n:"Backsippa",fi:"Kylmänkukka",tip:"Sidenluden vårblomma, fridlyst — återfann sig i Finland just på Örö!",v:5,rare:true},
     {n:"Strandkål",fi:"Rantakaali",tip:"Grova kålartade blad på sand/grus — sällsynt men karaktäristisk.",v:4,rare:true},
     {n:"Havtorn",fi:"Tyrni",tip:"Taggig buske, orange vitaminbär — klassisk skärgårdssyn.",v:1},
@@ -4792,7 +4792,88 @@ function todaysPopQuizRefs(){
   const prefix="pop:"+today()+":";
   return allLogs().filter(l=>l.sailor_id===me.id&&l.kind==="quiz"&&l.ref.startsWith(prefix));
 }
-function maybePopQuiz(force){
+// ---- "Känner du igen den?" — an image-identification check drawn ONLY from species the sailor has
+// personally logged as spotted, so the pop-quiz occasionally verifies they actually know what their
+// spot claims look like (not just tapping cards). Scoped to birds + flora per request — categories
+// where a real photo genuinely tests recognition, unlike e.g. vessel types. Non-species entries in
+// those categories (a red cottage, a windmill, "gull on a pole" as a joke free-point card, etc.) are
+// excluded via `noId:true` on the GAMES data rather than guessed at here.
+const IMG_QUIZ_CATS=["seabirds","gulls","waders","flora"];
+const IMG_QUIZ_PTS=3,IMG_QUIZ_PEN=3; // symmetric: right +3, wrong OR skipped ("missed") -3
+function imgQuizTitle(item){
+  // strip descriptive qualifiers ("En (buske)"→"En", "Tall på häll"→"Tall") for a cleaner
+  // Wikipedia-title lookup — a failed/ambiguous lookup just skips this round (see fetchSpeciesImage),
+  // so an imperfect strip never breaks anything, only reduces how often this type fires.
+  return item.n.replace(/\s*\([^)]*\)\s*/g,"").replace(/\s+på häll$/,"").trim();
+}
+function mySpottedImgQuizPool(){
+  if(!me)return[];
+  const pool=[];
+  IMG_QUIZ_CATS.forEach(cat=>{
+    (GAMES[cat]?GAMES[cat].items:[]).forEach((it,idx)=>{
+      if(it.noId)return;
+      if(hasLog(me.id,"spot",cat+":"+idx))pool.push({cat,item:it,idx});
+    });
+  });
+  return pool;
+}
+function imgQuizDistractors(cat,correctName,n){
+  const names=(GAMES[cat]?GAMES[cat].items:[]).filter(x=>!x.noId&&x.n!==correctName).map(x=>x.n);
+  return shuffle([...names]).slice(0,n);
+}
+async function fetchSpeciesImage(title){
+  if(typeof fetch!=="function")return null; // offline-safe: no network in this test harness, degrade quietly
+  try{
+    const res=await fetch("https://sv.wikipedia.org/api/rest_v1/page/summary/"+encodeURIComponent(title));
+    if(!res.ok)return null;
+    const data=await res.json();
+    if(data.type==="disambiguation")return null;
+    return(data.thumbnail&&data.thumbnail.source)||null;
+  }catch(e){return null;}
+}
+function renderImgQuiz(box,ref,picked,imgUrl){
+  if(!box||box.innerHTML)return; // something else grabbed the intro box while we were fetching
+  const correct=picked.item.n;
+  const opts=shuffle([correct,...imgQuizDistractors(picked.cat,correct,2)]);
+  const correctIdx=opts.indexOf(correct);
+  box._done=false;
+  const settle=right=>{
+    const pts=right?IMG_QUIZ_PTS:-IMG_QUIZ_PEN;
+    addLog("quiz",ref,pts,"Artkoll: "+(right?"rätt ("+correct+")":"fel/missad ("+correct+")"));
+    updateTop();return pts;
+  };
+  box.innerHTML=`<div class="introWrap"><div class="introCard">
+    <div class="em">🔍</div><h2>Känner du igen den?</h2>
+    <p style="font-weight:600;font-size:13px;color:var(--ink)">Ni har loggat den här som spanad — vad är det för art?</p>
+    <img src="${imgUrl}" alt="" style="width:100%;max-height:170px;object-fit:cover;border-radius:12px;margin:8px 0;display:block" onerror="this.style.display='none'">
+    <div id="popOpts" style="text-align:left"></div>
+    <p id="popExpl" class="qexpl" style="text-align:left"></p>
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:11px;color:#8a9aa2;margin-top:10px">Rätt svar = +${IMG_QUIZ_PTS} p · fel/missat svar = -${IMG_QUIZ_PEN} p · flera frågor per dag</div>
+    <button class="introSkip" id="popSkip">Inte nu (−${IMG_QUIZ_PEN} p)</button></div></div>`;
+  const opts_=document.getElementById("popOpts");
+  opts.forEach((t,i)=>{
+    const b=document.createElement("button");b.className="opt";b.textContent=t;
+    b.onclick=()=>{
+      if(box._done)return;box._done=true;
+      opts_.querySelectorAll(".opt").forEach((o,oi)=>o.classList.add(oi===correctIdx?"correct":oi===i?"wrong":"dim"));
+      const right=i===correctIdx;
+      const ex=document.getElementById("popExpl");
+      ex.textContent=(picked.item.tip||"")+(right?"":" Rätt svar: "+correct+".");ex.classList.add("show");
+      const pts=settle(right);
+      if(right){confetti(22);showToast("+"+pts+" p! 🔍");}else showToast(pts+" p — kolla upp den bättre nästa gång!");
+      document.getElementById("popSkip").textContent="Stäng";
+      document.getElementById("popSkip").onclick=()=>{box.innerHTML="";};
+    };
+    opts_.appendChild(b);
+  });
+  document.getElementById("popSkip").onclick=()=>{
+    if(box._done)return;box._done=true;
+    const pts=settle(false);
+    showToast(pts+" p — missad artkoll 🔍");
+    box.innerHTML="";
+  };
+}
+async function maybePopQuiz(force){
   if(!me)return;
   const box=document.getElementById("introBox");
   if(!box||box.innerHTML)return; // stapla inte ovanpå en redan öppen ruta (guide, annan pop-quiz, ...)
@@ -4804,6 +4885,14 @@ function maybePopQuiz(force){
   }
   lastPopQuizAt=Date.now();
   const ref="pop:"+today()+":"+count;
+  const imgPool=mySpottedImgQuizPool();
+  if(imgPool.length&&Math.random()<0.4){
+    const picked=imgPool[Math.floor(Math.random()*imgPool.length)];
+    const imgUrl=await fetchSpeciesImage(imgQuizTitle(picked.item));
+    if(imgUrl){renderImgQuiz(box,ref,picked,imgUrl);return;}
+    // no photo found for this species — fall through to a normal text question below instead
+    // of showing nothing (this round isn't wasted, and no partial/broken UI is ever shown)
+  }
   const deck=allPopQuiz();
   const q=deck[Math.floor(Math.random()*deck.length)];
   const wrongPts=-(q.pen||POPQUIZ_WRONG_PTS);
