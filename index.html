@@ -1092,9 +1092,19 @@ const FUEL_PRICE=8,FUEL_PACK=5;
 const FRIDGE_COST=150,SAILS_COST=200,NET_COST=100;
 const NET_RATE=1,NET_CAP_HOURS=24;
 const FISH_SESSION_MS=60000,FISH_SAILS_BONUS_MS=25000;
-const FISH_PTS=3;
+const FISH_PTS=3;               // once-daily bonus for landing a rare "storfångst"
+const FISH_NET_COOLDOWN=7000;   // ms between net casts (owning a nät unlocks the cast)
+const FISH_NET_MAXR=58;         // how wide the cast net opens
 const HAZARD_TYPES=[{k:"tire",em:"🛞"},{k:"jelly",em:"🪼"},{k:"weed",em:"🌿"}];
 function fishHookRadius(rodLevel){return 15+rodLevel*4;}
+// A better rod reels/tracks snappier: the hook eases toward the drag target over a shorter time
+// constant at higher levels (rod 0 → ~95ms, rod 3 → ~53ms), so upgrades feel like real control gains.
+function fishFollowMs(rodLevel){return 95-Math.min(48,rodLevel*14);}
+// Session points, once per day, scaled by that trip's catch (2 fish → 1 p, up to 4 p) — this is the
+// "fishing gives points too" reward, on top of the kronor economy and the rare-catch storfångst bonus.
+function fishSessionPts(caught){return Math.min(4,Math.floor(caught/2));}
+let lastFishSession=null; // stashed at endFishSession so the FISKETUR SLUT panel can offer the point log
+let fishSummaryPending=false; // true from a trip's end until the crew leaves — routes brygga back to the summary
 function defaultWorkshop(){return{kronor:0,fuel:0,rodLevel:0,fridge:false,sails:false,net:false,netAt:null,catch:[]};}
 function myWorkshop(){const b=myBoat();return Object.assign(defaultWorkshop(),(b&&b.workshop)||{},{catch:(b&&b.workshop&&b.workshop.catch)||[]});}
 async function saveWorkshop(ws){
@@ -1545,7 +1555,7 @@ function traderUpdateHud(){
   if(vkBadge)vkBadge.style.display=netAccrued(ws)>0?"flex":"none";
 }
 function traderShowPanel(kind){
-  traderPanelKind=kind;traderBeachMode=null;traderMarknadMode=null;
+  traderPanelKind=kind;traderBeachMode=null;traderMarknadMode=null;fishSummaryPending=false;
   stopFishSession();stopRunGameLoop();
   renderTraderPanel();
 }
@@ -1597,6 +1607,7 @@ function renderBeachPanel(panel){
 function renderBryggaPanel(panel){
   const ws=myWorkshop();
   if(!fishSession){
+    if(fishSummaryPending){renderFishUI(panel,"boat");return;} // just got back — show the trip summary + point log
     panel.innerHTML=`<div class="surCard">
       <div class="em">⚓</div><div class="pts">BRYGGAN</div>
       <div class="big">${ws.fuel>0?"Ta båten ut på djupare vatten efter större fisk — gädda, torsk och den sällsynta laxen.":"Ingen bensin kvar för en tur ut — köp mer i Verkstaden."}</div>
@@ -1632,7 +1643,8 @@ function startFishSession(mode,sails){
   },250);
 }
 function endFishSession(){
-  const summary=fishSession?{caught:fishSession.caught}:null;
+  const summary=fishSession?{caught:fishSession.caught||0,kr:FISHG.kr}:null;
+  lastFishSession=summary;fishSummaryPending=!!summary;
   stopFishSession();
   if(current==="arcade"&&arcGame==="trader")renderTraderPanel();
   if(summary)showToast(`Fisketuren är slut — ${summary.caught} fångster denna tur! 🎣`);
@@ -1646,7 +1658,8 @@ function endFishSession(){
 // Keeps every economy hook untouched: rollSpecies' rodLevel gating, addCatch, the once-daily
 // "storfångst" rare-catch bonus, fuel/sails session length.
 const FISHG={raf:null,mode:null,canvas:null,hookX:0,hookY:0,targetX:0,targetY:0,fishes:[],hazards:[],
-  parts:[],bubbles:[],stuckUntil:0,nextFishAt:0,nextHazardAt:0,nextBubbleAt:0,caught:0,kr:0,
+  parts:[],bubbles:[],net:null,netReadyAt:0,rodLevel:0,hasNet:false,
+  stuckUntil:0,nextFishAt:0,nextHazardAt:0,nextBubbleAt:0,caught:0,kr:0,
   animT:0,lastTs:0,waterTop:0,waterBot:0};
 function stopFishGameLoop(){
   if(FISHG.raf){cancelAnimationFrame(FISHG.raf);FISHG.raf=null;}
@@ -1665,7 +1678,10 @@ function fishGameSetTarget(canvas,clientX,clientY){
 function fishDepthFrac(sp){return Math.min(0.92,0.06+0.75*(sp.base/22))+(Math.random()*0.24-0.12);}
 function startFishGameLoop(canvas,mode){
   stopFishGameLoop();
+  const ws0=myWorkshop();
   FISHG.canvas=canvas;FISHG.mode=mode;
+  FISHG.rodLevel=ws0.rodLevel;FISHG.hasNet=!!ws0.net;
+  FISHG.net=null;FISHG.netReadyAt=0;
   FISHG.waterTop=canvas.height*0.18;FISHG.waterBot=canvas.height-8;
   FISHG.hookX=FISHG.targetX=canvas.width/2;
   FISHG.hookY=FISHG.targetY=(FISHG.waterTop+FISHG.waterBot)/2;
@@ -1691,8 +1707,9 @@ function startFishGameLoop(canvas,mode){
 }
 function fishGameStep(dt,canvas){
   FISHG.animT+=dt;
-  FISHG.hookX+=(FISHG.targetX-FISHG.hookX)*Math.min(1,dt/90);
-  FISHG.hookY+=(FISHG.targetY-FISHG.hookY)*Math.min(1,dt/90);
+  const follow=Math.min(1,dt/fishFollowMs(FISHG.rodLevel)); // better rod → snappier hook tracking
+  FISHG.hookX+=(FISHG.targetX-FISHG.hookX)*follow;
+  FISHG.hookY+=(FISHG.targetY-FISHG.hookY)*follow;
   const ws=myWorkshop();
   const pool=FISHG.mode==="boat"?FISH_SPECIES:BEACH_FISH_SPECIES;
   FISHG.nextFishAt-=dt;
@@ -1736,8 +1753,28 @@ function fishGameStep(dt,canvas){
     }
     return h.x>-40&&h.x<canvas.width+40;
   });
+  if(FISHG.net){ // cast net opens in a widening ring, scooping every fish it sweeps over (ignores junk)
+    const net=FISHG.net;net.age+=dt;
+    if(net.phase==="grow"){
+      net.r=Math.min(FISH_NET_MAXR,net.r+dt*0.32);
+      FISHG.fishes=FISHG.fishes.filter(f=>{
+        const dx=f.x-net.x,dy=f.y-net.y;
+        if(Math.sqrt(dx*dx+dy*dy)<net.r){fishCaught(f,ws);return false;}
+        return true;
+      });
+      if(net.r>=FISH_NET_MAXR){net.phase="hold";net.age=0;}
+    }else if(net.phase==="hold"){if(net.age>200)net.phase="shrink";}
+    else{net.r=Math.max(0,net.r-dt*0.4);if(net.r<=0)FISHG.net=null;}
+  }
   FISHG.bubbles=FISHG.bubbles.filter(b=>{b.y-=dt*0.025;b.life-=dt;return b.life>0&&b.y>FISHG.waterTop;});
   FISHG.parts=FISHG.parts.filter(p=>{p.y-=dt*0.03;p.life-=dt;return p.life>0;});
+}
+function fishNetReady(){return FISHG.hasNet&&!FISHG.net&&Date.now()>=FISHG.netReadyAt;}
+function castFishNet(){
+  if(!fishNetReady())return false;
+  FISHG.net={x:FISHG.hookX,y:FISHG.hookY,r:0,phase:"grow",age:0};
+  FISHG.netReadyAt=Date.now()+FISH_NET_COOLDOWN;
+  return true;
 }
 function fishCaught(f,ws){
   addCatch(ws,f.sp.k);saveWorkshop(ws);
@@ -1845,15 +1882,26 @@ function fishGameDraw(canvas){
   });
   FISHG.hazards.forEach(h=>drawHazardShape(ctx,h));
   FISHG.fishes.forEach(f=>drawFishShape(ctx,f));
+  if(FISHG.net){ // widening net ring + radial mesh
+    const net=FISHG.net;
+    ctx.strokeStyle="rgba(244,239,228,.85)";ctx.lineWidth=2;
+    ctx.beginPath();ctx.arc(net.x,net.y,net.r,0,Math.PI*2);ctx.stroke();
+    ctx.strokeStyle="rgba(244,239,228,.5)";ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(net.x,net.y,net.r*0.62,0,Math.PI*2);ctx.stroke();
+    for(let a=0;a<Math.PI*2;a+=Math.PI/6){
+      ctx.beginPath();ctx.moveTo(net.x,net.y);ctx.lineTo(net.x+Math.cos(a)*net.r,net.y+Math.sin(a)*net.r);ctx.stroke();
+    }
+  }
   drawFishingBoat(ctx,W/2,surfY);
+  const rl=FISHG.rodLevel,baitR=3+rl*0.7,hookScale=1+rl*0.14; // upgraded rods = visibly bigger hook/bait
   ctx.strokeStyle="rgba(255,255,255,.8)";ctx.lineWidth=1.5; // line: rod tip → hook
   ctx.beginPath();ctx.moveTo(W/2+24,surfY-26);ctx.lineTo(FISHG.hookX,FISHG.hookY-8);ctx.stroke();
   const stuck=Date.now()<FISHG.stuckUntil; // J-shaped hook
-  ctx.strokeStyle=stuck?"#e2483a":"#f4efe4";ctx.lineWidth=2.5;
-  ctx.beginPath();ctx.moveTo(FISHG.hookX,FISHG.hookY-8);ctx.lineTo(FISHG.hookX,FISHG.hookY+2);
-  ctx.arc(FISHG.hookX-4,FISHG.hookY+2,4,0,Math.PI*0.9);ctx.stroke();
+  ctx.strokeStyle=stuck?"#e2483a":"#f4efe4";ctx.lineWidth=2.5*hookScale;
+  ctx.beginPath();ctx.moveTo(FISHG.hookX,FISHG.hookY-8);ctx.lineTo(FISHG.hookX,FISHG.hookY+2*hookScale);
+  ctx.arc(FISHG.hookX-4*hookScale,FISHG.hookY+2*hookScale,4*hookScale,0,Math.PI*0.9);ctx.stroke();
   ctx.fillStyle=stuck?"#e2483a":"#ffd34d"; // bait glint
-  ctx.beginPath();ctx.arc(FISHG.hookX,FISHG.hookY-8,3,0,Math.PI*2);ctx.fill();
+  ctx.beginPath();ctx.arc(FISHG.hookX,FISHG.hookY-8,baitR,0,Math.PI*2);ctx.fill();
   ctx.textAlign="center";ctx.font="bold 13px 'Helvetica Neue',Arial,sans-serif";
   FISHG.parts.forEach(p=>{
     ctx.globalAlpha=Math.max(0,p.life/800);
@@ -1866,14 +1914,31 @@ function fishGameDraw(canvas){
   ctx.textAlign="right";
   ctx.strokeText(FISHG.kr+" kr",W-8,16);ctx.fillText(FISHG.kr+" kr",W-8,16);
 }
+function fishNetBtnLabel(){
+  if(!FISHG.hasNet)return"";
+  const wait=Math.ceil((FISHG.netReadyAt-Date.now())/1000);
+  return wait>0?`🕸️ Nät (${wait}s)`:"🕸️ Kasta nätet";
+}
+function updateFishNetBtn(){
+  const b=document.getElementById("netCastBtn");if(!b)return;
+  const ready=fishNetReady();
+  b.disabled=!ready;b.textContent=fishNetBtnLabel();
+}
 function renderFishUI(panel,mode){
   if(!fishSession){
+    const s=lastFishSession||{caught:0,kr:0};
+    const ref="fiske:"+today();
+    const pts=fishSessionPts(s.caught);
+    const canLog=me&&pts>0&&!hasLog(me.id,"minigame",ref);
     panel.innerHTML=`<div class="surCard">
       <div class="em">🎣</div><div class="pts">FISKETUR SLUT</div>
-      <div class="big">Vill ni fiska en gång till?</div>
-      <button class="goBtn" id="fishAgainBtn">${mode==="boat"?"Åk ut igen (−1 ⛽)":"Fiska igen (gratis)"}</button>
+      <div class="big">${s.caught} fångster${s.kr?" — "+s.kr+" kr värde":""} denna tur.</div>
+      ${canLog?`<button class="logBtn" id="fishLogBtn">Bokför +${pts} p</button>`:me&&hasLog(me.id,"minigame",ref)?'<p style="font-family:Helvetica Neue,Arial,sans-serif;font-size:12px;color:#5a6b73">Dagens fiskepoäng redan bokförda.</p>':""}
+      <button class="goBtn" id="fishAgainBtn" style="margin-top:8px">${mode==="boat"?"Åk ut igen (−1 ⛽)":"Fiska igen (gratis)"}</button>
       <button class="cpBtn" id="fishBackBtn" style="margin-top:8px;background:#6c7c84">⬅ Tillbaka</button>
     </div>`;
+    const lb=document.getElementById("fishLogBtn");
+    if(lb)lb.onclick=()=>{addLog("minigame",ref,pts,"Fisketur "+s.caught+" fångster");showToast("+"+pts+" p bokförda! 🎣");renderTraderPanel();};
     document.getElementById("fishAgainBtn").onclick=async()=>{
       if(mode==="boat"){
         const ws2=myWorkshop();if(ws2.fuel<=0){showToast("Ingen bensin kvar.");return;}
@@ -1892,23 +1957,30 @@ function renderFishUI(panel,mode){
   const existing=document.getElementById("fishCv");
   if(existing&&FISHG.canvas===existing){
     // A live session already has its canvas/RAF loop running — the surrounding tickTimer re-renders
-    // every 250ms just to refresh the countdown, so only patch that text instead of rebuilding the
-    // panel (which would tear down and restart the canvas/loop from scratch on every tick).
+    // every 250ms just to refresh the countdown, so only patch that text/buttons instead of rebuilding
+    // the panel (which would tear down and restart the canvas/loop from scratch on every tick).
     const remainS=Math.max(0,Math.ceil((fishSession.endsAt-Date.now())/1000));
     const remEl=document.getElementById("fishRemain");if(remEl)remEl.textContent=remainS+"s kvar";
     const caughtEl=document.getElementById("fishCaughtTxt");if(caughtEl)caughtEl.textContent=fishSession.caught||0;
+    updateFishNetBtn();
     return;
   }
   const remainS=Math.max(0,Math.ceil((fishSession.endsAt-Date.now())/1000));
+  const ws=myWorkshop();
+  const rodTier=mode==="boat"?ROD_NAMES[ws.rodLevel]:"Enkelt strandspö";
   panel.innerHTML=`<div class="surCard">
     <div class="em">🎣</div>
     <div class="pts">${mode==="boat"?"UTE PÅ FISKETUR":"FISKAR VID STRANDEN"} · <span id="fishRemain">${remainS}s kvar</span></div>
     <canvas id="fishCv" width="300" height="230"></canvas>
     <div class="d" style="margin-top:8px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;text-align:center">Dra kroken till en fisk för att fånga den — undvik skräpet i vattnet!</div>
-    <div class="d" style="margin-top:4px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px">Denna tur: <span id="fishCaughtTxt">${fishSession.caught||0}</span> fångster</div>
+    ${ws.net?`<button class="goBtn" id="netCastBtn" style="margin-top:8px">${fishNetBtnLabel()}</button>`
+      :`<div class="d" style="margin-top:6px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:11.5px;text-align:center;opacity:.75">Köp ett 🕸️ nät i Verkstaden för att kunna kasta nät och håva in flera fiskar på en gång.</div>`}
+    <div class="d" style="margin-top:6px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:11.5px">🎣 ${escHtml(rodTier)} · Denna tur: <span id="fishCaughtTxt">${fishSession.caught||0}</span> fångster</div>
   </div>`;
   const cv=document.getElementById("fishCv");
   if(cv)startFishGameLoop(cv,mode);
+  const nb=document.getElementById("netCastBtn");
+  if(nb)nb.onclick=()=>{if(castFishNet())updateFishNetBtn();};
 }
 let gatherBusy=false;
 function renderSamlaUI(panel){
@@ -2254,9 +2326,9 @@ function renderVerkstadPanel(panel){
       ${!ws.sails?`<button class="cpBtn" id="buySailsBtn">Köp bättre segel (${SAILS_COST} kr)</button>`:""}</div>
     <div class="termgrp" style="margin-top:14px">🕸️ Nät</div>
     <div class="cpCard"><div class="t">${ws.net?"Utlagt — ger sakta pengar över tid":"Inte köpt"}</div>
-      ${ws.net?`<div class="d">Upplupet: ${netAcc} kr (max ${NET_CAP_HOURS*NET_RATE} kr).</div>
+      ${ws.net?`<div class="d">Ger sakta pengar över tid <b>och</b> låter er kasta nät under fisketurer (🕸️-knappen) för att håva in flera fiskar på en gång. Upplupet: ${netAcc} kr (max ${NET_CAP_HOURS*NET_RATE} kr).</div>
         <button class="cpBtn" id="collectNetBtn" ${netAcc<=0?"disabled":""}>Töm nätet${netAcc>0?" (+"+netAcc+" kr)":""}</button>`
-        :`<div class="d">Ger ${NET_RATE} kr/timme automatiskt, även när ni inte spelar (upp till ${NET_CAP_HOURS}h).</div>
+        :`<div class="d">Ger ${NET_RATE} kr/timme automatiskt (upp till ${NET_CAP_HOURS}h) och låser upp <b>kasta nät</b> under fisketurer — håva in flera fiskar i ett svep.</div>
         <button class="cpBtn" id="buyNetBtn">Köp nät (${NET_COST} kr)</button>`}</div>
     <button class="cpBtn" id="verkstadBackBtn" style="margin-top:14px;background:#6c7c84">⬅ Gå vidare</button>`;
   const wire=(id,fn)=>{const el=document.getElementById(id);if(el)el.onclick=async()=>{
