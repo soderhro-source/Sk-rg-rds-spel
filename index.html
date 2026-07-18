@@ -287,6 +287,19 @@
   .logBtn{display:block;width:100%;font-family:"Helvetica Neue",Arial,sans-serif;font-size:14px;font-weight:700;
     padding:13px;border-radius:11px;border:none;cursor:pointer;background:var(--green);color:#fff;margin-top:12px;}
   .logBtn[disabled]{opacity:.5;cursor:default;}
+  /* ---- Hemma: sysslor & veckosprint ---- */
+  .choreGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;}
+  .choreBtn{display:flex;flex-direction:column;align-items:flex-start;gap:1px;background:var(--sand);color:var(--ink);
+    border:1.5px solid rgba(11,36,54,.1);border-radius:14px;padding:11px 12px;cursor:pointer;text-align:left;
+    box-shadow:0 3px 0 rgba(0,0,0,.14);transition:transform .1s, box-shadow .1s;font-family:inherit;}
+  .choreBtn:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.14);}
+  .choreBtn .em{font-size:24px;line-height:1.1;}
+  .choreBtn .ct{font-size:13px;font-weight:600;line-height:1.15;}
+  .choreBtn .cv{font-family:"Helvetica Neue",Arial,sans-serif;font-size:11px;font-weight:700;color:var(--sea);margin-top:1px;}
+  .choreBtn.done{background:var(--green);color:#eef6f0;border-color:#2c5b40;}
+  .choreBtn.done .cv{color:#d6ede0;}
+  .sprintBar{height:12px;background:rgba(11,36,54,.1);border-radius:999px;overflow:hidden;margin:6px 0;}
+  .sprintFill{height:100%;background:linear-gradient(90deg,#5ba97c,#3f7d5a);border-radius:999px;transition:width .3s;}
   /* ---- Rörelse & intro ---- */
   @keyframes viewIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
   .viewIn{animation:viewIn .28s ease;}
@@ -379,6 +392,7 @@
   .moreRow.g1 .ic{background:rgba(20,80,107,.14);}
   .moreRow.g2 .ic{background:rgba(63,125,90,.16);}
   .moreRow.g3 .ic{background:rgba(242,193,78,.28);}
+  .moreRow.g4 .ic{background:rgba(176,124,198,.22);}
   .moreGroupLabel{font-family:"Helvetica Neue",Arial,sans-serif;font-size:10.5px;font-weight:700;
     letter-spacing:.14em;text-transform:uppercase;color:#8a94a3;padding:10px 14px 4px;}
   .moreGroupLabel:first-child{padding-top:4px;}
@@ -592,6 +606,9 @@
   </div>
   <div id="ideasView" class="sounds" style="display:none">
     <div id="ideasBox"></div>
+  </div>
+  <div id="homeView" class="sounds" style="display:none">
+    <div id="homeBox"></div>
   </div>
   <div id="navView" class="sounds" style="display:none">
     <p class="soundIntro">Navigationsskolan — hitta er position utan GPS. Sex lektioner med övningar ombord: gör övningen på riktigt, bocka av med en kompis som vittne (+2 p per lektion). Fungerar offline.</p>
@@ -2574,7 +2591,7 @@ async function enterApp(){
 // ================= TABS & RENDER =================
 let current="board",curCat="vessels",moreOpen=false;
 const NAV_PRIMARY=[["board","🎲","Plan"],["spot","🔭","Spana"],["knots","🪢","Knopar"],["sur","🎁","Dagens"],["arcade","🕹️","Spel"]];
-const NAV_MORE=[["chat","💬","Skeppschatt"],["gallery","📸","Galleri"],["report","📜","Törnrapport"],["fleet","🏆","Flottiljen"],["trips","🧳","Resor"],["navskola","🧭","Navigationsskolan"],["recipes","🍳","Byssan"],["trivia","❓","Frågesport"],["sounds","🔊","Läten"],["playlist","🎵","Sjömansvisor"],["terms","⚓","Sjötermer"],["live","📡","Live AIS"],["places","🗺️","Seglandet 2026"],["kapten","⚙️","Kaptensrutan"],["ideas","💡","Idélåda"]];
+const NAV_MORE=[["chat","💬","Skeppschatt"],["gallery","📸","Galleri"],["report","📜","Törnrapport"],["fleet","🏆","Flottiljen"],["trips","🧳","Resor"],["navskola","🧭","Navigationsskolan"],["recipes","🍳","Byssan"],["trivia","❓","Frågesport"],["sounds","🔊","Läten"],["playlist","🎵","Sjömansvisor"],["terms","⚓","Sjötermer"],["live","📡","Live AIS"],["places","🗺️","Seglandet 2026"],["kapten","⚙️","Kaptensrutan"],["ideas","💡","Idélåda"],["home","🏠","Hemma"]];
 // Purely a display grouping for the "Mer" sheet — NAV_MORE above stays the single source of
 // truth for keys/icons/labels, this just orders them under headers so a 15-item flat list
 // doesn't have to be scanned top-to-bottom to find anything.
@@ -2583,6 +2600,7 @@ const NAV_MORE_GROUPS=[
   ["Planering & navigation",["trips","places","kapten","live"]],
   ["Lära & leka",["navskola","terms","trivia","recipes"]],
   ["Läten & musik",["sounds","playlist"]],
+  ["Hemma & vardag",["home"]],
 ];
 const TABS=()=>NAV_PRIMARY.concat(NAV_MORE).map(([k,ic,l])=>[k,ic+" "+l]);
 const RANKS=[[0,"Jungman"],[30,"Lättmatros"],[60,"Matros"],[130,"Båtsman"],[220,"Styrman"],[320,"Skeppare"],[420,"Kommodor 🏆"]];
@@ -2663,7 +2681,7 @@ function updateTop(){
   document.getElementById("xpInfo").textContent=t>=14?"Kommodor!":(LEG-into)+" p till nästa hamn";
   updateSync();
 }
-const VIEW_IDS=["boardView","gameView","liveView","soundView","playlistView","triviaView","termsView","knotsView","surView","arcadeView","placesView","chatView","recipesView","navView","galleryView","reportView","kaptenView","ideasView","fleetView","tripsView"];
+const VIEW_IDS=["boardView","gameView","liveView","soundView","playlistView","triviaView","termsView","knotsView","surView","arcadeView","placesView","chatView","recipesView","navView","galleryView","reportView","kaptenView","ideasView","fleetView","tripsView","homeView"];
 function render(){
   buildTabs();updateTop();
   if(current!=="arcade"){stopTet();stopSnake();stopFishGameLoop();stopRunGameLoop();}
@@ -2689,6 +2707,7 @@ function render(){
   if(current==="trips"){show("tripsView");renderTrips();return;}
   if(current==="kapten"){show("kaptenView");renderKapten();return;}
   if(current==="ideas"){show("ideasView");renderIdeas();loadIdeas().then(renderIdeas);return;}
+  if(current==="home"){show("homeView");renderHome();return;}
   show("gameView");renderSpotGrid();
 }
 let customSpots=[];
@@ -4184,6 +4203,35 @@ function renderDayOverview(r){
     ${logsToday.length?"":'<div class="repRow"><span>Inget loggat ännu idag — dags att spana, laga mat eller knyta en pålstek! ⚓</span></div>'}`;
   r.appendChild(card);
 }
+// "Seglatsen klar" — a celebratory end-of-voyage summary for the whole crew (final standings, the
+// törn in numbers, and the skipper's logbook). Reuses data the report already loads (captainLog,
+// logs); shown in the introBox modal so a child can screenshot it as a keepsake.
+function renderVoyageReport(){
+  const box=document.getElementById("introBox");if(!box)return;
+  const crew=[...mySailors()].map(s=>({s,p:ptsFor(s.id)})).sort((a,b)=>b.p-a.p);
+  const meds=["🥇","🥈","🥉"];
+  const total=crew.reduce((a,x)=>a+x.p,0);
+  const spots=allLogs().filter(l=>l.kind==="spot").length;
+  const reached=TILE_SHORT[tileFor(mySailors().reduce((a,x)=>a+ptsFor(x.id),0),LEG*Math.max(1,mySailors().length))];
+  const rows=crew.map((x,i)=>`<div class="repRow"><span>${meds[i]||"·"} ${x.s.emoji} ${escHtml(x.s.name)}</span><b>${x.p} p · ${rankFor(x.p)}</b></div>`).join("");
+  const legs=(captainLog||[]).slice().reverse().map(e=>`<div class="repRow"><span>${escHtml(e.departure_place||"?")} → ${escHtml(e.arrival_place||"?")}</span><b>${e.miles?Number(e.miles).toFixed(1)+" M":""}</b></div>`).join("")||'<div class="repRow"><span>Inga loggboksinlägg.</span></div>';
+  const totalMiles=(captainLog||[]).reduce((a,e)=>a+(Number(e.miles)||0),0);
+  box.innerHTML=`<div class="introWrap"><div class="introCard" style="text-align:left;max-height:86vh;overflow-y:auto">
+    <div style="text-align:center"><div class="em">🏁</div><h2 style="margin-bottom:2px">Seglatsen är klar!</h2>
+      <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#6c7c84">${escHtml(myBoat()?myBoat().name:"Skeppet")} · slutrapport</div></div>
+    <div class="termgrp" style="margin-top:12px">Besättningens slutställning</div>
+    ${rows}
+    <div class="repRow" style="border:none;margin-top:2px"><span><b>Hela besättningen</b></span><b>${total} p</b></div>
+    <div class="termgrp" style="margin-top:14px">Törnen i siffror</div>
+    <div class="repRow"><span>⚓ Längst nådda hamn</span><b>${reached}</b></div>
+    <div class="repRow"><span>🔭 Arter &amp; syner spanade</span><b>${spots}</b></div>
+    <div class="repRow"><span>📓 Loggförda sjömil</span><b>${totalMiles.toFixed(1)} M</b></div>
+    <div class="termgrp" style="margin-top:14px">📓 Skepparens loggbok</div>
+    ${legs}
+    <p style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#8a9aa2;text-align:center;margin-top:12px">Ta en skärmbild för att spara minnet! 📸</p>
+    <button class="goBtn" id="vrClose" style="margin-top:6px">Stäng</button></div></div>`;
+  document.getElementById("vrClose").onclick=()=>{box.innerHTML="";};
+}
 async function renderReport(){
   const r=document.getElementById("reportList");if(!r)return;
   r.innerHTML='<p class="soundIntro">Räknar samman törnen…</p>';
@@ -4196,6 +4244,12 @@ async function renderReport(){
   }
   await loadCaptainLog();
   r.innerHTML="";
+  const finishCard=document.createElement("div");finishCard.className="repCard";
+  finishCard.innerHTML=`<h3>🏁 Seglatsen klar?</h3>
+    <p class="soundIntro" style="margin:2px 0 8px">När törnen är över — gör en slutrapport med hela besättningens resultat, siffror och skepparens loggbok. Perfekt att visa upp eller ta en skärmbild av!</p>
+    <button class="goBtn" id="voyageReportBtn">Visa slutrapport 🏁</button>`;
+  r.appendChild(finishCard);
+  const vrb=finishCard.querySelector("#voyageReportBtn");if(vrb)vrb.onclick=renderVoyageReport;
   renderDayOverview(r);
   const days={};track.forEach(p=>{const d=p.ts.slice(0,10);(days[d]=days[d]||[]).push(p);});
   let tot=0,topS=0;
@@ -4831,6 +4885,121 @@ function renderNavSchool(){
       renderNavSchool();updateTop();};
     nl.appendChild(d);
   });
+}
+// ================= HEMMA (sysslor, veckosprint, veckopeng) =================
+// The app doubles as a between-voyages home tool: chores/reading/homework are logged as ordinary
+// "bonus" logs (ref "chore:<key>:<date>") so they need no schema change and count toward the sailor's
+// normal points, while the weekly sprint + suggested allowance are computed by filtering those
+// chore-prefixed logs to the current Mon–Sun week. "Allowance" moves no real money — it's a
+// points→kr suggestion the child can show parents.
+const HOME_CHORES=[
+  {k:"laxor",em:"✏️",t:"Gjort läxorna",v:4},
+  {k:"lasa",em:"📖",t:"Läst en stund",v:3},
+  {k:"stada",em:"🧹",t:"Städat rummet",v:3},
+  {k:"sopor",em:"🗑️",t:"Tömt soporna",v:2},
+  {k:"disk",em:"🍽️",t:"Diskat / diskmaskinen",v:2},
+  {k:"tvatt",em:"🧺",t:"Hjälpt med tvätten",v:2},
+  {k:"husdjur",em:"🐾",t:"Skött husdjuret",v:2},
+  {k:"badda",em:"🛏️",t:"Bäddat sängen",v:1},
+  {k:"duka",em:"🍴",t:"Dukat / dukat av",v:1},
+  {k:"blommor",em:"🪴",t:"Vattnat blommorna",v:1},
+];
+const HOME_CHORE_BY_K=Object.fromEntries(HOME_CHORES.map(c=>[c.k,c]));
+function isoDate(d){return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function mondayOf(dateStr){
+  const d=new Date((dateStr||today())+"T12:00");
+  const day=(d.getDay()+6)%7; // 0=Mon .. 6=Sun
+  d.setDate(d.getDate()-day);
+  return isoDate(d);
+}
+function choreRefDate(ref){const p=ref.split(":");return p.length>=3?p[2]:"";}
+function myChoreLogs(){
+  if(!me)return[];
+  return logsFor(me.id).filter(l=>l.kind==="bonus"&&l.ref.startsWith("chore:"));
+}
+function homeWeekStats(weekStart){
+  const logs=myChoreLogs().filter(l=>mondayOf(choreRefDate(l.ref))===weekStart);
+  const points=logs.reduce((s,l)=>s+(l.points||0),0);
+  const byChore={};logs.forEach(l=>{const k=l.ref.split(":")[1];byChore[k]=(byChore[k]||0)+1;});
+  const days=new Set(logs.map(l=>choreRefDate(l.ref))).size;
+  return{points,count:logs.length,byChore,days};
+}
+function allowanceRate(){const v=parseFloat(localStorage.getItem("ss_allowance_rate"));return isNaN(v)?1:Math.max(0,v);}
+function weekGoal(){const v=parseInt(localStorage.getItem("ss_week_goal"),10);return isNaN(v)?25:Math.max(1,v);}
+function suggestedAllowance(points){return Math.round(points*allowanceRate());}
+function renderHome(){
+  const box=document.getElementById("homeBox");if(!box)return;
+  if(!me){box.innerHTML='<p class="soundIntro">Logga in för att spåra sysslor.</p>';return;}
+  const wk=mondayOf(today());
+  const st=homeWeekStats(wk);
+  const goal=weekGoal(),rate=allowanceRate(),allowance=suggestedAllowance(st.points);
+  const pct=Math.min(100,Math.round(st.points/Math.max(1,goal)*100));
+  const dow=(new Date(today()+"T12:00").getDay()+6)%7,daysLeft=6-dow;
+  const grid=HOME_CHORES.map(c=>{
+    const done=hasLog(me.id,"bonus","chore:"+c.k+":"+today());
+    return `<button class="choreBtn${done?" done":""}" data-chore="${c.k}">
+      <span class="em">${c.em}</span><span class="ct">${c.t}</span>
+      <span class="cv">${done?"✓ +"+c.v+" p":"+"+c.v+" p"}</span></button>`;
+  }).join("");
+  const breakdown=Object.entries(st.byChore).sort((a,b)=>b[1]-a[1]).map(([k,n])=>{
+    const c=HOME_CHORE_BY_K[k];return `<div class="repRow"><span>${c?c.em+" "+escHtml(c.t):escHtml(k)}</span><b>${n}×</b></div>`;
+  }).join("")||'<div class="repRow"><span>Inga sysslor loggade den här veckan ännu.</span></div>';
+  box.innerHTML=`
+    <p class="soundIntro">Hemma mellan seglatserna? Bocka av dagens sysslor, läsning och läxor — de ger poäng, driver veckans sprint och räknas om till ett förslag på veckopeng du kan visa föräldrarna.</p>
+    <div class="repCard">
+      <h3>🏁 Veckans sprint</h3>
+      <div class="repRow"><span>Poäng den här veckan</span><b>${st.points} / ${goal} p</b></div>
+      <div class="sprintBar"><div class="sprintFill" style="width:${pct}%"></div></div>
+      <div class="repRow"><span>Sysslor gjorda</span><b>${st.count} st · ${st.days} dag${st.days===1?"":"ar"}</b></div>
+      <div class="repRow"><span>Kvar av veckan</span><b>${daysLeft<=0?"Sista dagen!":daysLeft+" dag"+(daysLeft===1?"":"ar")+" kvar"}</b></div>
+      <div style="display:flex;align-items:center;gap:6px;margin-top:8px;font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#6c7c84">Veckomål: <input id="homeGoal" type="number" min="1" value="${goal}" style="width:56px;padding:5px;border-radius:6px;border:1px solid #d9d2c4;text-align:right"> p</div>
+    </div>
+    <div class="termgrp">Dagens sysslor</div>
+    <div class="choreGrid">${grid}</div>
+    <div class="repCard" style="margin-top:12px">
+      <h3>💰 Veckopeng</h3>
+      <div class="repRow"><span>Den här veckans poäng</span><b>${st.points} p</b></div>
+      <div style="display:flex;align-items:center;gap:6px;margin:6px 0;font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#6c7c84">Kurs: <input id="homeRate" type="number" min="0" step="0.5" value="${rate}" style="width:56px;padding:5px;border-radius:6px;border:1px solid #d9d2c4;text-align:right"> kr per poäng</div>
+      <div class="repRow"><span>Föreslagen veckopeng</span><b>${allowance} kr</b></div>
+      <button class="goBtn" id="homeAskBtn" style="margin-top:8px">🙏 Be om veckopeng</button>
+    </div>
+    <div class="repCard" style="margin-top:12px">
+      <h3>📋 Veckorapport</h3>
+      ${breakdown}
+      <div class="repRow" style="border:none"><span><b>Totalt</b></span><b>${st.count} sysslor · ${st.points} p → ${allowance} kr</b></div>
+    </div>`;
+  box.querySelectorAll("[data-chore]").forEach(btn=>{
+    btn.onclick=()=>{
+      const c=HOME_CHORE_BY_K[btn.dataset.chore];if(!c)return;
+      const ref="chore:"+c.k+":"+today();
+      if(hasLog(me.id,"bonus",ref)){removeLog("bonus",ref);showToast("Ångrade: "+c.t);}
+      else{addLog("bonus",ref,c.v,"Syssla: "+c.t);confetti(14);showToast(c.em+" "+c.t+" — +"+c.v+" p!");}
+      renderHome();updateTop();
+    };
+  });
+  const goalInp=document.getElementById("homeGoal");
+  if(goalInp)goalInp.onchange=e=>{localStorage.setItem("ss_week_goal",String(Math.max(1,parseInt(e.target.value,10)||25)));renderHome();};
+  const rateInp=document.getElementById("homeRate");
+  if(rateInp)rateInp.onchange=e=>{localStorage.setItem("ss_allowance_rate",String(Math.max(0,parseFloat(e.target.value)||0)));renderHome();};
+  const askBtn=document.getElementById("homeAskBtn");
+  if(askBtn)askBtn.onclick=()=>showAllowanceRequest(st,allowance);
+}
+function showAllowanceRequest(st,allowance){
+  const box=document.getElementById("introBox");if(!box)return;
+  const lines=Object.entries(st.byChore).sort((a,b)=>b[1]-a[1]).map(([k,n])=>{
+    const c=HOME_CHORE_BY_K[k];return (c?c.em+" "+escHtml(c.t):escHtml(k))+": "+n+"×";
+  });
+  box.innerHTML=`<div class="introWrap"><div class="introCard" style="text-align:left;max-height:86vh;overflow-y:auto">
+    <div style="text-align:center"><div class="em">🙏</div><h2 style="margin-bottom:2px">Veckopengsförslag</h2></div>
+    <p style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;color:#3a4a52;margin-top:8px">Hej! Den här veckan har jag gjort:</p>
+    <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:13px;color:#3a4a52;line-height:1.8">${lines.length?lines.map(l=>"• "+l).join("<br>"):"• (inga sysslor loggade ännu)"}</div>
+    <div style="text-align:center;margin:16px 0">
+      <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#6c7c84">${st.count} sysslor · ${st.points} poäng</div>
+      <div style="font-size:32px;font-weight:800;color:#14506b">${allowance} kr</div>
+      <div style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#6c7c84">föreslagen veckopeng</div></div>
+    <p style="font-family:'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#8a9aa2;text-align:center">Visa rutan för dina föräldrar — eller ta en skärmbild! 📸</p>
+    <button class="goBtn" id="allowClose">Stäng</button></div></div>`;
+  document.getElementById("allowClose").onclick=()=>{box.innerHTML="";};
 }
 // ================= POP-QUIZ (flera per dag, kan ge minuspoäng) =================
 const POPQUIZ_RIGHT_PTS=2;
