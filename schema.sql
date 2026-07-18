@@ -131,6 +131,17 @@ create table if not exists trips (
   created_at timestamptz default now()
 );
 
+-- Förälders godkännande av en loggad syssla (för 🏠 Hemma-fliken): en godkänd syssla räknas mot
+-- veckopengen. chore_ref matchar logs.ref "chore:<key>:<datum>".
+create table if not exists chore_approvals (
+  id uuid primary key default gen_random_uuid(),
+  sailor_id uuid references sailors(id) on delete cascade,
+  chore_ref text not null,
+  approved_by uuid references sailors(id),
+  created_at timestamptz default now(),
+  unique(sailor_id, chore_ref)
+);
+
 -- En logg per sak och seglare (spots, hamnutmaningar, knopar, dagens quiz/minispel)
 create unique index if not exists one_per_sailor
   on logs (sailor_id, kind, ref)
@@ -154,6 +165,7 @@ alter table custom_spots enable row level security;
 alter table ideas enable row level security;
 alter table boat_positions enable row level security;
 alter table trips enable row level security;
+alter table chore_approvals enable row level security;
 
 create policy "anon read sailors"   on sailors for select to anon using (true);
 create policy "anon insert sailors" on sailors for insert to anon with check (true);
@@ -197,6 +209,8 @@ create policy "anon read trips"   on trips for select to anon using (true);
 create policy "anon insert trips" on trips for insert to anon with check (true);
 create policy "anon update trips" on trips for update to anon using (true) with check (true);
 create policy "anon delete trips" on trips for delete to anon using (true);
+
+create policy "chore_approvals_all" on chore_approvals for all to anon using (true) with check (true);
 
 -- Realtime så allas skärmar uppdateras direkt
 alter publication supabase_realtime add table logs;
